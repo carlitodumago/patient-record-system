@@ -25,10 +25,8 @@
       <!-- Day Cells for a 31-day month starting on Tuesday (like March 2022) -->
       <!-- Leading empty cells for previous month -->
       <div class="day-cell empty">
-         <span class="day-number">27</span>
       </div>
       <div class="day-cell empty">
-         <span class="day-number">28</span>
       </div>
       <!-- Days 1 to 31 -->
       <div class="day-cell">
