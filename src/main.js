@@ -37,6 +37,7 @@ const store = createStore({
     return {
       patients: [],
       currentPatient: null,
+      visits: [],
       isAuthenticated: false,
       user: null,
       users: getMockUsers(),
@@ -148,6 +149,25 @@ const store = createStore({
       
       // Save to localStorage
       saveNotifications(state.notifications);
+    },
+    // Visit mutations
+    setVisits(state, visits) {
+      state.visits = visits;
+    },
+    addVisit(state, visit) {
+      state.visits.push(visit);
+      localStorage.setItem('medicalVisits', JSON.stringify(state.visits));
+    },
+    updateVisit(state, updatedVisit) {
+      const index = state.visits.findIndex(v => v.id === updatedVisit.id);
+      if (index !== -1) {
+        state.visits[index] = updatedVisit;
+        localStorage.setItem('medicalVisits', JSON.stringify(state.visits));
+      }
+    },
+    deleteVisit(state, id) {
+      state.visits = state.visits.filter(v => v.id !== id);
+      localStorage.setItem('medicalVisits', JSON.stringify(state.visits));
     }
   },
   actions: {
@@ -158,6 +178,13 @@ const store = createStore({
         // Standardize all patient dates to MM-DD-YYYY format
         const patients = standardizePatientsList(JSON.parse(savedPatients));
         commit('setPatients', patients);
+      }
+    },
+    // Load visits from localStorage
+    loadVisits({ commit }) {
+      const savedVisits = localStorage.getItem('medicalVisits');
+      if (savedVisits) {
+        commit('setVisits', JSON.parse(savedVisits));
       }
     }
   }
@@ -177,6 +204,8 @@ if (storedUser) {
 
 // Load patients from localStorage on app start
 store.dispatch('loadPatients');
+// Load visits from localStorage on app start
+store.dispatch('loadVisits');
 
 // Create the app instance
 const app = createApp(App)
