@@ -197,6 +197,13 @@ const switchMode = (mode) => {
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value;
 };
+
+// Function to fill demo account credentials
+const fillDemoAccount = (username, password, role) => {
+  loginForm.username = username;
+  loginForm.password = password;
+  loginForm.role = role;
+};
 </script>
 
 <template>
@@ -280,7 +287,8 @@ const togglePasswordVisibility = () => {
               <div class="input-container">
                 <i class="bi bi-person-badge input-icon"></i>
                 <select id="login-role" v-model="loginForm.role" required>
-                  <option value="employee">Employee</option>
+                  <option value="clinical">Clinical Staff</option>
+                  <option value="admin">Administrator</option>
                   <option value="patient">Patient</option>
                 </select>
               </div>
@@ -300,6 +308,61 @@ const togglePasswordVisibility = () => {
           
           <div class="form-footer">
             <p>Don't have an account? <a href="#" @click.prevent="switchMode('register')">Register</a></p>
+          </div>
+          
+          <!-- Demo Accounts Section -->
+          <div class="demo-accounts">
+            <h4>Demo Accounts for Clinical Staff</h4>
+            <div class="demo-account-grid">
+              <div class="demo-account" @click="fillDemoAccount('doctor', 'doctor123', 'clinical')">
+                <div class="demo-account-header">
+                  <i class="bi bi-person-badge"></i>
+                  <span>Doctor</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> doctor<br>
+                  <strong>Password:</strong> doctor123<br>
+                  <strong>Role:</strong> Clinical Staff
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123', 'clinical')">
+                <div class="demo-account-header">
+                  <i class="bi bi-heart-pulse"></i>
+                  <span>Nurse</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> nurse<br>
+                  <strong>Password:</strong> nurse123<br>
+                  <strong>Role:</strong> Clinical Staff
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('receptionist', 'reception123', 'clinical')">
+                <div class="demo-account-header">
+                  <i class="bi bi-person-lines-fill"></i>
+                  <span>Receptionist</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> receptionist<br>
+                  <strong>Password:</strong> reception123<br>
+                  <strong>Role:</strong> Clinical Staff
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123', 'admin')">
+                <div class="demo-account-header">
+                  <i class="bi bi-shield-check"></i>
+                  <span>Admin</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> admin<br>
+                  <strong>Password:</strong> admin123<br>
+                  <strong>Role:</strong> Administrator
+                </div>
+              </div>
+            </div>
+            <p class="demo-note">Click any account to auto-fill the login form</p>
           </div>
         </div>
         
@@ -946,5 +1009,83 @@ input:focus, select:focus {
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Demo Accounts Section */
+.demo-accounts {
+  margin-top: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.demo-accounts h4 {
+  color: #495057;
+  font-size: 18px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.demo-account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.demo-account {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.demo-account:hover {
+  border-color: #4361ee;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.15);
+}
+
+.demo-account-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.demo-account-header i {
+  font-size: 18px;
+  color: #4361ee;
+}
+
+.demo-account-details {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+.demo-note {
+  text-align: center;
+  font-size: 12px;
+  color: #6c757d;
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .demo-account-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .demo-accounts {
+    margin-top: 20px;
+    padding: 15px;
+  }
 }
 </style> 

@@ -12,7 +12,7 @@ const router = useRouter();
 const patients = computed(() => store.state.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
-const viewMode = ref('card'); // 'card' or 'table'
+const viewMode = ref('table'); // 'card' or 'table'
 
 // Mock patient data for demonstration
 const mockPatients = [
@@ -154,14 +154,6 @@ const addNewPatient = () => {
       <div class="d-flex gap-2 animate-fade-in-right">
         <div class="btn-group me-2" role="group" aria-label="View options">
           <button 
-            @click="viewMode = 'card'" 
-            class="btn" 
-            :class="viewMode === 'card' ? 'btn-primary' : 'btn-outline-secondary'"
-            title="Card View"
-          >
-            <i class="bi bi-grid-3x3-gap"></i>
-          </button>
-          <button 
             @click="viewMode = 'table'" 
             class="btn" 
             :class="viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary'"
@@ -169,8 +161,16 @@ const addNewPatient = () => {
           >
             <i class="bi bi-table"></i>
           </button>
+          <button 
+            @click="viewMode = 'card'" 
+            class="btn" 
+            :class="viewMode === 'card' ? 'btn-primary' : 'btn-outline-secondary'"
+            title="Card View"
+          >
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
         </div>
-        <button @click="addNewPatient" class="btn btn-success animate-pulse">
+        <button @click="addNewPatient" class="btn btn-success">
           <i class="bi bi-plus-circle me-2"></i> Add New Patient
         </button>
       </div>

@@ -54,6 +54,7 @@ body.dark-mode [contenteditable],
   border-color: #666666 !important;
   border-width: 1px !important;
   text-shadow: none !important;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Light background for notes text */

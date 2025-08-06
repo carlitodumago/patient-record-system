@@ -102,13 +102,51 @@ const router = createRouter({
 
 // Navigation guard for auth protected routes
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('user') !== null
-  
+  try {
+    const storedUser = localStorage.getItem('user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const isAuthenticated = user !== null;
+    const role = user?.role;
+
+  // Define patient-only routes
+  const patientOnlyRoutes = [
+    '/records', '/visits', '/history', '/notifications', '/calendar', '/settings'
+  ];
+  // Define admin-only routes
+  const adminOnlyRoutes = ['/admin'];
+  // Define clinical staff routes (doctors, nurses, receptionists)
+  const clinicalStaffRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
+
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    next('/login')
+    next('/login');
+  } else if (to.meta.role && to.meta.role !== role) {
+    next('/login');
+  } else if (role === 'patient') {
+    // Redirect patient from /dashboard or /patients to /records
+    if (to.path === '/dashboard' || to.path === '/patients') {
+      next('/records');
+    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/login' && to.path !== '/register') {
+      // Prevent patient from accessing non-patient routes
+      next('/records');
+    } else {
+      next();
+    }
+  } else if (role === 'admin' && patientOnlyRoutes.includes(to.path)) {
+    // Admin can access all routes except patient-only routes
+    next('/dashboard');
+  } else if (role === 'clinical' && !clinicalStaffRoutes.includes(to.path)) {
+    // Clinical staff can only access clinical routes
+    next('/dashboard');
+  } else if (role === 'employee' && !clinicalStaffRoutes.includes(to.path)) {
+    // Legacy employee role - same access as clinical staff
+    next('/dashboard');
   } else {
-    next()
+    next();
   }
-})
+  } catch (error) {
+    console.error('Navigation guard error:', error);
+    next('/login');
+  }
+});
 
 export default router 

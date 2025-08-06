@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout.vue';
 import { onMounted } from 'vue';
 import { generateAnimationCSS } from './utils/animationUtils';
 import NotifyManager from './components/NotifyManager.vue';
+import ErrorBoundary from './components/ErrorBoundary.vue';
 
 // Apply dark mode on app initialization based on localStorage
 onMounted(() => {
@@ -51,10 +52,12 @@ const applyDarkMode = (isDarkMode) => {
 </script>
 
 <template>
-  <NotifyManager />
-  <MainLayout>
-    <router-view />
-  </MainLayout>
+  <ErrorBoundary>
+    <NotifyManager />
+    <MainLayout>
+      <router-view />
+    </MainLayout>
+  </ErrorBoundary>
 </template>
 
 <style>

@@ -238,6 +238,7 @@ onMounted(() => {
                     placeholder="Confirm your password"
                     required
                   />
+                  
                 </div>
               </div>
             </div>

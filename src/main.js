@@ -16,10 +16,16 @@ import { updateAutoLogout } from './utils/autoLogout'
 import { standardizePatientsList, standardizePatientDates } from './utils/dateUtils'
 import { loadNotifications, saveNotifications } from './utils/notificationUtils'
 
+// Apply animation CSS on app initialization
+import { generateAnimationCSS } from './utils/animationUtils'
+
 // Load mock users from localStorage if available
 const getMockUsers = () => {
   const defaultUsers = [
-    { username: 'admin', password: 'admin123', role: 'admin' }
+    { username: 'admin', password: 'admin123', role: 'admin' },
+    { username: 'doctor', password: 'doctor123', role: 'clinical', fullName: 'Dr. Sarah Johnson' },
+    { username: 'nurse', password: 'nurse123', role: 'clinical', fullName: 'Nurse Mike Chen' },
+    { username: 'receptionist', password: 'reception123', role: 'clinical', fullName: 'Receptionist Lisa Wang' }
   ];
   
   // Get registered users from localStorage
@@ -171,6 +177,7 @@ if (storedUser) {
     store.commit('setAuthenticated', true);
     store.commit('setUser', userData);
   } catch (e) {
+    console.error('Error parsing stored user data:', e);
     localStorage.removeItem('user');
   }
 }
@@ -181,18 +188,59 @@ store.dispatch('loadPatients');
 // Create the app instance
 const app = createApp(App)
 
+// Apply animation CSS
+try {
+  const animationCSS = generateAnimationCSS();
+  const style = document.createElement('style');
+  style.textContent = animationCSS;
+  document.head.appendChild(style);
+} catch (error) {
+  console.error('Error applying animation CSS:', error);
+}
+
 // Register the notification system globally
 app.config.globalProperties.$notify = (message, options = {}) => {
-  // This function will be properly defined when the NotifyManager component is mounted
-  console.log('Notification system not yet initialized');
-  return { close: () => {} };
+  try {
+    // This function will be properly defined when the NotifyManager component is mounted
+    console.log('Notification system not yet initialized');
+    return { close: () => {} };
+  } catch (error) {
+    console.error('Error in notification system:', error);
+    return { close: () => {} };
+  }
 };
 
 // Store app instance globally for notifications to work
 window.__VUE_APP_INSTANCE = app;
 
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('Global error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
+
 app.use(store)
 app.use(router)
 
 // Execute after app is mounted
-app.mount('#app')
+try {
+  app.mount('#app')
+} catch (error) {
+  console.error('Error mounting app:', error);
+  // Fallback: try to show error message
+  const appElement = document.getElementById('app');
+  if (appElement) {
+    appElement.innerHTML = `
+      <div style="padding: 20px; text-align: center; color: #d9534f;">
+        <h2>Application Error</h2>
+        <p>There was an error loading the application. Please refresh the page.</p>
+        <button onclick="location.reload()" style="padding: 10px 20px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Refresh Page
+        </button>
+      </div>
+    `;
+  }
+}
