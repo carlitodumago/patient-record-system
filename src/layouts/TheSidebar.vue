@@ -70,15 +70,21 @@ const closeSidebar = () => {
           <!-- Admin menu -->
           <template v-if="userRole === 'admin'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/admin" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
                 <i class="bi bi-person-badge me-2"></i>
                 <span v-if="!isSidebarCollapsed">Admin Dashboard</span>
                 <i v-if="!isSidebarCollapsed" class="bi bi-grid-fill ms-auto"></i>
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+                <i class="bi bi-clipboard2-pulse me-2"></i>
+                <span v-if="!isSidebarCollapsed">Medical Records</span>
+              </router-link>
+            </li>
           </template>
-          <!-- Clinical Staff menu (doctors, nurses, receptionists) -->
-          <template v-else-if="userRole === 'clinical'">
+          <!-- Nurse/Clinic Staff menu -->
+          <template v-else-if="userRole === 'nurse'">
             <li class="nav-item">
               <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
                 <i class="bi bi-briefcase-medical me-2"></i>
@@ -128,58 +134,13 @@ const closeSidebar = () => {
               </router-link>
             </li>
           </template>
-          <!-- Legacy Employee menu (for backward compatibility) -->
-          <template v-else-if="userRole === 'employee'">
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
-                <i class="bi bi-briefcase-medical me-2"></i>
-                <span v-if="!isSidebarCollapsed">Dashboard</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/patients" @click="closeSidebar">
-                <i class="bi bi-people me-2"></i>
-                <span v-if="!isSidebarCollapsed">Patient List</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
-                <i class="bi bi-clipboard2-pulse me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical Records</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
-                <i class="bi bi-calendar-check me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical Visits</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
-                <i class="bi bi-bell me-2"></i>
-                <span v-if="!isSidebarCollapsed">Notifications</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
-                <i class="bi bi-calendar me-2"></i>
-                <span v-if="!isSidebarCollapsed">Calendar</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/settings" @click="closeSidebar">
-                <i class="bi bi-gear me-2"></i>
-                <span v-if="!isSidebarCollapsed">Settings</span>
-              </router-link>
-            </li>
-          </template>
+          <!-- Removed legacy employee menu as it's no longer needed -->
           <!-- Patient menu -->
           <template v-else-if="userRole === 'patient'">
             <li class="nav-item">
               <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
-                
               </router-link>
             </li>
             <li class="nav-item">
@@ -419,4 +380,4 @@ const closeSidebar = () => {
     margin-left: auto; /* Push the last icon to the right */
 }
 
-</style> 
+</style>

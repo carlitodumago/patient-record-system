@@ -15,9 +15,9 @@ A modern, responsive web application for managing patient records, built with Vu
 
 ## Demo Credentials
 
-- **Admin:** username: `admin`, password: `admin123`
-- **Physician:** username: `physician`, password: `doctor123`
-- **Nurse:** username: `nurse`, password: `nurse123`
+- **Admin:** `admin` / `admin123`
+    - **Nurse/Clinic Staff:** `nurse` / `nurse123`
+    - **Patient:** `patient` / `patient123`
 
 ## Technology Stack
 

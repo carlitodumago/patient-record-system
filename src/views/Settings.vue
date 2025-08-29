@@ -16,8 +16,7 @@ const errorMessage = ref('');
 // Settings form data
 const settingsForm = ref({
   notifications: true,
-  autoLogout: 0,
-  darkMode: false
+  autoLogout: 0
 });
 
 // Auto logout options (in minutes)
@@ -29,40 +28,7 @@ const autoLogoutOptions = [
   { value: 0, label: 'Never' }
 ];
 
-// Apply dark mode
-const applyDarkMode = (isDarkMode) => {
-  const root = document.documentElement;
-  if (isDarkMode) {
-    root.classList.add('dark-mode');
-    // Apply dark mode CSS variables
-    root.style.setProperty('--background-color', '#121212');
-    root.style.setProperty('--text-color', '#e0e0e0');
-    root.style.setProperty('--light-color', '#1e1e1e');
-    root.style.setProperty('--dark-color', '#f8f9fa');
-    root.style.setProperty('--muted-color', '#a0a0a0'); // Muted text in dark mode
-    root.style.setProperty('--card-bg', '#2a2a2a'); // Card background in dark mode
-    root.style.setProperty('--input-bg', '#333333'); // Input background in dark mode
-    root.style.setProperty('--input-color', '#e0e0e0'); // Input text in dark mode
-    root.style.setProperty('--border-color', '#444444'); // Border color in dark mode
-  } else {
-    root.classList.remove('dark-mode');
-    // Reset to light mode CSS variables
-    root.style.setProperty('--background-color', '#f8f9fa');
-    root.style.setProperty('--text-color', '#212529');
-    root.style.setProperty('--light-color', '#f8f9fa'); 
-    root.style.setProperty('--dark-color', '#212529');
-    root.style.setProperty('--muted-color', '#6c757d'); // Bootstrap's text-muted color
-    root.style.setProperty('--card-bg', '#ffffff'); // Default card background
-    root.style.setProperty('--input-bg', '#ffffff'); // Default input background
-    root.style.setProperty('--input-color', '#212529'); // Default input text
-    root.style.setProperty('--border-color', '#ced4da'); // Default border color
-  }
-};
 
-// Watch for changes to dark mode setting and apply immediately
-watch(() => settingsForm.value.darkMode, (newValue) => {
-  applyDarkMode(newValue);
-});
 
 // Load settings
 onMounted(() => {
@@ -83,8 +49,7 @@ onMounted(() => {
           ...parsedSettings.settings
         };
         
-        // Apply dark mode setting on load
-        applyDarkMode(settingsForm.value.darkMode);
+
       }
     } catch (error) {
       console.error('Failed to parse settings:', error);
@@ -109,8 +74,7 @@ const saveSettings = () => {
       // Apply auto logout settings
       updateAutoLogout(store, router);
       
-      // Apply dark mode setting
-      applyDarkMode(settingsForm.value.darkMode);
+
       
       saveSuccess.value = true;
       setTimeout(() => {
@@ -128,8 +92,7 @@ const saveSettings = () => {
 const resetToDefault = () => {
   settingsForm.value = {
     notifications: true,
-    autoLogout: 0,
-    darkMode: false
+    autoLogout: 0
   };
 };
 </script>
@@ -468,4 +431,4 @@ const resetToDefault = () => {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

@@ -48,7 +48,20 @@ const routes = [
   {
     path: '/records',
     name: 'MedicalRecords',
-    component: () => import('../views/MedicalRecords.vue'),
+    component: () => {
+      // Dynamically import the correct component based on user role
+      const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { role: 'patient' };
+      const role = user.role || 'patient';
+      
+      // Map role to component path
+      if (role === 'admin') {
+        return import('../views/admin/MedicalRecords.vue');
+      } else if (role === 'nurse') {
+        return import('../views/nurse/MedicalRecords.vue');
+      } else {
+        return import('../views/patient/MedicalRecords.vue');
+      }
+    },
     meta: { requiresAuth: true }
   },
   {
@@ -84,7 +97,20 @@ const routes = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('../views/DashboardView.vue'),
+    component: () => {
+      // Dynamically import the correct component based on user role
+      const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { role: 'patient' };
+      const role = user.role || 'patient';
+      
+      // Map role to component path
+      if (role === 'admin') {
+        return import('../views/admin/DashboardView.vue');
+      } else if (role === 'nurse') {
+        return import('../views/nurse/DashboardView.vue');
+      } else {
+        return import('../views/patient/DashboardView.vue');
+      }
+    },
     meta: { requiresAuth: true }
   },
   // 404 Not Found route - should be the last route
@@ -110,35 +136,32 @@ router.beforeEach((to, from, next) => {
 
   // Define patient-only routes
   const patientOnlyRoutes = [
-    '/records', '/visits', '/history', '/notifications', '/calendar', '/settings'
+    '/dashboard', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings'
   ];
   // Define admin-only routes
   const adminOnlyRoutes = ['/admin'];
-  // Define clinical staff routes (doctors, nurses, receptionists)
-  const clinicalStaffRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
+  // Define nurse/clinic staff routes
+  const nurseRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
 
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
     next('/login');
   } else if (to.meta.role && to.meta.role !== role) {
     next('/login');
   } else if (role === 'patient') {
-    // Redirect patient from /dashboard or /patients to /records
-    if (to.path === '/dashboard' || to.path === '/patients') {
-      next('/records');
-    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/login' && to.path !== '/register') {
+    // Redirect patient from /patients to /dashboard
+    if (to.path === '/patients') {
+      next('/dashboard');
+    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login' && to.path !== '/register') {
       // Prevent patient from accessing non-patient routes
-      next('/records');
+      next('/dashboard');
     } else {
       next();
     }
   } else if (role === 'admin' && patientOnlyRoutes.includes(to.path)) {
     // Admin can access all routes except patient-only routes
     next('/dashboard');
-  } else if (role === 'clinical' && !clinicalStaffRoutes.includes(to.path)) {
-    // Clinical staff can only access clinical routes
-    next('/dashboard');
-  } else if (role === 'employee' && !clinicalStaffRoutes.includes(to.path)) {
-    // Legacy employee role - same access as clinical staff
+  } else if (role === 'nurse' && !nurseRoutes.includes(to.path)) {
+    // Nurse/clinic staff can only access nurse routes
     next('/dashboard');
   } else {
     next();
@@ -149,4 +172,4 @@ router.beforeEach((to, from, next) => {
   }
 });
 
-export default router 
+export default router

@@ -52,27 +52,8 @@ export default {
     const currentDate = ref(new Date())
     const selectedDate = ref(null)
     
-    // Sample events data - in a real app, this would come from an API
-    const events = ref([
-      { id: 1, date: '2025-01-15', time: '09:00 AM', patient: 'John Doe' },
-      { id: 2, date: '2025-01-15', time: '10:00 AM', patient: 'Jane Smith' },
-      { id: 3, date: '2025-01-15', time: '11:00 AM', patient: 'Michael Johnson' },
-      { id: 4, date: '2025-01-16', time: '01:00 PM', patient: 'Sarah Williams' },
-      { id: 5, date: '2025-01-16', time: '02:00 PM', patient: 'Mark Zacor' },
-      { id: 6, date: '2025-01-18', time: '08:00 AM', patient: 'John Doe' },
-      { id: 7, date: '2025-01-18', time: '10:00 AM', patient: 'Jane Smith' },
-      { id: 8, date: '2025-01-18', time: '02:30 PM', patient: 'Michael Johnson' },
-      { id: 9, date: '2025-01-22', time: '08:00 AM', patient: 'Sarah Williams' },
-      { id: 10, date: '2025-01-22', time: '01:00 PM', patient: 'Mark Zacor' },
-      { id: 11, date: '2025-01-23', time: '09:00 AM', patient: 'John Doe' },
-      { id: 12, date: '2025-01-23', time: '10:00 AM', patient: 'Jane Smith' },
-      { id: 13, date: '2025-01-24', time: '09:00 AM', patient: 'Michael Johnson' },
-      { id: 14, date: '2025-01-24', time: '11:00 AM', patient: 'Sarah Williams' },
-      { id: 15, date: '2025-01-25', time: '09:00 AM', patient: 'Mark Zacor' },
-      { id: 16, date: '2025-01-25', time: '01:00 PM', patient: 'John Doe' },
-      { id: 17, date: '2025-01-26', time: '10:00 AM', patient: 'Jane Smith' },
-      { id: 18, date: '2025-01-26', time: '02:00 PM', patient: 'Michael Johnson' }
-    ])
+    // Sample events data - cleared all appointments
+    const events = ref([])
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -447,4 +428,4 @@ export default {
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
 }
-</style> 
+</style>

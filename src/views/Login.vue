@@ -11,7 +11,7 @@ const route = useRoute();
 const loginForm = reactive({
   username: '',
   password: '',
-  role: 'employee',
+  // role removed as it's now automatically determined
 });
 
 // Register form data
@@ -19,7 +19,7 @@ const registerForm = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  role: 'admin',
+  role: 'patient', // Default role set to patient
   fullName: '',
   email: '',
 });
@@ -80,15 +80,17 @@ const login = () => {
   
   // Simulate API call delay
   setTimeout(() => {
+    // Find user by username and password only, without checking role
     const user = users.value.find(
-      u => u.username === loginForm.username && u.password === loginForm.password && u.role === loginForm.role
+      u => u.username.toLowerCase() === loginForm.username.toLowerCase() && 
+          u.password === loginForm.password
     );
     
     if (user) {
       // In a real app, you would store a token received from the server
       const userData = {
         username: user.username,
-        role: user.role,
+        role: user.role, // Role is automatically determined from the user object
         fullName: user.fullName || user.username,
         token: 'mock-jwt-token'
       };
@@ -97,7 +99,7 @@ const login = () => {
       store.commit('setAuthenticated', true);
       store.commit('setUser', userData);
       
-      router.push('/patients');
+      router.push('/dashboard');
     } else {
       errorMessage.value = 'Invalid username or password';
     }
@@ -199,10 +201,10 @@ const togglePasswordVisibility = () => {
 };
 
 // Function to fill demo account credentials
-const fillDemoAccount = (username, password, role) => {
-  loginForm.username = username;
+const fillDemoAccount = (username, password) => {
+  loginForm.username = username.toLowerCase();
   loginForm.password = password;
-  loginForm.role = role;
+  // role parameter removed as it's now automatically determined
 };
 </script>
 
@@ -282,17 +284,7 @@ const fillDemoAccount = (username, password, role) => {
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="login-role">Role</label>
-              <div class="input-container">
-                <i class="bi bi-person-badge input-icon"></i>
-                <select id="login-role" v-model="loginForm.role" required>
-                  <option value="clinical">Clinical Staff</option>
-                  <option value="admin">Administrator</option>
-                  <option value="patient">Patient</option>
-                </select>
-              </div>
-            </div>
+            <!-- Role selection removed - role is now automatically determined -->
             
             <div class="form-button">
               <button 
@@ -312,45 +304,9 @@ const fillDemoAccount = (username, password, role) => {
           
           <!-- Demo Accounts Section -->
           <div class="demo-accounts">
-            <h4>Demo Accounts for Clinical Staff</h4>
+            <h4>Demo Accounts</h4>
             <div class="demo-account-grid">
-              <div class="demo-account" @click="fillDemoAccount('doctor', 'doctor123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-person-badge"></i>
-                  <span>Doctor</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> doctor<br>
-                  <strong>Password:</strong> doctor123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-heart-pulse"></i>
-                  <span>Nurse</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> nurse<br>
-                  <strong>Password:</strong> nurse123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('receptionist', 'reception123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-person-lines-fill"></i>
-                  <span>Receptionist</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> receptionist<br>
-                  <strong>Password:</strong> reception123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123', 'admin')">
+              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123')">
                 <div class="demo-account-header">
                   <i class="bi bi-shield-check"></i>
                   <span>Admin</span>
@@ -359,6 +315,30 @@ const fillDemoAccount = (username, password, role) => {
                   <strong>Username:</strong> admin<br>
                   <strong>Password:</strong> admin123<br>
                   <strong>Role:</strong> Administrator
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123')">
+                <div class="demo-account-header">
+                  <i class="bi bi-heart-pulse"></i>
+                  <span>Nurse</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> nurse<br>
+                  <strong>Password:</strong> nurse123<br>
+                  <strong>Role:</strong> Nurse/Clinic Staff
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('patient', 'patient123')">
+                <div class="demo-account-header">
+                  <i class="bi bi-person"></i>
+                  <span>Patient</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> patient<br>
+                  <strong>Password:</strong> patient123<br>
+                  <strong>Role:</strong> Patient
                 </div>
               </div>
             </div>
@@ -447,7 +427,8 @@ const fillDemoAccount = (username, password, role) => {
               <div class="input-container">
                 <i class="bi bi-person-badge input-icon"></i>
                 <select id="register-role" v-model="registerForm.role" required>
-                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                  <option value="nurse">Nurse/Clinic Staff</option>
                   <option value="patient">Patient</option>
                 </select>
               </div>
@@ -1088,4 +1069,4 @@ input:focus, select:focus {
     padding: 15px;
   }
 }
-</style> 
+</style>

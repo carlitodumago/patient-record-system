@@ -5,50 +5,7 @@ import { generateAnimationCSS } from './utils/animationUtils';
 import NotifyManager from './components/NotifyManager.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
 
-// Apply dark mode on app initialization based on localStorage
-onMounted(() => {
-  const savedSettings = localStorage.getItem('userSettings');
-  if (savedSettings) {
-    try {
-      const parsedSettings = JSON.parse(savedSettings);
-      if (parsedSettings.settings && parsedSettings.settings.darkMode) {
-        applyDarkMode(true);
-      }
-    } catch (error) {
-      console.error('Failed to parse settings:', error);
-    }
-  }
-});
 
-// Function to apply dark mode 
-const applyDarkMode = (isDarkMode) => {
-  const root = document.documentElement;
-  if (isDarkMode) {
-    root.classList.add('dark-mode');
-    // Apply dark mode CSS variables
-    root.style.setProperty('--background-color', '#121212');
-    root.style.setProperty('--text-color', '#e0e0e0');
-    root.style.setProperty('--light-color', '#1e1e1e');
-    root.style.setProperty('--dark-color', '#f8f9fa');
-    root.style.setProperty('--muted-color', '#a0a0a0');
-    root.style.setProperty('--card-bg', '#2a2a2a');
-    root.style.setProperty('--input-bg', '#333333');
-    root.style.setProperty('--input-color', '#e0e0e0');
-    root.style.setProperty('--border-color', '#444444');
-  } else {
-    root.classList.remove('dark-mode');
-    // Reset to light mode CSS variables
-    root.style.setProperty('--background-color', '#f8f9fa');
-    root.style.setProperty('--text-color', '#212529');
-    root.style.setProperty('--light-color', '#f8f9fa'); 
-    root.style.setProperty('--dark-color', '#212529');
-    root.style.setProperty('--muted-color', '#6c757d');
-    root.style.setProperty('--card-bg', '#ffffff');
-    root.style.setProperty('--input-bg', '#ffffff');
-    root.style.setProperty('--input-color', '#212529');
-    root.style.setProperty('--border-color', '#ced4da');
-  }
-};
 </script>
 
 <template>
@@ -195,54 +152,7 @@ body {
   color: var(--input-color);
 }
 
-/* Improve dark mode form visibility */
-.dark-mode .form-control, 
-.dark-mode .form-select {
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
 
-.dark-mode .form-control:focus, 
-.dark-mode .form-select:focus {
-  border-color: var(--primary-gradient-start);
-  box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.4);
-  background-color: rgba(67, 97, 238, 0.1);
-}
-
-.dark-mode input:not([type="checkbox"]):not([type="radio"]), 
-.dark-mode select, 
-.dark-mode textarea {
-  color-scheme: dark;
-}
-
-/* Dropdown styling for better visibility */
-.dark-mode select, 
-.dark-mode .form-select {
-  background-color: #333333;
-  color: white;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Dropdown options styling */
-.dark-mode select option, 
-.dark-mode .form-select option {
-  background-color: #333333;
-  color: white;
-}
-
-/* Ensure visible dropdown item selection */
-.dark-mode select option:checked,
-.dark-mode .form-select option:checked {
-  background-color: #4361ee;
-  color: white;
-}
-
-.dark-mode select option:hover,
-.dark-mode .form-select option:hover {
-  background-color: #4361ee;
-  color: white;
-}
 
 .form-label {
   font-size: var(--base-font-size);
@@ -307,23 +217,6 @@ body {
   border-color: var(--primary-gradient-start) !important;
 }
 
-/* Dark mode focus state */
-.dark-mode input:focus,
-.dark-mode textarea:focus,
-.dark-mode select:focus {
-  outline: none !important;
-  border-color: #4361ee !important;
-  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.3) !important;
-}
-
-/* Strong notes field contrast fix */
-.dark-mode textarea,
-.dark-mode [contenteditable="true"] {
-  color: #ffffff !important;
-  background-color: #1e1e1e !important;
-  caret-color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-}
 
 /* Animation */
 @keyframes fadeIn {
@@ -355,29 +248,7 @@ h6, .h6 { font-size: calc(1rem * var(--font-scale)); }
   font-size: var(--font-size-lg);
 }
 
-/* Direct notes override for maximum visibility */
-.dark-mode textarea[placeholder*="note"],
-.dark-mode textarea#notes,
-.dark-mode textarea.notes,
-.dark-mode *[contenteditable="true"] {
-  color: white !important;
-  background-color: #2d2d2d !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  padding: 8px !important;
-}
 
-/* Enhanced dark mode input styling */
-.dark-mode input[type="text"],
-.dark-mode input[type="email"],
-.dark-mode input[type="tel"],
-.dark-mode input[type="number"],
-.dark-mode input[type="date"],
-.dark-mode input[type="password"],
-.dark-mode textarea {
-  background-color: #2a2a2a !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-}
 
 /* Animation styles using spline curves */
 @keyframes fadeIn {
@@ -535,8 +406,4 @@ h6, .h6 { font-size: calc(1rem * var(--font-scale)); }
   opacity: 0;
   transform: translateY(-20px);
 }
-</style>
-
-<style>
-@import './assets/darkmode-fix.css';
 </style>
