@@ -129,43 +129,37 @@ const router = createRouter({
 // Navigation guard for auth protected routes
 router.beforeEach((to, from, next) => {
   try {
+    // Allow access to login and register routes without authentication
+    if (to.path === '/login' || to.path === '/register') {
+      return next();
+    }
+
     const storedUser = localStorage.getItem('user');
     const user = storedUser ? JSON.parse(storedUser) : null;
     const isAuthenticated = user !== null;
     const role = user?.role;
 
-  // Define patient-only routes
-  const patientOnlyRoutes = [
-    '/dashboard', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings'
-  ];
-  // Define admin-only routes
-  const adminOnlyRoutes = ['/admin'];
-  // Define nurse/clinic staff routes
-  const nurseRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
-
-  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    next('/login');
-  } else if (to.meta.role && to.meta.role !== role) {
-    next('/login');
-  } else if (role === 'patient') {
-    // Redirect patient from /patients to /dashboard
-    if (to.path === '/patients') {
-      next('/dashboard');
-    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login' && to.path !== '/register') {
-      // Prevent patient from accessing non-patient routes
-      next('/dashboard');
-    } else {
-      next();
+    // If route requires auth and user is not authenticated, redirect to login
+    if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
+      return next('/login');
     }
-  } else if (role === 'admin' && patientOnlyRoutes.includes(to.path)) {
-    // Admin can access all routes except patient-only routes
-    next('/dashboard');
-  } else if (role === 'nurse' && !nurseRoutes.includes(to.path)) {
-    // Nurse/clinic staff can only access nurse routes
-    next('/dashboard');
-  } else {
+
+    // Define route access by role
+    const routeAccess = {
+      patient: ['/dashboard', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings', '/profile'],
+      admin: ['/dashboard', '/patients', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings', '/profile'],
+      nurse: ['/dashboard', '/patients', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings', '/profile']
+    };
+
+    // Get allowed routes for user's role
+    const allowedRoutes = routeAccess[role] || [];
+
+    // Check if user has access to requested route
+    if (!allowedRoutes.includes(to.path)) {
+      return next('/dashboard');
+    }
+
     next();
-  }
   } catch (error) {
     console.error('Navigation guard error:', error);
     next('/login');
