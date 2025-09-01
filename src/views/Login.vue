@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
+import { authService } from '../services/api';
 
 const store = useStore();
 const router = useRouter();
@@ -11,7 +12,7 @@ const route = useRoute();
 const loginForm = reactive({
   username: '',
   password: '',
-  role: 'employee',
+  // role removed as it's now automatically determined
 });
 
 // Register form data
@@ -19,7 +20,7 @@ const registerForm = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  role: 'admin',
+  role: 'patient', // Default role set to patient
   fullName: '',
   email: '',
 });
@@ -67,7 +68,7 @@ onMounted(() => {
 });
 
 // Login function
-const login = () => {
+const login = async () => {
   errorMessage.value = '';
   successMessage.value = '';
   
@@ -78,36 +79,27 @@ const login = () => {
 
   isLoading.value = true;
   
-  // Simulate API call delay
-  setTimeout(() => {
-    const user = users.value.find(
-      u => u.username === loginForm.username && u.password === loginForm.password && u.role === loginForm.role
-    );
+  try {
+    // Use the auth service to login
+    const userData = await authService.login({
+      username: loginForm.username,
+      password: loginForm.password
+    });
     
-    if (user) {
-      // In a real app, you would store a token received from the server
-      const userData = {
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName || user.username,
-        token: 'mock-jwt-token'
-      };
-      
-      localStorage.setItem('user', JSON.stringify(userData));
-      store.commit('setAuthenticated', true);
-      store.commit('setUser', userData);
-      
-      router.push('/patients');
-    } else {
-      errorMessage.value = 'Invalid username or password';
-    }
+    // Update store with user data
+    store.commit('setAuthenticated', true);
+    store.commit('setUser', userData);
     
+    router.push('/dashboard');
+  } catch (error) {
+    errorMessage.value = error.message || 'Invalid username or password';
+  } finally {
     isLoading.value = false;
-  }, 800);
+  }
 };
 
 // Register function
-const register = () => {
+const register = async () => {
   // Clear any previous error
   errorMessage.value = '';
   successMessage.value = '';
@@ -130,37 +122,33 @@ const register = () => {
   
   isLoading.value = true;
   
-  // Simulate API call delay
-  setTimeout(() => {
-    // Check if username already exists
-    const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const userExists = existingUsers.some(user => user.username === registerForm.username);
-    
-    if (userExists) {
-      errorMessage.value = 'Username already exists';
-      isLoading.value = false;
-      return;
-    }
-    
-    // Add the new user
+  try {
+    // Use the auth service to register
     const newUser = {
       username: registerForm.username,
-      password: registerForm.password, // In a real app, this would be hashed
+      password: registerForm.password,
       role: registerForm.role,
       fullName: registerForm.fullName,
       email: registerForm.email
     };
     
-    existingUsers.push(newUser);
-    localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+    await authService.register(newUser);
     
-    // Add to mock users in store
+    // Add to mock users in store (this would normally be handled by the server)
     store.commit('addUser', newUser);
     
-    // Start success animation
+    // Show success message
     successMessage.value = 'Registration successful! You can now log in.';
+    
+    // Switch to login mode after successful registration
+    setTimeout(() => {
+      switchMode('login');
+    }, 1500);
+  } catch (error) {
+    errorMessage.value = error.message || 'Registration failed';
+  } finally {
     isLoading.value = false;
-  }, 1000);
+  }
 };
 
 // Switch between login and register modes
@@ -199,10 +187,10 @@ const togglePasswordVisibility = () => {
 };
 
 // Function to fill demo account credentials
-const fillDemoAccount = (username, password, role) => {
-  loginForm.username = username;
+const fillDemoAccount = (username, password) => {
+  loginForm.username = username.toLowerCase();
   loginForm.password = password;
-  loginForm.role = role;
+  // role parameter removed as it's now automatically determined
 };
 </script>
 
@@ -259,8 +247,7 @@ const fillDemoAccount = (username, password, role) => {
               </div>
             </div>
             
-            <!-- New Role Select for Login -->
-            
+            <!-- Role selection removed - role is now automatically determined -->
             
             <div class="form-group">
               <label for="password">Password</label>
@@ -282,17 +269,7 @@ const fillDemoAccount = (username, password, role) => {
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="login-role">Role</label>
-              <div class="input-container">
-                <i class="bi bi-person-badge input-icon"></i>
-                <select id="login-role" v-model="loginForm.role" required>
-                  <option value="clinical">Clinical Staff</option>
-                  <option value="admin">Administrator</option>
-                  <option value="patient">Patient</option>
-                </select>
-              </div>
-            </div>
+            <!-- Role selection removed - role is now automatically determined -->
             
             <div class="form-button">
               <button 
@@ -312,45 +289,9 @@ const fillDemoAccount = (username, password, role) => {
           
           <!-- Demo Accounts Section -->
           <div class="demo-accounts">
-            <h4>Demo Accounts for Clinical Staff</h4>
+            <h4>Demo Accounts</h4>
             <div class="demo-account-grid">
-              <div class="demo-account" @click="fillDemoAccount('doctor', 'doctor123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-person-badge"></i>
-                  <span>Doctor</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> doctor<br>
-                  <strong>Password:</strong> doctor123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-heart-pulse"></i>
-                  <span>Nurse</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> nurse<br>
-                  <strong>Password:</strong> nurse123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('receptionist', 'reception123', 'clinical')">
-                <div class="demo-account-header">
-                  <i class="bi bi-person-lines-fill"></i>
-                  <span>Receptionist</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> receptionist<br>
-                  <strong>Password:</strong> reception123<br>
-                  <strong>Role:</strong> Clinical Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123', 'admin')">
+              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123')">
                 <div class="demo-account-header">
                   <i class="bi bi-shield-check"></i>
                   <span>Admin</span>
@@ -359,6 +300,30 @@ const fillDemoAccount = (username, password, role) => {
                   <strong>Username:</strong> admin<br>
                   <strong>Password:</strong> admin123<br>
                   <strong>Role:</strong> Administrator
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123')">
+                <div class="demo-account-header">
+                  <i class="bi bi-heart-pulse"></i>
+                  <span>Nurse</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> nurse<br>
+                  <strong>Password:</strong> nurse123<br>
+                  <strong>Role:</strong> Nurse/Clinic Staff
+                </div>
+              </div>
+              
+              <div class="demo-account" @click="fillDemoAccount('patient', 'patient123')">
+                <div class="demo-account-header">
+                  <i class="bi bi-person"></i>
+                  <span>Patient</span>
+                </div>
+                <div class="demo-account-details">
+                  <strong>Username:</strong> patient<br>
+                  <strong>Password:</strong> patient123<br>
+                  <strong>Role:</strong> Patient
                 </div>
               </div>
             </div>
@@ -447,7 +412,8 @@ const fillDemoAccount = (username, password, role) => {
               <div class="input-container">
                 <i class="bi bi-person-badge input-icon"></i>
                 <select id="register-role" v-model="registerForm.role" required>
-                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                  <option value="nurse">Nurse/Clinic Staff</option>
                   <option value="patient">Patient</option>
                 </select>
               </div>
@@ -1088,4 +1054,4 @@ input:focus, select:focus {
     padding: 15px;
   }
 }
-</style> 
+</style>

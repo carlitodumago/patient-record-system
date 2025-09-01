@@ -22,10 +22,9 @@ import { generateAnimationCSS } from './utils/animationUtils'
 // Load mock users from localStorage if available
 const getMockUsers = () => {
   const defaultUsers = [
-    { username: 'admin', password: 'admin123', role: 'admin' },
-    { username: 'doctor', password: 'doctor123', role: 'clinical', fullName: 'Dr. Sarah Johnson' },
-    { username: 'nurse', password: 'nurse123', role: 'clinical', fullName: 'Nurse Mike Chen' },
-    { username: 'receptionist', password: 'reception123', role: 'clinical', fullName: 'Receptionist Lisa Wang' }
+    { username: 'admin', password: 'admin123', role: 'admin', fullName: 'Admin User' },
+    { username: 'nurse', password: 'nurse123', role: 'nurse', fullName: 'Nurse Mike Chen' },
+    { username: 'patient', password: 'patient123', role: 'patient', fullName: 'Patient John Doe' }
   ];
   
   // Get registered users from localStorage
@@ -36,6 +35,8 @@ const getMockUsers = () => {
     regUser => !defaultUsers.some(defaultUser => defaultUser.username === regUser.username)
   )];
 };
+
+console.log('Loaded users:', getMockUsers());
 
 // Create Vuex store
 const store = createStore({

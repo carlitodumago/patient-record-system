@@ -173,22 +173,5 @@ const closeDialog = () => {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Dark mode support */
-:global(.dark-mode) .confirmation-dialog {
-  background-color: #252525;
-  color: white;
-}
 
-:global(.dark-mode) .confirmation-dialog-header,
-:global(.dark-mode) .confirmation-dialog-footer {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-:global(.dark-mode) .close-btn {
-  color: #adb5bd;
-}
-
-:global(.dark-mode) .close-btn:hover {
-  color: #ced4da;
-}
-</style> 
+</style>
