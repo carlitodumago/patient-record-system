@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
+import { authService } from '../services/api';
 
 const store = useStore();
 const router = useRouter();
@@ -67,7 +68,7 @@ onMounted(() => {
 });
 
 // Login function
-const login = () => {
+const login = async () => {
   errorMessage.value = '';
   successMessage.value = '';
   
@@ -78,38 +79,27 @@ const login = () => {
 
   isLoading.value = true;
   
-  // Simulate API call delay
-  setTimeout(() => {
-    // Find user by username and password only, without checking role
-    const user = users.value.find(
-      u => u.username.toLowerCase() === loginForm.username.toLowerCase() && 
-          u.password === loginForm.password
-    );
+  try {
+    // Use the auth service to login
+    const userData = await authService.login({
+      username: loginForm.username,
+      password: loginForm.password
+    });
     
-    if (user) {
-      // In a real app, you would store a token received from the server
-      const userData = {
-        username: user.username,
-        role: user.role, // Role is automatically determined from the user object
-        fullName: user.fullName || user.username,
-        token: 'mock-jwt-token'
-      };
-      
-      localStorage.setItem('user', JSON.stringify(userData));
-      store.commit('setAuthenticated', true);
-      store.commit('setUser', userData);
-      
-      router.push('/dashboard');
-    } else {
-      errorMessage.value = 'Invalid username or password';
-    }
+    // Update store with user data
+    store.commit('setAuthenticated', true);
+    store.commit('setUser', userData);
     
+    router.push('/dashboard');
+  } catch (error) {
+    errorMessage.value = error.message || 'Invalid username or password';
+  } finally {
     isLoading.value = false;
-  }, 800);
+  }
 };
 
 // Register function
-const register = () => {
+const register = async () => {
   // Clear any previous error
   errorMessage.value = '';
   successMessage.value = '';
@@ -132,37 +122,33 @@ const register = () => {
   
   isLoading.value = true;
   
-  // Simulate API call delay
-  setTimeout(() => {
-    // Check if username already exists
-    const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const userExists = existingUsers.some(user => user.username === registerForm.username);
-    
-    if (userExists) {
-      errorMessage.value = 'Username already exists';
-      isLoading.value = false;
-      return;
-    }
-    
-    // Add the new user
+  try {
+    // Use the auth service to register
     const newUser = {
       username: registerForm.username,
-      password: registerForm.password, // In a real app, this would be hashed
+      password: registerForm.password,
       role: registerForm.role,
       fullName: registerForm.fullName,
       email: registerForm.email
     };
     
-    existingUsers.push(newUser);
-    localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+    await authService.register(newUser);
     
-    // Add to mock users in store
+    // Add to mock users in store (this would normally be handled by the server)
     store.commit('addUser', newUser);
     
-    // Start success animation
+    // Show success message
     successMessage.value = 'Registration successful! You can now log in.';
+    
+    // Switch to login mode after successful registration
+    setTimeout(() => {
+      switchMode('login');
+    }, 1500);
+  } catch (error) {
+    errorMessage.value = error.message || 'Registration failed';
+  } finally {
     isLoading.value = false;
-  }, 1000);
+  }
 };
 
 // Switch between login and register modes
@@ -261,8 +247,7 @@ const fillDemoAccount = (username, password) => {
               </div>
             </div>
             
-            <!-- New Role Select for Login -->
-            
+            <!-- Role selection removed - role is now automatically determined -->
             
             <div class="form-group">
               <label for="password">Password</label>

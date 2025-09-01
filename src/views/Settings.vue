@@ -30,6 +30,8 @@ const autoLogoutOptions = [
 
 
 
+
+
 // Load settings
 onMounted(() => {
   if (!user.value) {
@@ -49,7 +51,7 @@ onMounted(() => {
           ...parsedSettings.settings
         };
         
-
+        // Apply settings
       }
     } catch (error) {
       console.error('Failed to parse settings:', error);
@@ -128,27 +130,9 @@ const resetToDefault = () => {
           </div>
           <div class="card-body">
             <div class="preferences-section">
-              <!-- Dark Mode toggle -->
-              <div class="preference-item mb-4">
-                <div class="preference-item-header">
-                  <div class="toggle-label">
-                    <label class="form-check-label mb-0 d-flex align-items-center" for="darkMode">
-                      <span>Dark Mode</span>
-                    </label>
-                  </div>
-                  <div class="form-check form-switch m-0">
-                    <input 
-                      type="checkbox" 
-                      class="form-check-input" 
-                      id="darkMode"
-                      v-model="settingsForm.darkMode"
-                    >
-                  </div>
-                </div>
-                <div class="text-muted mt-2 preference-description">
-                  Switch between light and dark theme for better visibility in low-light environments.
-                </div>
-              </div>
+              <!-- Preferences Section -->
+              
+              <!-- Notifications toggle -->
             
               <div class="preference-item mb-4">
                 <div class="preference-item-header">
