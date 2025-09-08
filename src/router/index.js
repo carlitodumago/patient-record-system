@@ -139,38 +139,108 @@ router.beforeEach((to, from, next) => {
     const isAuthenticated = user !== null;
     const role = user?.role;
 
-  // Define patient-only routes
-  const patientOnlyRoutes = [
-    '/dashboard', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings'
-  ];
-  // Define admin-only routes
-  const adminOnlyRoutes = ['/admin'];
-  // Define nurse/clinic staff routes
-  const nurseRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
+    // Public routes that don't require authentication
+    const publicRoutes = ['/login', '/register', '/register-patient'];
+    
+    // Define role-specific routes
+    const patientRoutes = [
+      '/dashboard', '/records', '/visits', '/history', '/notifications', '/calendar', '/settings', '/profile'
+    ];
+    
+    const adminRoutes = [
+      '/dashboard', '/admin', '/records', '/settings', '/profile'
+    ];
+    
+    const nurseRoutes = [
+      '/dashboard', '/patients', '/patients/new', '/patients/:id', '/patients/:id/edit',
+      '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/profile'
+    ];
 
-  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    next('/login');
-  } else if (to.meta.role && to.meta.role !== role) {
-    next('/login');
-  } else if (role === 'patient') {
-    // Redirect patient from /patients to /dashboard
-    if (to.path === '/patients') {
-      next('/dashboard');
-    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login' && to.path !== '/register') {
-      // Prevent patient from accessing non-patient routes
-      next('/dashboard');
-    } else {
-      next();
+    // Check if route requires authentication
+    if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
+      next('/login');
+      return;
     }
-  } else if (role === 'admin' && patientOnlyRoutes.includes(to.path)) {
-    // Admin can access all routes except patient-only routes
-    next('/dashboard');
-  } else if (role === 'nurse' && !nurseRoutes.includes(to.path)) {
-    // Nurse/clinic staff can only access nurse routes
-    next('/dashboard');
-  } else {
-    next();
-  }
+    
+    // If route has specific role requirement
+    if (to.meta.role && to.meta.role !== role) {
+      next('/login');
+      return;
+    }
+    
+    // If public route, allow access
+    if (publicRoutes.includes(to.path)) {
+      next();
+      return;
+    }
+    
+    // Role-based access control
+    if (isAuthenticated) {
+      // For patient role
+      if (role === 'patient') {
+        // Check if the route path matches any pattern in patientRoutes
+        const isPatientRoute = patientRoutes.some(route => {
+          // Handle dynamic routes with parameters
+          if (route.includes(':')) {
+            const pattern = new RegExp('^' + route.replace(/:\w+/g, '[^/]+') + '$');
+            return pattern.test(to.path);
+          }
+          return to.path === route;
+        });
+        
+        if (isPatientRoute) {
+          next();
+        } else {
+          console.log('Patient trying to access unauthorized route:', to.path);
+          next('/dashboard');
+        }
+      }
+      // For admin role
+      else if (role === 'admin') {
+        // Check if the route path matches any pattern in adminRoutes
+        const isAdminRoute = adminRoutes.some(route => {
+          // Handle dynamic routes with parameters
+          if (route.includes(':')) {
+            const pattern = new RegExp('^' + route.replace(/:\w+/g, '[^/]+') + '$');
+            return pattern.test(to.path);
+          }
+          return to.path === route;
+        });
+        
+        if (isAdminRoute) {
+          next();
+        } else {
+          console.log('Admin trying to access unauthorized route:', to.path);
+          next('/dashboard');
+        }
+      }
+      // For nurse/clinic staff role
+      else if (role === 'nurse') {
+        // Check if the route path matches any pattern in nurseRoutes
+        const isNurseRoute = nurseRoutes.some(route => {
+          // Handle dynamic routes with parameters
+          if (route.includes(':')) {
+            const pattern = new RegExp('^' + route.replace(/:\w+/g, '[^/]+') + '$');
+            return pattern.test(to.path);
+          }
+          return to.path === route;
+        });
+        
+        if (isNurseRoute) {
+          next();
+        } else {
+          console.log('Nurse trying to access unauthorized route:', to.path);
+          next('/dashboard');
+        }
+      }
+      // Default fallback
+      else {
+        next('/login');
+      }
+    } else {
+      // Not authenticated and not a public route
+      next('/login');
+    }
   } catch (error) {
     console.error('Navigation guard error:', error);
     next('/login');

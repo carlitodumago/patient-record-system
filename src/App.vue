@@ -1,11 +1,25 @@
 <script setup>
 import MainLayout from './layouts/MainLayout.vue';
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { generateAnimationCSS } from './utils/animationUtils';
 import NotifyManager from './components/NotifyManager.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
+import socketService from './services/socket';
+import { useUserStore } from './stores/user';
 
+const userStore = useUserStore();
 
+onMounted(() => {
+  // Initialize socket connection if user is authenticated
+  if (userStore.isAuthenticated) {
+    socketService.initialize();
+  }
+});
+
+onUnmounted(() => {
+  // Disconnect socket when component is unmounted
+  socketService.disconnect();
+});
 </script>
 
 <template>
@@ -40,16 +54,36 @@ import ErrorBoundary from './components/ErrorBoundary.vue';
   --input-color: #212529;
   --border-color: #ced4da;
   
+  /* Font size variables */
+  --base-font-size: 18px;
+  --font-scale: 1;
+  --font-size-sm: calc(var(--base-font-size) * 0.875);
+  --font-size-lg: calc(var(--base-font-size) * 1.25);
+  --font-size-xl: calc(var(--base-font-size) * 1.5);
   --heading-font-weight: 600;
   --text-line-height: 1.5;
+}
+
+/* Dark mode overrides */
+.dark-mode {
+  --text-color: #e0e0e0;
+  --background-color: #121212;
+  --light-color: #1e1e1e;
+  --dark-color: #f8f9fa;
+  --muted-color: #a0a0a0;
+  --card-bg: #2a2a2a;
+  --input-bg: #333333;
+  --input-color: #e0e0e0;
+  --border-color: #444444;
 }
 
 body {
   background-color: var(--background-color);
   font-family: 'Poppins', sans-serif;
   color: var(--text-color);
+  font-size: var(--base-font-size);
   line-height: var(--text-line-height);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease;
 }
 
 /* Card style enhancements */
@@ -176,7 +210,26 @@ body {
   opacity: 1;
 }
 
+.dark-mode ::placeholder {
+  color: rgba(200, 200, 200, 0.7) !important;
+}
 
+/* Notes and textarea specific styling */
+.dark-mode textarea,
+.dark-mode [aria-label="notes"],
+.dark-mode .notes-field {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark-mode textarea:focus,
+.dark-mode [aria-label="notes"]:focus,
+.dark-mode .notes-field:focus {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border-color: var(--primary-gradient-start) !important;
+}
 
 
 /* Animation */
@@ -190,12 +243,12 @@ body {
 }
 
 /* Font Size Adjustments */
-h1, .h1 { font-size: 2.5rem; }
-h2, .h2 { font-size: 2rem; }
-h3, .h3 { font-size: 1.75rem; }
-h4, .h4 { font-size: 1.5rem; }
-h5, .h5 { font-size: 1.25rem; }
-h6, .h6 { font-size: 1rem; }
+h1, .h1 { font-size: calc(2.5rem * var(--font-scale)); }
+h2, .h2 { font-size: calc(2rem * var(--font-scale)); }
+h3, .h3 { font-size: calc(1.75rem * var(--font-scale)); }
+h4, .h4 { font-size: calc(1.5rem * var(--font-scale)); }
+h5, .h5 { font-size: calc(1.25rem * var(--font-scale)); }
+h6, .h6 { font-size: calc(1rem * var(--font-scale)); }
 
 .btn {
   font-size: var(--base-font-size);

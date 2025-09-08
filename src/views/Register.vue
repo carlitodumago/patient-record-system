@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
+import { useUserStore } from '../stores/user';
 
-const store = useStore();
+const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -91,7 +91,7 @@ const register = () => {
     localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
     
     // Add to mock users in store
-    store.commit('addUser', newUser);
+    userStore.addUser(newUser);
     
     // Show success message
     registrationSuccess.value = true;
@@ -668,4 +668,4 @@ onMounted(() => {
     min-width: 100%;
   }
 }
-</style> 
+</style>

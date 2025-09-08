@@ -1,19 +1,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
+import { useNotificationStore } from '../stores/notifications';
 import { areNotificationsEnabled } from '../utils/notificationUtils';
 
-const store = useStore();
+const userStore = useUserStore();
+const notificationStore = useNotificationStore();
 const router = useRouter();
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => userStore.isAuthenticated);
+const user = computed(() => userStore.user);
 
 // Check if notifications are enabled
 const notificationsEnabled = computed(() => areNotificationsEnabled(user.value));
 
-// Get notifications from Vuex store
-const notifications = computed(() => store.state.notifications);
+// Get notifications from Pinia store
+const notifications = computed(() => notificationStore.allNotifications);
 
 // Format time
 const formatTimeAgo = (date) => {
@@ -44,24 +46,24 @@ const formatDateTime = (date) => {
 
 // Toggle notification read status
 const markAsRead = (id) => {
-  store.commit('markNotificationAsRead', id);
+  notificationStore.markAsRead(id);
 };
 
 // Mark all as read
 const markAllAsRead = () => {
-  store.commit('markAllNotificationsAsRead');
+  notificationStore.markAllAsRead();
 };
 
 // Delete notification
 const deleteNotification = (id) => {
-  store.commit('deleteNotification', id);
+  notificationStore.deleteNotification(id);
 };
 
 // Clear all notifications
 const clearAllNotifications = () => {
   if (confirm('Are you sure you want to delete all notifications?')) {
     notifications.value.forEach(notification => {
-      store.commit('deleteNotification', notification.id);
+      notificationStore.deleteNotification(notification.id);
     });
   }
 };
@@ -451,4 +453,4 @@ onMounted(() => {
   opacity: 1 !important;
   pointer-events: auto !important;
 }
-</style> 
+</style>

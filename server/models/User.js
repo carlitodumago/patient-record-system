@@ -1,63 +1,66 @@
-// User model
-// This is a placeholder for a proper database model
-// In a real application, this would be a Mongoose schema or similar
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-class User {
-  constructor(data) {
-    this.id = data.id || Date.now().toString();
-    this.username = data.username;
-    this.password = data.password; // In a real app, this would be hashed
-    this.role = data.role || 'patient';
-    this.fullName = data.fullName || '';
-    this.email = data.email || '';
-    this.createdAt = data.createdAt || new Date().toISOString();
-    this.updatedAt = data.updatedAt || new Date().toISOString();
+const UserSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: [true, 'Username is required'],
+    unique: true,
+    trim: true,
+    minlength: [3, 'Username must be at least 3 characters']
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters']
+  },
+  fullName: {
+    type: String,
+    required: [true, 'Full name is required']
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'nurse', 'patient'],
+    default: 'patient'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  settings: {
+    notifications: {
+      type: Boolean,
+      default: true
+    }
   }
+}, {
+  timestamps: true
+});
 
-  // Static methods for user management
-  static findByUsername(username, users) {
-    return users.find(user => user.username.toLowerCase() === username.toLowerCase());
+// Hash password before saving
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
   }
-
-  static authenticate(username, password, users) {
-    return users.find(
-      user => user.username.toLowerCase() === username.toLowerCase() && 
-              user.password === password
-    );
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
   }
+});
 
-  // In a real app with a database, these would be methods to interact with the database
-  static getAll(users) {
-    return users.map(({ password, ...user }) => user); // Remove password from returned data
-  }
+// Method to compare passwords
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
-  static create(userData, users) {
-    const newUser = new User(userData);
-    users.push(newUser);
-    return newUser;
-  }
-
-  static update(id, userData, users) {
-    const index = users.findIndex(user => user.id === id);
-    if (index === -1) return null;
-    
-    const updatedUser = {
-      ...users[index],
-      ...userData,
-      updatedAt: new Date().toISOString()
-    };
-    
-    users[index] = updatedUser;
-    return updatedUser;
-  }
-
-  static delete(id, users) {
-    const index = users.findIndex(user => user.id === id);
-    if (index === -1) return false;
-    
-    users.splice(index, 1);
-    return true;
-  }
-}
-
-export default User;
+module.exports = mongoose.model('User', UserSchema);

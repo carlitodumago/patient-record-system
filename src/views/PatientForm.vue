@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
+import { useNotificationStore } from '../stores/notifications';
+import { useUserStore } from '../stores/user';
 import { formatDate, parseDate, standardizePatientDates } from '../utils/dateUtils';
 import { addPatientNotification } from '../utils/notificationUtils';
 
-const store = useStore();
+const patientStore = usePatientStore();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -43,7 +47,7 @@ const saveSuccess = ref(false);
 onMounted(() => {
   if (isEditing.value) {
     // Get patient data if editing
-    const patient = store.state.patients.find(p => p.id === patientId.value);
+    const patient = patientStore.patients.find(p => p.id === patientId.value);
     
     if (patient) {
       // Clone the patient data (to avoid direct state mutation)
@@ -146,16 +150,16 @@ const savePatient = () => {
     
     if (isEditing.value) {
       // Update existing patient
-      store.commit('updatePatient', {
+      patientStore.updatePatient({
         ...formattedPatient,
         id: patientId.value
       });
       
       // Add notification for updating patient
-      addPatientNotification(store, formattedPatient, 'updated');
+      addPatientNotification(notificationStore, formattedPatient, 'updated', userStore);
     } else {
       // Add new patient with a generated ID
-      const newId = Math.max(0, ...store.state.patients.map(p => p.id)) + 1;
+      const newId = Math.max(0, ...patientStore.patients.map(p => p.id)) + 1;
       const today = new Date();
       const newPatient = {
         ...formattedPatient,
@@ -163,10 +167,10 @@ const savePatient = () => {
         lastVisit: formatDate(today)
       };
       
-      store.commit('addPatient', newPatient);
+      patientStore.addPatient(newPatient);
       
       // Add notification for new patient
-      addPatientNotification(store, newPatient, 'added');
+      addPatientNotification(notificationStore, newPatient, 'added', userStore);
     }
     
     saveSuccess.value = true;
@@ -511,4 +515,4 @@ const cancel = () => {
     max-width: 100%;
   }
 }
-</style> 
+</style>

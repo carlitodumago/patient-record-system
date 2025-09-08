@@ -206,10 +206,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '../../stores/user';
+import { usePatientStore } from '../../stores/patients';
 
-const store = useStore();
+const userStore = useUserStore();
+const patientStore = usePatientStore();
 const router = useRouter();
 
 // You can add reactive data and methods here

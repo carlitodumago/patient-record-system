@@ -1,51 +1,63 @@
-// Authentication middleware
-// In a real application, this would verify JWT tokens
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-const auth = (req, res, next) => {
-  // Get token from header
-  const token = req.header('x-auth-token');
-
-  // Check if no token
-  if (!token) {
-    return res.status(401).json({ message: 'No token, authorization denied' });
-  }
-
+// Middleware to authenticate JWT token
+const authenticateToken = async (req, res, next) => {
   try {
-    // In a real app, you would verify the JWT token here
-    // For this mock version, we'll just check if the token exists
-    if (token === 'mock-jwt-token') {
-      // In a real app, the decoded user info would be added to the request
-      req.user = { id: 'mock-user-id' };
-      next();
-    } else {
-      res.status(401).json({ message: 'Token is not valid' });
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
     }
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+    
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Find user
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. User not found.'
+      });
+    }
+    
+    // Add user to request object
+    req.user = decoded;
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        expired: true
+      });
+    }
+    
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token',
+      error: error.message
+    });
   }
 };
 
-// Role-based authorization middleware
-const authorize = (roles = []) => {
-  // roles param can be a single role string (e.g., 'admin') 
-  // or an array of roles (e.g., ['admin', 'nurse'])
-  if (typeof roles === 'string') {
-    roles = [roles];
-  }
-
+// Middleware to check user role
+const authorizeRoles = (...roles) => {
   return (req, res, next) => {
-    // In a real app, the user's role would be extracted from the JWT token
-    // For this mock version, we'll just check a hardcoded role
-    const userRole = req.header('x-user-role') || 'patient';
-
-    if (roles.length && !roles.includes(userRole)) {
-      // User's role is not authorized
-      return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Role ${req.user.role} is not authorized to access this resource`
+      });
     }
-
-    // Authentication and authorization successful
     next();
   };
 };
 
-export { auth, authorize };
+module.exports = { authenticateToken, authorizeRoles };

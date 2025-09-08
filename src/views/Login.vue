@@ -1,10 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
-import { authService } from '../services/api';
+import { useUserStore } from '../stores/user';
 
-const store = useStore();
+const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -37,8 +36,8 @@ const showPassword = ref(false);
 const isAnimating = ref(false);
 const formDirection = ref('right');
 
-// Get users from store
-const users = computed(() => store.state.users);
+// Check if user store is loading
+const isStoreLoading = computed(() => userStore.loading);
 
 // Animated class based on current mode
 const containerClass = computed(() => {
@@ -80,22 +79,21 @@ const login = async () => {
   isLoading.value = true;
   
   try {
-    // Use the auth service to login
-    const userData = await authService.login({
+    // Call the login API through the user store
+    await userStore.login({
       username: loginForm.username,
       password: loginForm.password
     });
     
-    // Update store with user data
-    store.commit('setAuthenticated', true);
-    store.commit('setUser', userData);
-    
+    // Redirect to dashboard on successful login
     router.push('/dashboard');
   } catch (error) {
-    errorMessage.value = error.message || 'Invalid username or password';
+    // Display error message from API or a default message
+    errorMessage.value = userStore.error || 'Login failed. Please try again.';
   } finally {
     isLoading.value = false;
   }
+}
 };
 
 // Register function
@@ -123,32 +121,27 @@ const register = async () => {
   isLoading.value = true;
   
   try {
-    // Use the auth service to register
-    const newUser = {
+    // Call the register API through the user store
+    await userStore.register({
       username: registerForm.username,
       password: registerForm.password,
-      role: registerForm.role,
       fullName: registerForm.fullName,
-      email: registerForm.email
-    };
-    
-    await authService.register(newUser);
-    
-    // Add to mock users in store (this would normally be handled by the server)
-    store.commit('addUser', newUser);
+      email: registerForm.email,
+      role: registerForm.role
+    });
     
     // Show success message
     successMessage.value = 'Registration successful! You can now log in.';
     
-    // Switch to login mode after successful registration
-    setTimeout(() => {
-      switchMode('login');
-    }, 1500);
+    // Switch to login mode
+    switchMode('login');
   } catch (error) {
-    errorMessage.value = error.message || 'Registration failed';
+    // Display error message from API or a default message
+    errorMessage.value = userStore.error || 'Registration failed. Please try again.';
   } finally {
     isLoading.value = false;
   }
+}
 };
 
 // Switch between login and register modes
@@ -247,7 +240,8 @@ const fillDemoAccount = (username, password) => {
               </div>
             </div>
             
-            <!-- Role selection removed - role is now automatically determined -->
+            <!-- New Role Select for Login -->
+            
             
             <div class="form-group">
               <label for="password">Password</label>

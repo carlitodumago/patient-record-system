@@ -8,11 +8,11 @@ const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
 
 /**
  * Set up the inactivity timer that will log out the user
- * @param {object} store - Vuex store for authentication state
+ * @param {object} userStore - Pinia user store for authentication state
  * @param {object} router - Vue Router for navigation
  * @param {number} timeout - Timeout in minutes (0 = disabled)
  */
-export const setupAutoLogout = (store, router, timeout = 0) => {
+export const setupAutoLogout = (userStore, router, timeout = 0) => {
   // Clear any existing timer
   if (logoutTimer) {
     clearTimeout(logoutTimer);
@@ -38,13 +38,11 @@ export const setupAutoLogout = (store, router, timeout = 0) => {
     // Set the timer that will log the user out
     logoutTimer = setTimeout(() => {
       // Ensure the user is still logged in before auto-logout
-      const isAuthenticated = store.state.isAuthenticated;
+      const isAuthenticated = userStore.isAuthenticated;
       if (isAuthenticated) {
         console.log('Auto-logout due to inactivity');
         // Log out the user
-        localStorage.removeItem('user');
-        store.commit('setAuthenticated', false);
-        store.commit('setUser', null);
+        userStore.logout();
         
         // Redirect to login page with message
         router.push({
@@ -67,12 +65,12 @@ export const setupAutoLogout = (store, router, timeout = 0) => {
 
 /**
  * Update auto logout settings based on user preferences
- * @param {object} store - Vuex store for authentication state
+ * @param {object} userStore - Pinia user store for authentication state
  * @param {object} router - Vue Router for navigation
  */
-export const updateAutoLogout = (store, router) => {
+export const updateAutoLogout = (userStore, router) => {
   // Get the current user
-  const user = store.state.user;
+  const user = userStore.user;
   if (!user) return;
   
   // Get saved user settings
@@ -92,10 +90,10 @@ export const updateAutoLogout = (store, router) => {
   }
   
   // Set up auto logout with the specified timeout
-  setupAutoLogout(store, router, timeout);
+  setupAutoLogout(userStore, router, timeout);
 };
 
 export default {
   setupAutoLogout,
   updateAutoLogout
-}; 
+};

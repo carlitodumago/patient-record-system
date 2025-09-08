@@ -1,129 +1,101 @@
 import axios from 'axios';
 
-// Create an axios instance with default config
+// Create axios instance with base URL
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// Add a request interceptor to attach auth token to requests
+// Add request interceptor to add auth token to requests
 api.interceptors.request.use(
-  config => {
+  (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers['x-auth-token'] = token;
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.role) {
-      config.headers['x-user-role'] = user.role;
-    }
-    
     return config;
   },
-  error => {
+  (error) => Promise.reject(error)
+);
+
+// Add response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If error is 401 (Unauthorized) and has expired flag, try to refresh token
+    if (error.response?.status === 401 && 
+        error.response?.data?.expired && 
+        !originalRequest._retry) {
+      
+      originalRequest._retry = true;
+      
+      try {
+        // Get refresh token from localStorage
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        if (!refreshToken) {
+          // No refresh token, redirect to login
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+        
+        // Call refresh token endpoint
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh-token`,
+          { refreshToken }
+        );
+        
+        // Update token in localStorage
+        localStorage.setItem('token', response.data.token);
+        
+        // Update Authorization header
+        originalRequest.headers.Authorization = `Bearer ${response.data.token}`;
+        
+        // Retry original request
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh token failed, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
 
-// Auth services
-export const authService = {
-  login: async (credentials) => {
-    try {
-      const response = await api.post('/users/login', credentials);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data));
-      }
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
-    }
-  },
-  
-  register: async (userData) => {
-    try {
-      const response = await api.post('/users/register', userData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Registration failed' };
-    }
-  },
-  
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  },
-  
-  getCurrentUser: () => {
-    try {
-      return JSON.parse(localStorage.getItem('user'));
-    } catch (error) {
-      return null;
-    }
-  }
+// Auth API
+export const authAPI = {
+  register: (userData) => api.post('/auth/register', userData),
+  login: (credentials) => api.post('/auth/login', credentials),
+  getCurrentUser: () => api.get('/auth/me'),
+  updateSettings: (settings) => api.put('/auth/settings', { settings })
 };
 
-// Patient services
-export const patientService = {
-  getAllPatients: async () => {
-    try {
-      const response = await api.get('/patients');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch patients' };
-    }
-  },
-  
-  getPatientById: async (id) => {
-    try {
-      const response = await api.get(`/patients/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch patient' };
-    }
-  },
-  
-  createPatient: async (patientData) => {
-    try {
-      const response = await api.post('/patients', patientData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to create patient' };
-    }
-  },
-  
-  updatePatient: async (id, patientData) => {
-    try {
-      const response = await api.put(`/patients/${id}`, patientData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to update patient' };
-    }
-  },
-  
-  deletePatient: async (id) => {
-    try {
-      const response = await api.delete(`/patients/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to delete patient' };
-    }
-  }
+// Patients API
+export const patientsAPI = {
+  getAllPatients: () => api.get('/patients'),
+  getPatient: (id) => api.get(`/patients/${id}`),
+  createPatient: (patientData) => api.post('/patients', patientData),
+  updatePatient: (id, patientData) => api.put(`/patients/${id}`, patientData),
+  deletePatient: (id) => api.delete(`/patients/${id}`),
+  getPatientVisits: (id) => api.get(`/patients/${id}/visits`),
+  addVisit: (id, visitData) => api.post(`/patients/${id}/visits`, visitData)
 };
 
-// User services
-export const userService = {
-  getAllUsers: async () => {
-    try {
-      const response = await api.get('/users');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch users' };
-    }
-  }
+// Notifications API
+export const notificationsAPI = {
+  getNotifications: () => api.get('/notifications'),
+  createNotification: (notificationData) => api.post('/notifications', notificationData),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  deleteNotification: (id) => api.delete(`/notifications/${id}`)
 };
 
 export default api;

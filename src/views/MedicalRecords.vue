@@ -1,14 +1,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
+import { useNotificationStore } from '../stores/notifications';
+import { useUserStore } from '../stores/user';
 import { formatDate, formatTimeTo12Hour, formatDateTime } from '../utils/dateUtils';
 import { addNotification } from '../utils/notificationUtils';
 
-const store = useStore();
+const patientStore = usePatientStore();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
+const patients = computed(() => patientStore.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const selectedPatient = ref(null);
@@ -81,7 +85,7 @@ onMounted(() => {
   if (patients.value.length === 0) {
     const savedPatients = localStorage.getItem('patientRecords');
     if (savedPatients) {
-      store.commit('setPatients', JSON.parse(savedPatients));
+      patientStore.setPatients(JSON.parse(savedPatients));
     }
   }
   
@@ -295,7 +299,7 @@ const saveRecord = () => {
       };
       
       // Create notification for editing record
-      addNotification(store, {
+      addNotification(notificationStore, userStore, {
         title: 'Medical Record Updated',
         message: `Medical record for ${getPatientName(newRecord.value.patientId)} has been updated.`,
         type: 'info',
@@ -317,7 +321,7 @@ const saveRecord = () => {
     medicalRecords.value.push(record);
     
     // Create notification for new record
-    addNotification(store, {
+    addNotification(notificationStore, userStore, {
       title: 'New Medical Record',
       message: `A new medical record for ${getPatientName(record.patientId)} has been added.`,
       type: 'success',
@@ -376,7 +380,7 @@ const deleteMedicalRecord = (id) => {
   
   if (recordToDelete) {
     // Create notification for deletion
-    addNotification(store, {
+    addNotification(notificationStore, userStore, {
       title: 'Medical Record Deleted',
       message: `Medical record for ${getPatientName(recordToDelete.patientId)} related to "${recordToDelete.condition}" has been deleted.`,
       type: 'warning',
@@ -707,4 +711,4 @@ body > div[class*="notification"],
   border-radius: 4px;
   display: inline-block; /* Ensure padding and background apply */
 }
-</style> 
+</style>

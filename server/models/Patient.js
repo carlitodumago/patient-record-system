@@ -1,113 +1,98 @@
-// Patient model
-// This is a placeholder for a proper database model
-// In a real application, this would be a Mongoose schema or similar
+const mongoose = require('mongoose');
 
-class Patient {
-  constructor(data) {
-    this.id = data.id || Date.now().toString();
-    this.firstName = data.firstName || '';
-    this.lastName = data.lastName || '';
-    this.dateOfBirth = data.dateOfBirth || '';
-    this.gender = data.gender || '';
-    this.contactNumber = data.contactNumber || '';
-    this.email = data.email || '';
-    this.address = data.address || '';
-    this.medicalHistory = data.medicalHistory || [];
-    this.medications = data.medications || [];
-    this.allergies = data.allergies || [];
-    this.appointments = data.appointments || [];
-    this.createdAt = data.createdAt || new Date().toISOString();
-    this.updatedAt = data.updatedAt || new Date().toISOString();
+const PatientSchema = new mongoose.Schema({
+  firstName: {
+    type: String,
+    required: [true, 'First name is required'],
+    trim: true
+  },
+  lastName: {
+    type: String,
+    required: [true, 'Last name is required'],
+    trim: true
+  },
+  dateOfBirth: {
+    type: Date,
+    required: [true, 'Date of birth is required']
+  },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other'],
+    required: [true, 'Gender is required']
+  },
+  contactNumber: {
+    type: String,
+    required: [true, 'Contact number is required']
+  },
+  email: {
+    type: String,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String
+  },
+  bloodType: {
+    type: String,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
+  },
+  allergies: [String],
+  medicalConditions: [String],
+  medications: [{
+    name: String,
+    dosage: String,
+    frequency: String,
+    startDate: Date,
+    endDate: Date
+  }],
+  emergencyContact: {
+    name: String,
+    relationship: String,
+    phone: String
+  },
+  insuranceInfo: {
+    provider: String,
+    policyNumber: String,
+    groupNumber: String,
+    expirationDate: Date
+  },
+  visits: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Visit'
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
+}, {
+  timestamps: true
+});
 
-  // Static methods for patient management
-  static findById(id, patients) {
-    return patients.find(patient => patient.id === id);
+// Virtual for patient's full name
+PatientSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// Virtual for patient's age
+PatientSchema.virtual('age').get(function() {
+  const today = new Date();
+  const birthDate = new Date(this.dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
   }
+  
+  return age;
+});
 
-  // In a real app with a database, these would be methods to interact with the database
-  static getAll(patients) {
-    return patients;
-  }
+// Set virtuals to be included in JSON output
+PatientSchema.set('toJSON', { virtuals: true });
+PatientSchema.set('toObject', { virtuals: true });
 
-  static create(patientData, patients) {
-    const newPatient = new Patient(patientData);
-    patients.push(newPatient);
-    return newPatient;
-  }
-
-  static update(id, patientData, patients) {
-    const index = patients.findIndex(patient => patient.id === id);
-    if (index === -1) return null;
-    
-    const updatedPatient = {
-      ...patients[index],
-      ...patientData,
-      updatedAt: new Date().toISOString()
-    };
-    
-    patients[index] = updatedPatient;
-    return updatedPatient;
-  }
-
-  static delete(id, patients) {
-    const index = patients.findIndex(patient => patient.id === id);
-    if (index === -1) return false;
-    
-    patients.splice(index, 1);
-    return true;
-  }
-
-  // Add a medical record to a patient's history
-  static addMedicalRecord(id, record, patients) {
-    const patient = this.findById(id, patients);
-    if (!patient) return null;
-    
-    const newRecord = {
-      id: Date.now().toString(),
-      ...record,
-      date: record.date || new Date().toISOString()
-    };
-    
-    patient.medicalHistory.push(newRecord);
-    patient.updatedAt = new Date().toISOString();
-    
-    return newRecord;
-  }
-
-  // Add a medication to a patient's list
-  static addMedication(id, medication, patients) {
-    const patient = this.findById(id, patients);
-    if (!patient) return null;
-    
-    const newMedication = {
-      id: Date.now().toString(),
-      ...medication,
-      prescribedDate: medication.prescribedDate || new Date().toISOString()
-    };
-    
-    patient.medications.push(newMedication);
-    patient.updatedAt = new Date().toISOString();
-    
-    return newMedication;
-  }
-
-  // Schedule an appointment for a patient
-  static scheduleAppointment(id, appointment, patients) {
-    const patient = this.findById(id, patients);
-    if (!patient) return null;
-    
-    const newAppointment = {
-      id: Date.now().toString(),
-      ...appointment,
-      status: appointment.status || 'scheduled'
-    };
-    
-    patient.appointments.push(newAppointment);
-    patient.updatedAt = new Date().toISOString();
-    
-    return newAppointment;
-  }
-}
-
-export default Patient;
+module.exports = mongoose.model('Patient', PatientSchema);

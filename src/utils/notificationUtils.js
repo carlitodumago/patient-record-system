@@ -28,22 +28,37 @@ export const areNotificationsEnabled = (user) => {
   return true;
 };
 
+// loadNotifications function has been replaced by loadNotificationsWithDates
+
+/**
+ * Save notifications to localStorage
+ * @param {Array} notifications - Array of notification objects
+ */
+export const saveNotifications = (notifications) => {
+  try {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  } catch (error) {
+    console.error('Failed to save notifications:', error);
+  }
+};
+
 /**
  * Add a notification to the store
- * @param {Object} store - Vuex store
+ * @param {Object} notificationStore - Pinia notification store
+ * @param {Object} userStore - Pinia user store
  * @param {Object} notification - Notification object
  * @param {string} notification.title - Notification title
  * @param {string} notification.message - Notification message
  * @param {string} notification.type - Notification type (info, success, warning, error)
  * @param {boolean} notification.noButtons - Whether to hide action buttons for this notification
  */
-export const addNotification = (store, notification) => {
+export const addNotification = (notificationStore, userStore, notification) => {
   // Check if notifications are enabled for current user
-  if (!areNotificationsEnabled(store.state.user)) {
+  if (!areNotificationsEnabled(userStore.user)) {
     return; // Don't add notification if disabled
   }
 
-  store.commit('addNotification', {
+  notificationStore.addNotification({
     id: Date.now(), // Simple ID generation
     date: new Date(),
     read: false,
@@ -56,11 +71,12 @@ export const addNotification = (store, notification) => {
 
 /**
  * Add a patient-related notification
- * @param {Object} store - Vuex store 
+ * @param {Object} notificationStore - Pinia notification store 
  * @param {Object} patient - Patient object
  * @param {string} action - Action performed (added, updated, deleted)
+ * @param {Object} userStore - Pinia user store
  */
-export const addPatientNotification = (store, patient, action) => {
+export const addPatientNotification = (notificationStore, patient, action, userStore) => {
   const fullName = `${patient.firstName} ${patient.lastName}`;
   let title, message, type;
   
@@ -86,7 +102,7 @@ export const addPatientNotification = (store, patient, action) => {
       type = 'info';
   }
   
-  addNotification(store, { title, message, type });
+  addNotification(notificationStore, userStore, { title, message, type });
 };
 
 /**
@@ -138,12 +154,13 @@ const formatDateTimeForNotification = (dateString) => {
 
 /**
  * Add a visit-related notification
- * @param {Object} store - Vuex store
+ * @param {Object} notificationStore - Pinia notification store
  * @param {Object} visit - Visit object
  * @param {Function} getPatientName - Function to get patient name from ID
  * @param {string} action - Action performed (scheduled, completed, updated, deleted)
+ * @param {Object} userStore - Pinia user store
  */
-export const addVisitNotification = (store, visit, getPatientName, action) => {
+export const addVisitNotification = (notificationStore, visit, getPatientName, action, userStore) => {
   const patientName = typeof getPatientName === 'function' ? 
     getPatientName(visit.patientId) : 
     (visit.patientId ? `Patient #${visit.patientId}` : 'Unknown Patient');
@@ -195,7 +212,7 @@ export const addVisitNotification = (store, visit, getPatientName, action) => {
       type = 'info';
   }
   
-  addNotification(store, { 
+  addNotification(notificationStore, userStore, { 
     title, 
     message, 
     type,
@@ -204,18 +221,10 @@ export const addVisitNotification = (store, visit, getPatientName, action) => {
 };
 
 /**
- * Save notifications to localStorage
- * @param {Array} notifications - Array of notification objects
+ * Load notifications from localStorage with date conversion
+ * @returns {Array} Array of notification objects with proper date objects
  */
-export const saveNotifications = (notifications) => {
-  localStorage.setItem('notifications', JSON.stringify(notifications));
-};
-
-/**
- * Load notifications from localStorage
- * @returns {Array} Array of notification objects
- */
-export const loadNotifications = () => {
+export const loadNotificationsWithDates = () => {
   const savedNotifications = localStorage.getItem('notifications');
   if (savedNotifications) {
     try {
@@ -269,4 +278,4 @@ export const showToast = (message, options = {}) => {
   console.warn('Toast notification system not available');
   console.info(message, options);
   return { close: () => {} };
-}; 
+};

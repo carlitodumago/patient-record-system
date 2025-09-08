@@ -1,19 +1,19 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
+import { useUserStore } from '../stores/user';
 import TheSidebar from './TheSidebar.vue';
 import SidebarBackdrop from '../components/SidebarBackdrop.vue';
 
 const route = useRoute();
 const router = useRouter();
-const store = useStore();
+const userStore = useUserStore();
 const isSidebarCollapsed = ref(false);
 const isSidebarVisible = ref(false); // Default to hidden for a menu-style approach
 
 // User authentication and profile data
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => userStore.isAuthenticated);
+const user = computed(() => userStore.user);
 
 // Check if current route is login or register page
 const hideSidebar = computed(() => {
@@ -263,4 +263,4 @@ main {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
-</style> 
+</style>

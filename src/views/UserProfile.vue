@@ -1,12 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
 
-const store = useStore();
+const userStore = useUserStore();
 const router = useRouter();
 
-const user = computed(() => store.state.user);
+const user = computed(() => userStore.user);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isEditing = ref(false);
@@ -64,7 +64,7 @@ onMounted(() => {
   
   // Get the full user details from stored users
   const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-  const defaultUsers = store.state.users;
+  const defaultUsers = userStore.users;
   
   // Find the user in either registered or default users
   const currentUser = [...users, ...defaultUsers].find(u => u.username === user.value.username);
@@ -169,7 +169,7 @@ const saveProfile = () => {
 const saveProfileData = () => {
   // Get existing users
   const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-  const defaultUsers = store.state.users;
+  const defaultUsers = userStore.users;
   
   // Find and update the user
   let userUpdated = false;
@@ -211,13 +211,13 @@ const saveProfileData = () => {
   // Save changes back to storage
   localStorage.setItem('registeredUsers', JSON.stringify(users));
   
-  // Update the current user in Vuex store
+  // Update the current user in Pinia store
   const updatedUserData = {
     ...user.value,
     fullName: profileForm.value.fullName,
     profilePicture: profileForm.value.profilePicture
   };
-  store.commit('setUser', updatedUserData);
+  userStore.setUser(updatedUserData);
   
   // Update localStorage user data
   localStorage.setItem('user', JSON.stringify(updatedUserData));
@@ -250,8 +250,7 @@ const deleteAccount = () => {
       
       // Log out user
       localStorage.removeItem('user');
-      store.commit('setAuthenticated', false);
-      store.commit('setUser', null);
+      userStore.logout();
       
       // Redirect to login
       router.push('/login');
@@ -576,4 +575,4 @@ const deleteAccount = () => {
 .profile-upload {
   margin-top: 0.5rem;
 }
-</style> 
+</style>
