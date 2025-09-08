@@ -259,18 +259,12 @@ const addNewPatient = () => {
                 </div>
               </div>
             </div>
-            <div class="card-footer">
-              <div class="d-flex justify-content-end gap-2">
-                <button @click="viewPatient(patient.id)" class="btn btn-sm btn-primary" title="View">
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button @click="editPatient(patient.id)" class="btn btn-sm btn-secondary" title="Edit">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button @click="deletePatient(patient.id)" class="btn btn-sm btn-danger" title="Delete">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </div>
+            <div class="card-footer d-flex justify-content-end">
+              <ActionButtons
+                :onView="() => viewPatient(patient.id)"
+                :onEdit="() => editPatient(patient.id)"
+                :onDelete="() => deletePatient(patient.id)"
+              />
             </div>
           </div>
         </div>

@@ -15,6 +15,11 @@ defineProps({
     required: false,
     default: () => {}
   },
+  onMarkAsCompleted: {
+    type: Function,
+    required: false,
+    default: () => {}
+  },
   showView: {
     type: Boolean,
     default: true
@@ -27,6 +32,10 @@ defineProps({
     type: Boolean,
     default: true
   },
+  showMarkAsCompleted: {
+    type: Boolean,
+    default: false
+  },
   size: {
     type: String,
     default: 'sm',
@@ -38,14 +47,17 @@ defineProps({
 <template>
   <div class="action-buttons">
     <div class="btn-group" :class="`btn-group-${size}`">
-      <button v-if="showView" @click="onView" class="btn btn-outline-primary action-btn view-btn">
+      <button v-if="showView" @click="onView" class="btn btn-outline-primary action-btn view-btn" title="View">
         <i class="bi bi-eye"></i>
       </button>
-      <button v-if="showEdit" @click="onEdit" class="btn btn-outline-secondary action-btn edit-btn">
+      <button v-if="showEdit" @click="onEdit" class="btn btn-outline-secondary action-btn edit-btn" title="Edit">
         <i class="bi bi-pencil"></i>
       </button>
-      <button v-if="showDelete" @click="onDelete" class="btn btn-outline-danger action-btn delete-btn">
+      <button v-if="showDelete" @click="onDelete" class="btn btn-outline-danger action-btn delete-btn" title="Delete">
         <i class="bi bi-trash"></i>
+      </button>
+      <button v-if="showMarkAsCompleted" @click="onMarkAsCompleted" class="btn btn-outline-success action-btn complete-btn" title="Mark as Completed">
+        <i class="bi bi-check-circle"></i>
       </button>
     </div>
   </div>
@@ -144,6 +156,17 @@ defineProps({
 
 .delete-btn:hover {
   background-color: rgba(220, 53, 69, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.complete-btn {
+  border-color: #198754;
+  color: #198754;
+  border-width: 2px;
+}
+
+.complete-btn:hover {
+  background-color: rgba(25, 135, 84, 0.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 

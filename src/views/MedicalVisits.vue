@@ -537,25 +537,13 @@ const markAsCompleted = (id) => {
               </span>
             </td>
             <td>
-              <div class="btn-group">
-                <button @click="viewVisit(visit.id)" class="btn btn-sm btn-outline-primary" title="View Details">
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button @click="editVisit(visit.id)" class="btn btn-sm btn-outline-secondary" title="Edit Visit">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button @click="deleteVisit(visit.id)" class="btn btn-sm btn-outline-danger" title="Delete Visit">
-                  <i class="bi bi-trash"></i>
-                </button>
-                <button 
-                  v-if="visit.status === 'upcoming'" 
-                  @click="markAsCompleted(visit.id)" 
-                  class="btn btn-sm btn-outline-success"
-                  title="Mark as Completed"
-                >
-                  <i class="bi bi-check-circle"></i>
-                </button>
-              </div>
+              <ActionButtons
+                :onView="() => viewVisit(visit.id)"
+                :onEdit="() => editVisit(visit.id)"
+                :onDelete="() => deleteVisit(visit.id)"
+                :onMarkAsCompleted="() => markAsCompleted(visit.id)"
+                :showMarkAsCompleted="visit.status === 'upcoming'"
+              />
             </td>
           </tr>
         </tbody>
