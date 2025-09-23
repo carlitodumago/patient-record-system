@@ -28,7 +28,19 @@ export const areNotificationsEnabled = (user) => {
   return true;
 };
 
-// loadNotifications function has been replaced by loadNotificationsWithDates
+/**
+ * Load notifications from localStorage
+ * @returns {Array} - Array of notification objects
+ */
+export const loadNotifications = () => {
+  try {
+    const savedNotifications = localStorage.getItem('notifications');
+    return savedNotifications ? JSON.parse(savedNotifications) : null;
+  } catch (error) {
+    console.error('Failed to load notifications:', error);
+    return null;
+  }
+};
 
 /**
  * Save notifications to localStorage

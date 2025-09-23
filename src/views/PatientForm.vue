@@ -156,7 +156,7 @@ const savePatient = () => {
       });
       
       // Add notification for updating patient
-      addPatientNotification(notificationStore, formattedPatient, 'updated', userStore);
+      addPatientNotification(notificationStore, formattedPatient, 'updated');
     } else {
       // Add new patient with a generated ID
       const newId = Math.max(0, ...patientStore.patients.map(p => p.id)) + 1;
@@ -170,7 +170,7 @@ const savePatient = () => {
       patientStore.addPatient(newPatient);
       
       // Add notification for new patient
-      addPatientNotification(notificationStore, newPatient, 'added', userStore);
+      addPatientNotification(notificationStore, newPatient, 'added');
     }
     
     saveSuccess.value = true;

@@ -1,16 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useUserStore } from '../../stores/user';
+import { useStore } from 'vuex';
 import { formatDate, formatTimeTo12Hour, formatDateTime } from '../../utils/dateUtils';
 
-const userStore = useUserStore();
+const store = useStore();
 
 const isLoading = ref(true);
 const medicalRecords = ref([]);
 const searchQuery = ref('');
 
 // Get current user from store
-const currentUser = computed(() => userStore.user);
+const currentUser = computed(() => store.state.user);
 
 // Mock medical records data for demonstration
 const mockMedicalRecords = [

@@ -46,24 +46,24 @@ const formatDateTime = (date) => {
 
 // Toggle notification read status
 const markAsRead = (id) => {
-  notificationStore.markAsRead(id);
+  store.commit('markNotificationAsRead', id);
 };
 
 // Mark all as read
 const markAllAsRead = () => {
-  notificationStore.markAllAsRead();
+  store.commit('markAllNotificationsAsRead');
 };
 
 // Delete notification
 const deleteNotification = (id) => {
-  notificationStore.deleteNotification(id);
+  store.commit('deleteNotification', id);
 };
 
 // Clear all notifications
 const clearAllNotifications = () => {
   if (confirm('Are you sure you want to delete all notifications?')) {
     notifications.value.forEach(notification => {
-      notificationStore.deleteNotification(notification.id);
+      store.commit('deleteNotification', notification.id);
     });
   }
 };

@@ -380,7 +380,7 @@ const deleteMedicalRecord = (id) => {
   
   if (recordToDelete) {
     // Create notification for deletion
-    addNotification(notificationStore, userStore, {
+    addNotification(store, {
       title: 'Medical Record Deleted',
       message: `Medical record for ${getPatientName(recordToDelete.patientId)} related to "${recordToDelete.condition}" has been deleted.`,
       type: 'warning',

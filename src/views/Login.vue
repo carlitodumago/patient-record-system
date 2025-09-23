@@ -36,8 +36,8 @@ const showPassword = ref(false);
 const isAnimating = ref(false);
 const formDirection = ref('right');
 
-// Check if user store is loading
-const isStoreLoading = computed(() => userStore.loading);
+// Get users from store
+const users = computed(() => userStore.users);
 
 // Animated class based on current mode
 const containerClass = computed(() => {
@@ -67,7 +67,7 @@ onMounted(() => {
 });
 
 // Login function
-const login = async () => {
+const login = () => {
   errorMessage.value = '';
   successMessage.value = '';
   
@@ -78,26 +78,37 @@ const login = async () => {
 
   isLoading.value = true;
   
-  try {
-    // Call the login API through the user store
-    await userStore.login({
-      username: loginForm.username,
-      password: loginForm.password
-    });
+  // Simulate API call delay
+  setTimeout(() => {
+    // Find user by username and password only, without checking role
+    const user = users.value.find(
+      u => u.username.toLowerCase() === loginForm.username.toLowerCase() && 
+          u.password === loginForm.password
+    );
     
-    // Redirect to dashboard on successful login
-    router.push('/dashboard');
-  } catch (error) {
-    // Display error message from API or a default message
-    errorMessage.value = userStore.error || 'Login failed. Please try again.';
-  } finally {
+    if (user) {
+      // In a real app, you would store a token received from the server
+      const userData = {
+        username: user.username,
+        role: user.role, // Role is automatically determined from the user object
+        fullName: user.fullName || user.username,
+        token: 'mock-jwt-token'
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      userStore.login(userData);
+      
+      router.push('/dashboard');
+    } else {
+      errorMessage.value = 'Invalid username or password';
+    }
+    
     isLoading.value = false;
-  }
-}
+  }, 800);
 };
 
 // Register function
-const register = async () => {
+const register = () => {
   // Clear any previous error
   errorMessage.value = '';
   successMessage.value = '';
@@ -120,28 +131,37 @@ const register = async () => {
   
   isLoading.value = true;
   
-  try {
-    // Call the register API through the user store
-    await userStore.register({
+  // Simulate API call delay
+  setTimeout(() => {
+    // Check if username already exists
+    const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const userExists = existingUsers.some(user => user.username === registerForm.username);
+    
+    if (userExists) {
+      errorMessage.value = 'Username already exists';
+      isLoading.value = false;
+      return;
+    }
+    
+    // Add the new user
+    const newUser = {
       username: registerForm.username,
-      password: registerForm.password,
+      password: registerForm.password, // In a real app, this would be hashed
+      role: registerForm.role,
       fullName: registerForm.fullName,
-      email: registerForm.email,
-      role: registerForm.role
-    });
+      email: registerForm.email
+    };
     
-    // Show success message
+    existingUsers.push(newUser);
+    localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+    
+    // Add to mock users in store
+    userStore.addUser(newUser);
+    
+    // Start success animation
     successMessage.value = 'Registration successful! You can now log in.';
-    
-    // Switch to login mode
-    switchMode('login');
-  } catch (error) {
-    // Display error message from API or a default message
-    errorMessage.value = userStore.error || 'Registration failed. Please try again.';
-  } finally {
     isLoading.value = false;
-  }
-}
+  }, 1000);
 };
 
 // Switch between login and register modes

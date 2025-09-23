@@ -199,11 +199,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useUserStore } from '../../stores/user';
-import { usePatientStore } from '../../stores/patients';
+import { useStore } from 'vuex';
 
-const userStore = useUserStore();
-const patientStore = usePatientStore();
+const store = useStore();
 
 // You can add reactive data and methods here
 

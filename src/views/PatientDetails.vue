@@ -117,7 +117,7 @@ const saveVisit = () => {
     ...visitData,
     physicianName: visitData.physician,
     visitDate: visitData.visitDate
-  }, (id) => patient.value ? `${patient.value.firstName} ${patient.value.lastName}` : 'Unknown Patient', 'scheduled', userStore);
+  }, (id) => patient.value ? `${patient.value.firstName} ${patient.value.lastName}` : 'Unknown Patient', 'scheduled');
   
   // Add visit to patient's visits array if it exists
   if (patient.value.visits) {

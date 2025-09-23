@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useNotificationStore } from '../stores/notifications';
+import { useStore } from 'vuex';
 
 const props = defineProps({
   message: {
@@ -23,7 +23,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['closed']);
-const notificationStore = useNotificationStore();
+const store = useStore();
 const visible = ref(true);
 let timer = null;
 
@@ -126,4 +126,4 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-</style>
+</style> 

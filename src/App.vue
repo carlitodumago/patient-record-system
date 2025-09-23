@@ -1,25 +1,11 @@
 <script setup>
 import MainLayout from './layouts/MainLayout.vue';
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted } from 'vue';
 import { generateAnimationCSS } from './utils/animationUtils';
 import NotifyManager from './components/NotifyManager.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
-import socketService from './services/socket';
-import { useUserStore } from './stores/user';
 
-const userStore = useUserStore();
 
-onMounted(() => {
-  // Initialize socket connection if user is authenticated
-  if (userStore.isAuthenticated) {
-    socketService.initialize();
-  }
-});
-
-onUnmounted(() => {
-  // Disconnect socket when component is unmounted
-  socketService.disconnect();
-});
 </script>
 
 <template>

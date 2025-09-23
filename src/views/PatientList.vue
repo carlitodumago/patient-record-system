@@ -141,7 +141,7 @@ const deletePatient = (id) => {
     
     // Add notification for deleted patient
     if (patientToDelete) {
-      addPatientNotification(notificationStore, patientToDelete, 'deleted');
+      addPatientNotification(store, patientToDelete, 'deleted');
     }
   }
 };

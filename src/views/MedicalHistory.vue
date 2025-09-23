@@ -125,7 +125,7 @@ onMounted(() => {
   if (patients.value.length === 0) {
     const savedPatients = localStorage.getItem('patientRecords');
     if (savedPatients) {
-      patientStore.setPatients(JSON.parse(savedPatients));
+      store.commit('setPatients', JSON.parse(savedPatients));
     }
   }
   

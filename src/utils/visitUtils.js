@@ -2,19 +2,19 @@ import { showToast } from './notificationUtils';
 
 /**
  * Mark a visit as completed
- * @param {Object} patientStore - Pinia patient store
+ * @param {Object} store - Vuex store
  * @param {String} visitId - Visit ID
  * @param {Object} completion - Completion data
  * @returns {Boolean} - Whether the operation was successful
  */
-export const markVisitAsCompleted = (patientStore, visitId, completion = {}) => {
+export const markVisitAsCompleted = (store, visitId, completion = {}) => {
   try {
     // Find the visit in patients
     let foundVisit = null;
     let patient = null;
     
     // Search through all patients for the visit
-    for (const p of patientStore.patients) {
+    for (const p of store.state.patients) {
       if (p.visits) {
         const visit = p.visits.find(v => v.id === visitId);
         if (visit) {
@@ -44,7 +44,7 @@ export const markVisitAsCompleted = (patientStore, visitId, completion = {}) => 
     }
     
     // Save the updated patient
-    patientStore.updatePatient(patient);
+    store.commit('updatePatient', patient);
     
     // Show a toast notification
     showToast('Visit marked as completed!', { 
@@ -58,4 +58,4 @@ export const markVisitAsCompleted = (patientStore, visitId, completion = {}) => 
     console.error('Error marking visit as completed:', error);
     return false;
   }
-};
+}; 

@@ -4,8 +4,8 @@ import 'bootstrap-icons/font/bootstrap-icons.css'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './assets/css/styles.css'
+import axios from 'axios'
 import router from './router'
-import { io } from 'socket.io-client'
 
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -14,25 +14,29 @@ import { createPinia } from 'pinia'
 // Import utilities
 import { updateAutoLogout } from './utils/autoLogout'
 import { standardizePatientsList, standardizePatientDates } from './utils/dateUtils'
+import { loadNotificationsWithDates, saveNotifications } from './utils/notificationUtils'
 
 // Apply animation CSS on app initialization
 import { generateAnimationCSS } from './utils/animationUtils'
 
-// Initialize Socket.io for real-time notifications
-const initializeSocketConnection = () => {
-  const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-    autoConnect: false,
-    withCredentials: true
-  });
+// Load mock users from localStorage if available
+const getMockUsers = () => {
+  const defaultUsers = [
+    { username: 'admin', password: 'admin123', role: 'admin', fullName: 'Admin User' },
+    { username: 'nurse', password: 'nurse123', role: 'nurse', fullName: 'Nurse Mike Chen' },
+    { username: 'patient', password: 'patient123', role: 'patient', fullName: 'Patient John Doe' }
+  ];
   
-  // Store socket instance globally
-  window.__SOCKET_INSTANCE = socket;
+  // Get registered users from localStorage
+  const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
   
-  return socket;
+  // Combine default and registered users, avoiding duplicates
+  return [...defaultUsers, ...registeredUsers.filter(
+    regUser => !defaultUsers.some(defaultUser => defaultUser.username === regUser.username)
+  )];
 };
 
-// Create socket instance
-const socket = initializeSocketConnection();
+console.log('Loaded users:', getMockUsers());
 
 // Create Pinia store
 const pinia = createPinia()
@@ -83,56 +87,12 @@ app.use(router)
 // Initialize stores after app is created but before mounting
 const userStore = useUserStore();
 const patientStore = usePatientStore();
-const notificationStore = useNotificationStore();
 
 // Initialize user state from localStorage
-await userStore.initUserState();
+userStore.initUserState();
 
-// Connect to socket if user is authenticated
-if (userStore.isAuthenticated) {
-  // Connect to socket server
-  socket.auth = { token: userStore.token };
-  socket.connect();
-  
-  // Setup socket event listeners
-  socket.on('connect', () => {
-    console.log('Socket connected');
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected');
-  });
-  
-  // Listen for new notifications
-  socket.on('notification', (notification) => {
-    notificationStore.addNotification(notification);
-  });
-  
-  // Listen for patient updates
-  socket.on('patient:created', (patient) => {
-    patientStore.loadPatients();
-  });
-  
-  socket.on('patient:updated', (patient) => {
-    patientStore.loadPatients();
-  });
-  
-  socket.on('patient:deleted', (patientId) => {
-    patientStore.loadPatients();
-  });
-}
-
-// Load patients and notifications from API
-try {
-  if (userStore.isAuthenticated) {
-    await Promise.all([
-      patientStore.loadPatients(),
-      notificationStore.loadNotifications()
-    ]);
-  }
-} catch (error) {
-  console.error('Error loading initial data:', error);
-}
+// Load patients from localStorage
+patientStore.loadPatients();
 
 // Execute after app is mounted
 try {

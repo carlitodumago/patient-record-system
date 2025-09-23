@@ -72,7 +72,7 @@ const saveSettings = () => {
       localStorage.setItem('userSettings', JSON.stringify(settingsData));
       
       // Apply auto logout settings
-      updateAutoLogout(userStore, router);
+      updateAutoLogout(store, router);
       
 
       

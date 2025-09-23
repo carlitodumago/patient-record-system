@@ -313,7 +313,7 @@ const saveVisit = () => {
       visits.value[index] = visitData;
       
       // Generate notification
-      addVisitNotification(notificationStore, visitData, getPatientName, 'updated', userStore);
+      addVisitNotification(notificationStore, visitData, getPatientName, 'updated');
     }
   } else {
     // Create a new visit with generated ID
@@ -327,7 +327,7 @@ const saveVisit = () => {
     visits.value.push(visit);
     
     // Generate notification
-    addVisitNotification(notificationStore, visit, getPatientName, 'scheduled', userStore);
+    addVisitNotification(notificationStore, visit, getPatientName, 'scheduled');
   }
   
   // Save to localStorage

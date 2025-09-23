@@ -68,7 +68,7 @@ export const setupAutoLogout = (userStore, router, timeout = 0) => {
  * @param {object} userStore - Pinia user store for authentication state
  * @param {object} router - Vue Router for navigation
  */
-export const updateAutoLogout = (userStore, router) => {
+export const updateAutoLogout = (store, router) => {
   // Get the current user
   const user = userStore.user;
   if (!user) return;

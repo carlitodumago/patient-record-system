@@ -211,7 +211,7 @@ const saveProfileData = () => {
   // Save changes back to storage
   localStorage.setItem('registeredUsers', JSON.stringify(users));
   
-  // Update the current user in Pinia store
+  // Update the current user in Vuex store
   const updatedUserData = {
     ...user.value,
     fullName: profileForm.value.fullName,

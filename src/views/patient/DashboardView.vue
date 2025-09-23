@@ -179,14 +179,14 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
-import { useUserStore } from '../../stores/user';
 
-const userStore = useUserStore();
+const store = useStore();
 const router = useRouter();
 
 // Current user
-const currentUser = computed(() => userStore.user);
+const currentUser = computed(() => store.state.user);
 
 // You can add reactive data and methods here
 

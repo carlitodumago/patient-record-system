@@ -3,13 +3,11 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { usePatientStore } from '../stores/patients';
 import { useNotificationStore } from '../stores/notifications';
-import { useUserStore } from '../stores/user';
 import { formatDate, formatTimeTo12Hour, formatDateTime } from '../utils/dateUtils';
 import { addNotification } from '../utils/notificationUtils';
 
 const patientStore = usePatientStore();
 const notificationStore = useNotificationStore();
-const userStore = useUserStore();
 const router = useRouter();
 
 const patients = computed(() => patientStore.patients);
