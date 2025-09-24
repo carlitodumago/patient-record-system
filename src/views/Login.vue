@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter, useRoute } from 'vue-router';
-import { authService } from '../services/api';
+import { ref, computed, onMounted, reactive } from "vue";
+import { useStore } from "vuex";
+import { useRouter, useRoute } from "vue-router";
+import { authService } from "../services/api";
 
 const store = useStore();
 const router = useRouter();
@@ -10,89 +10,89 @@ const route = useRoute();
 
 // Login form data
 const loginForm = reactive({
-  username: '',
-  password: '',
+  username: "",
+  password: "",
   // role removed as it's now automatically determined
 });
 
 // Register form data
 const registerForm = reactive({
-  username: '',
-  password: '',
-  confirmPassword: '',
-  role: 'patient', // Default role set to patient
-  fullName: '',
-  email: '',
+  username: "",
+  password: "",
+  confirmPassword: "",
+  role: "patient", // Default role set to patient
+  fullName: "",
+  email: "",
 });
 
 // UI state
 const isLoginMode = ref(true);
 const isLoading = ref(false);
-const errorMessage = ref('');
-const autoLogoutMessage = ref('');
-const successMessage = ref('');
-const showPassword = ref(false);
+const errorMessage = ref("");
+const autoLogoutMessage = ref("");
+const successMessage = ref("");
+const showLoginFormPassword = ref(false);
+const showRegisterFormPassword = ref(false);
 
 // Animation states
 const isAnimating = ref(false);
-const formDirection = ref('right');
-
-// Get users from store
-const users = computed(() => store.state.users);
+const formDirection = ref("right");
 
 // Animated class based on current mode
 const containerClass = computed(() => {
   return {
-    'auth-container': true,
-    'register-mode': !isLoginMode.value,
-    'slide-from-left': formDirection.value === 'left' && isAnimating.value,
-    'slide-from-right': formDirection.value === 'right' && isAnimating.value
+    "auth-container": true,
+    "register-mode": !isLoginMode.value,
+    "slide-from-left": formDirection.value === "left" && isAnimating.value,
+    "slide-from-right": formDirection.value === "right" && isAnimating.value,
   };
 });
 
 // Check if user was auto-logged out
 onMounted(() => {
-  if (route.query.autoLogout === 'true') {
-    autoLogoutMessage.value = 'You have been automatically logged out due to inactivity.';
+  if (route.query.autoLogout === "true") {
+    autoLogoutMessage.value =
+      "You have been automatically logged out due to inactivity.";
   }
-  
+
   // Check if coming from register page
-  if (route.query.register === 'success') {
-    successMessage.value = 'Registration successful! Please log in with your new account.';
+  if (route.query.register === "success") {
+    successMessage.value =
+      "Registration successful! Please log in with your new account.";
   }
-  
+
   // Check if we should show register form
-  if (route.path === '/register') {
-    switchMode('register');
+  if (route.path === "/register") {
+    switchMode("register");
   }
 });
 
 // Login function
 const login = async () => {
-  errorMessage.value = '';
-  successMessage.value = '';
-  
+  errorMessage.value = "";
+  successMessage.value = "";
+
   if (!loginForm.username || !loginForm.password) {
-    errorMessage.value = 'Please enter both username and password';
+    errorMessage.value = "Please enter both username and password";
     return;
   }
 
   isLoading.value = true;
-  
+
   try {
     // Use the auth service to login
     const userData = await authService.login({
       username: loginForm.username,
-      password: loginForm.password
+      password: loginForm.password,
     });
-    
+
     // Update store with user data
-    store.commit('setAuthenticated', true);
-    store.commit('setUser', userData);
-    
-    router.push('/dashboard');
+    store.commit("setAuthenticated", true);
+    store.commit("setUser", userData);
+
+    router.push("/dashboard");
   } catch (error) {
-    errorMessage.value = error.message || 'Invalid username or password';
+    errorMessage.value = error.message || "Invalid username or password";
   } finally {
     isLoading.value = false;
   }
@@ -101,27 +101,31 @@ const login = async () => {
 // Register function
 const register = async () => {
   // Clear any previous error
-  errorMessage.value = '';
-  successMessage.value = '';
-  
+  errorMessage.value = "";
+  successMessage.value = "";
+
   // Basic validation
-  if (!registerForm.username || !registerForm.password || !registerForm.confirmPassword) {
-    errorMessage.value = 'Please fill in all required fields';
+  if (
+    !registerForm.username ||
+    !registerForm.password ||
+    !registerForm.confirmPassword
+  ) {
+    errorMessage.value = "Please fill in all required fields";
     return;
   }
-  
+
   if (registerForm.password !== registerForm.confirmPassword) {
-    errorMessage.value = 'Passwords do not match';
+    errorMessage.value = "Passwords do not match";
     return;
   }
-  
+
   if (registerForm.password.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters long';
+    errorMessage.value = "Password must be at least 6 characters long";
     return;
   }
-  
+
   isLoading.value = true;
-  
+
   try {
     // Use the auth service to register
     const newUser = {
@@ -129,23 +133,20 @@ const register = async () => {
       password: registerForm.password,
       role: registerForm.role,
       fullName: registerForm.fullName,
-      email: registerForm.email
+      email: registerForm.email,
     };
-    
+
     await authService.register(newUser);
-    
-    // Add to mock users in store (this would normally be handled by the server)
-    store.commit('addUser', newUser);
-    
+
     // Show success message
-    successMessage.value = 'Registration successful! You can now log in.';
-    
+    successMessage.value = "Registration successful! You can now log in.";
+
     // Switch to login mode after successful registration
     setTimeout(() => {
-      switchMode('login');
+      switchMode("login");
     }, 1500);
   } catch (error) {
-    errorMessage.value = error.message || 'Registration failed';
+    errorMessage.value = error.message || "Registration failed";
   } finally {
     isLoading.value = false;
   }
@@ -153,27 +154,30 @@ const register = async () => {
 
 // Switch between login and register modes
 const switchMode = (mode) => {
-  if ((mode === 'login' && isLoginMode.value) || (mode === 'register' && !isLoginMode.value)) {
+  if (
+    (mode === "login" && isLoginMode.value) ||
+    (mode === "register" && !isLoginMode.value)
+  ) {
     return; // Already in this mode
   }
-  
+
   // Set animation direction
-  formDirection.value = mode === 'login' ? 'left' : 'right';
-  
+  formDirection.value = mode === "login" ? "left" : "right";
+
   // Start animation
   isAnimating.value = true;
   setTimeout(() => {
-    isLoginMode.value = mode === 'login';
-    
+    isLoginMode.value = mode === "login";
+
     // Update URL without navigation
-    router.replace({ 
-      path: isLoginMode.value ? '/login' : '/register',
-      query: route.query 
-    }, () => {}, () => {});
-    
+    router.replace({
+      path: mode === "login" ? "/login" : "/register",
+      query: route.query,
+    });
+
     // Reset errors
-    errorMessage.value = '';
-    
+    errorMessage.value = "";
+
     // End animation
     setTimeout(() => {
       isAnimating.value = false;
@@ -182,8 +186,12 @@ const switchMode = (mode) => {
 };
 
 // Toggle password visibility
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value;
+const toggleLoginFormPassword = () => {
+  showLoginFormPassword.value = !showLoginFormPassword.value;
+};
+
+const toggleRegisterFormPassword = () => {
+  showRegisterFormPassword.value = !showRegisterFormPassword.value;
 };
 
 // Function to fill demo account credentials
@@ -204,7 +212,7 @@ const fillDemoAccount = (username, password) => {
         <div class="circle circle-3"></div>
         <div class="circle circle-4"></div>
       </div>
-      
+
       <div class="auth-content">
         <!-- Login Form -->
         <div v-if="isLoginMode" class="auth-form login-form" key="login">
@@ -215,122 +223,82 @@ const fillDemoAccount = (username, password) => {
             <h1>Patient Record System</h1>
             <p class="subtitle">Sign in to your account</p>
           </div>
-          
+
           <div v-if="errorMessage" class="alert alert-danger">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             {{ errorMessage }}
           </div>
-          
+
           <div v-if="autoLogoutMessage" class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
             {{ autoLogoutMessage }}
           </div>
-          
+
           <div v-if="successMessage" class="alert alert-success">
             <i class="bi bi-check-circle-fill me-2"></i>
             {{ successMessage }}
           </div>
-          
+
           <form @submit.prevent="login">
             <div class="form-group">
               <label for="username">Username</label>
               <div class="input-container">
                 <i class="bi bi-person input-icon"></i>
-                <input 
-                  type="text" 
-                  id="username" 
-                  v-model="loginForm.username" 
+                <input
+                  type="text"
+                  id="username"
+                  v-model="loginForm.username"
                   placeholder="Enter your username"
                   autocomplete="username"
                   required
                 />
               </div>
             </div>
-            
+
             <!-- Role selection removed - role is now automatically determined -->
-            
+
             <div class="form-group">
               <label for="password">Password</label>
               <div class="input-container">
                 <i class="bi bi-lock input-icon"></i>
-                <input 
-                  :type="showPassword ? 'text' : 'password'" 
-                  id="password" 
-                  v-model="loginForm.password" 
+                <input
+                  :type="showLoginFormPassword ? 'text' : 'password'"
+                  id="password"
+                  v-model="loginForm.password"
                   placeholder="Enter your password"
                   autocomplete="current-password"
                   required
                 />
-                <i 
-                  class="bi toggle-password" 
-                  :class="showPassword ? 'bi-eye-slash' : 'bi-eye'" 
-                  @click="togglePasswordVisibility"
+                <i
+                  class="bi toggle-password"
+                  :class="showLoginFormPassword ? 'bi-eye-slash' : 'bi-eye'"
+                  @click="toggleLoginFormPassword"
                 ></i>
               </div>
             </div>
 
             <!-- Role selection removed - role is now automatically determined -->
-            
+
             <div class="form-button">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 class="primary-button"
                 :disabled="isLoading"
               >
                 <span v-if="isLoading" class="spinner"></span>
-                <span>{{ isLoading ? 'Signing in...' : 'Sign in' }}</span>
+                <span>{{ isLoading ? "Signing in..." : "Sign in" }}</span>
               </button>
             </div>
           </form>
-          
+
           <div class="form-footer">
-            <p>Don't have an account? <a href="#" @click.prevent="switchMode('register')">Register</a></p>
-          </div>
-          
-          <!-- Demo Accounts Section -->
-          <div class="demo-accounts">
-            <h4>Demo Accounts</h4>
-            <div class="demo-account-grid">
-              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123')">
-                <div class="demo-account-header">
-                  <i class="bi bi-shield-check"></i>
-                  <span>Admin</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> admin<br>
-                  <strong>Password:</strong> admin123<br>
-                  <strong>Role:</strong> Administrator
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('nurse', 'nurse123')">
-                <div class="demo-account-header">
-                  <i class="bi bi-heart-pulse"></i>
-                  <span>Nurse</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> nurse<br>
-                  <strong>Password:</strong> nurse123<br>
-                  <strong>Role:</strong> Nurse/Clinic Staff
-                </div>
-              </div>
-              
-              <div class="demo-account" @click="fillDemoAccount('patient', 'patient123')">
-                <div class="demo-account-header">
-                  <i class="bi bi-person"></i>
-                  <span>Patient</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> patient<br>
-                  <strong>Password:</strong> patient123<br>
-                  <strong>Role:</strong> Patient
-                </div>
-              </div>
-            </div>
-            <p class="demo-note">Click any account to auto-fill the login form</p>
+            <p>
+              Don't have an account?
+              <a href="#" @click.prevent="switchMode('register')">Register</a>
+            </p>
           </div>
         </div>
-        
+
         <!-- Register Form -->
         <div v-else class="auth-form register-form" key="register">
           <div class="auth-header">
@@ -340,17 +308,17 @@ const fillDemoAccount = (username, password) => {
             <h1>Create Account</h1>
             <p class="subtitle">Get started with your account</p>
           </div>
-          
+
           <div v-if="errorMessage" class="alert alert-danger">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             {{ errorMessage }}
           </div>
-          
+
           <div v-if="successMessage" class="alert alert-success">
             <i class="bi bi-check-circle-fill me-2"></i>
             {{ successMessage }}
           </div>
-          
+
           <form @submit.prevent="register">
             <div class="form-group">
               <label for="register-username">Username</label>
@@ -366,13 +334,13 @@ const fillDemoAccount = (username, password) => {
                 />
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="register-password">Password</label>
               <div class="input-container">
                 <i class="bi bi-lock input-icon"></i>
                 <input
-                  :type="showPassword ? 'text' : 'password'"
+                  :type="showRegisterFormPassword ? 'text' : 'password'"
                   id="register-password"
                   v-model="registerForm.password"
                   placeholder="Create a password"
@@ -380,19 +348,19 @@ const fillDemoAccount = (username, password) => {
                   required
                 />
                 <i
-                  class="bi input-icon show-password-toggle"
-                  :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="togglePasswordVisibility"
+                  class="bi toggle-password"
+                  :class="showRegisterFormPassword ? 'bi-eye-slash' : 'bi-eye'"
+                  @click="toggleRegisterFormPassword"
                 ></i>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="confirm-password">Confirm Password</label>
               <div class="input-container">
                 <i class="bi bi-lock input-icon"></i>
                 <input
-                  :type="showPassword ? 'text' : 'password'"
+                  :type="showRegisterFormPassword ? 'text' : 'password'"
                   id="confirm-password"
                   v-model="registerForm.confirmPassword"
                   placeholder="Confirm your password"
@@ -400,25 +368,24 @@ const fillDemoAccount = (username, password) => {
                   required
                 />
                 <i
-                  class="bi input-icon show-password-toggle"
-                  :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="togglePasswordVisibility"
+                  class="bi toggle-password"
+                  :class="showRegisterFormPassword ? 'bi-eye-slash' : 'bi-eye'"
+                  @click="toggleRegisterFormPassword"
                 ></i>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="register-role">Role</label>
               <div class="input-container">
                 <i class="bi bi-person-badge input-icon"></i>
                 <select id="register-role" v-model="registerForm.role" required>
-                  <option value="admin">Admin</option>
                   <option value="nurse">Nurse/Clinic Staff</option>
                   <option value="patient">Patient</option>
                 </select>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="full-name">Full Name (Optional)</label>
               <div class="input-container">
@@ -431,7 +398,7 @@ const fillDemoAccount = (username, password) => {
                 />
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="email">Email (Optional)</label>
               <div class="input-container">
@@ -444,15 +411,22 @@ const fillDemoAccount = (username, password) => {
                 />
               </div>
             </div>
-            
-            <button type="submit" class="auth-button" :disabled="isLoading">
-              <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
-              {{ isLoading ? 'Registering...' : 'Register' }}
-            </button>
+
+            <div class="form-button">
+              <button
+                type="submit"
+                class="primary-button"
+                :disabled="isLoading"
+              >
+                <span v-if="isLoading" class="spinner"></span>
+                <span>{{ isLoading ? "Registering..." : "Register" }}</span>
+              </button>
+            </div>
           </form>
-          
+
           <p class="switch-mode">
-            Already have an account? <a href="#" @click.prevent="switchMode('login')">Sign in</a>
+            Already have an account?
+            <a href="#" @click.prevent="switchMode('login')">Sign in</a>
           </p>
         </div>
       </div>
@@ -546,7 +520,8 @@ const fillDemoAccount = (username, password) => {
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotate(0deg);
   }
   25% {
@@ -653,7 +628,8 @@ label {
   cursor: pointer;
 }
 
-input, select {
+input,
+select {
   width: 100%;
   padding: 15px 15px 15px 45px;
   border: 1px solid #ced4da;
@@ -663,7 +639,8 @@ input, select {
   background-color: #f8f9fa;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: #0d6efd;
   box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
@@ -891,7 +868,7 @@ input:focus, select:focus {
   color: #6c757d;
 }
 
-.register-form-simple input, 
+.register-form-simple input,
 .register-form-simple select {
   flex: 1;
   border: none;
@@ -901,7 +878,7 @@ input:focus, select:focus {
   outline: none;
 }
 
-.register-form-simple input:focus, 
+.register-form-simple input:focus,
 .register-form-simple select:focus {
   background-color: white;
 }
@@ -954,15 +931,15 @@ input:focus, select:focus {
   .auth-content {
     padding: 30px 20px;
   }
-  
+
   .system-title {
     font-size: 28px;
   }
-  
+
   .register-card {
     padding: 20px 15px;
   }
-  
+
   .create-account-title {
     font-size: 24px;
   }
@@ -1048,7 +1025,7 @@ input:focus, select:focus {
   .demo-account-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .demo-accounts {
     margin-top: 20px;
     padding: 15px;

@@ -263,6 +263,7 @@ onMounted(() => {
                 <div class="input-container">
                   <i class="bi bi-person-badge input-icon"></i>
                   <select id="role" v-model="formData.role" required>
+                    <option value="admin">Admin</option>
                     <option value="employee">Employee</option>
                     <option value="patient">Patient</option>
                   </select>
