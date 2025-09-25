@@ -1,12 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
+import { useNotificationStore } from '../stores/notifications';
+import { useUserStore } from '../stores/user';
 import { formatDate } from '../utils/dateUtils';
 import { addPatientNotification } from '../utils/notificationUtils';
 import { addVisitNotification } from '../utils/notificationUtils';
 
-const store = useStore();
+const patientStore = usePatientStore();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -127,7 +131,7 @@ const saveVisit = () => {
   localStorage.setItem('medicalVisits', JSON.stringify(visits));
   
   // Add notification
-  addVisitNotification(store, {
+  addVisitNotification(notificationStore, {
     ...visitData,
     physicianName: visitData.physician,
     visitDate: visitData.visitDate
@@ -155,7 +159,7 @@ const saveVisit = () => {
 
 onMounted(() => {
   // In a real application, you would fetch the patient's data from an API
-  const foundPatient = store.state.patients.find(p => p.id === patientId);
+  const foundPatient = patientStore.patients.find(p => p.id === patientId);
   
   if (foundPatient) {
     patient.value = {
@@ -187,7 +191,7 @@ onMounted(() => {
         }
       ]
     };
-    store.commit('setCurrentPatient', patient.value);
+    patientStore.setCurrentPatient(patient.value);
   } else {
     router.push('/patients');
   }
@@ -205,9 +209,9 @@ const goBack = () => {
 
 const confirmDelete = () => {
   if (confirm(`Are you sure you want to delete ${patient.value.firstName} ${patient.value.lastName}'s record?`)) {
-    addPatientNotification(store, patient.value, 'deleted');
+    addPatientNotification(notificationStore, patient.value, 'deleted', userStore);
     
-    store.commit('deletePatient', patientId);
+    patientStore.deletePatient(patientId);
     router.push('/patients');
   }
 };
@@ -867,4 +871,4 @@ Notes: ${visit.notes}
 .patient-card {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-</style> 
+</style>

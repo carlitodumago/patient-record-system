@@ -1,16 +1,20 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
+import { useNotificationStore } from '../stores/notifications';
+import { useUserStore } from '../stores/user';
 import { formatDate, formatTimeTo12Hour, formatDateTime, parseDate } from '../utils/dateUtils';
 import ActionButtons from '@/components/ActionButtons.vue';
 import { addVisitNotification } from '../utils/notificationUtils';
 import { addNotification } from '../utils/notificationUtils';
 
-const store = useStore();
+const patientStore = usePatientStore();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
+const patients = computed(() => patientStore.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const visits = ref([]);
@@ -128,7 +132,7 @@ onMounted(() => {
   if (patients.value.length === 0) {
     const savedPatients = localStorage.getItem('patientRecords');
     if (savedPatients) {
-      store.commit('setPatients', JSON.parse(savedPatients));
+      patientStore.setPatients(JSON.parse(savedPatients));
     }
   }
   
@@ -309,7 +313,7 @@ const saveVisit = () => {
       visits.value[index] = visitData;
       
       // Generate notification
-      addVisitNotification(store, visitData, getPatientName, 'updated');
+      addVisitNotification(notificationStore, visitData, getPatientName, 'updated');
     }
   } else {
     // Create a new visit with generated ID
@@ -323,7 +327,7 @@ const saveVisit = () => {
     visits.value.push(visit);
     
     // Generate notification
-    addVisitNotification(store, visit, getPatientName, 'scheduled');
+    addVisitNotification(notificationStore, visit, getPatientName, 'scheduled');
   }
   
   // Save to localStorage
@@ -409,7 +413,7 @@ const deleteVisit = (id) => {
     
     if (visitToDelete) {
       // Generate notification using addVisitNotification
-      addVisitNotification(store, visitToDelete, getPatientName, 'deleted');
+      addVisitNotification(notificationStore, visitToDelete, getPatientName, 'deleted');
       
       // Remove the visit from the array
       visits.value = visits.value.filter(v => v.id !== id);
@@ -434,7 +438,7 @@ const markAsCompleted = (id) => {
     localStorage.setItem('medicalVisits', JSON.stringify(visits.value));
     
     // Generate notification
-    addVisitNotification(store, visit, getPatientName, 'completed');
+    addVisitNotification(notificationStore, visit, getPatientName, 'completed');
     
     // Show success message
     alert('Visit marked as completed!');
@@ -866,4 +870,4 @@ const markAsCompleted = (id) => {
   position: static !important;
   float: right;
 }
-</style> 
+</style>

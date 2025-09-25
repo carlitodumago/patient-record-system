@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
 import { formatDate, formatDateTime, formatTimeTo12Hour } from '../utils/dateUtils';
 
-const store = useStore();
+const patientStore = usePatientStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
+const patients = computed(() => patientStore.patients);
 const visits = ref([]);
 const records = ref([]);
 const isLoading = ref(true);
@@ -208,4 +208,4 @@ onMounted(() => {
 
 <style scoped>
 /* Removed unused styles */
-</style> 
+</style>

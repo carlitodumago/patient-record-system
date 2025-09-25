@@ -1,13 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
 import { updateAutoLogout, setupAutoLogout } from '../utils/autoLogout';
 
-const store = useStore();
+const userStore = useUserStore();
 const router = useRouter();
 
-const user = computed(() => store.state.user);
+const user = computed(() => userStore.user);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const saveSuccess = ref(false);
@@ -30,8 +30,6 @@ const autoLogoutOptions = [
 
 
 
-
-
 // Load settings
 onMounted(() => {
   if (!user.value) {
@@ -51,7 +49,7 @@ onMounted(() => {
           ...parsedSettings.settings
         };
         
-        // Apply settings
+
       }
     } catch (error) {
       console.error('Failed to parse settings:', error);
@@ -130,9 +128,27 @@ const resetToDefault = () => {
           </div>
           <div class="card-body">
             <div class="preferences-section">
-              <!-- Preferences Section -->
-              
-              <!-- Notifications toggle -->
+              <!-- Dark Mode toggle -->
+              <div class="preference-item mb-4">
+                <div class="preference-item-header">
+                  <div class="toggle-label">
+                    <label class="form-check-label mb-0 d-flex align-items-center" for="darkMode">
+                      <span>Dark Mode</span>
+                    </label>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input 
+                      type="checkbox" 
+                      class="form-check-input" 
+                      id="darkMode"
+                      v-model="settingsForm.darkMode"
+                    >
+                  </div>
+                </div>
+                <div class="text-muted mt-2 preference-description">
+                  Switch between light and dark theme for better visibility in low-light environments.
+                </div>
+              </div>
             
               <div class="preference-item mb-4">
                 <div class="preference-item-header">

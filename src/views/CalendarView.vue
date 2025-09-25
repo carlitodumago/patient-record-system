@@ -2,12 +2,21 @@
   <div class="calendar-container mt-4">
     <div class="calendar-header">
       <h2>Schedule Patients</h2>
-      <div class="month-navigator">
-        <span class="nav-arrow" @click="previousYear">&lt;&lt;</span>
-        <span class="nav-arrow" @click="previousMonth">&lt;</span>
-        <span class="current-month">{{ currentMonthYear }}</span>
-        <span class="nav-arrow" @click="nextMonth">&gt;</span>
-        <span class="nav-arrow" @click="nextYear">&gt;&gt;</span>
+      <div class="d-flex align-items-center">
+        <button 
+          v-if="userRole === 'admin' || userRole === 'nurse'"
+          class="btn btn-sm btn-primary me-3" 
+          @click="showAddEventModal = true"
+        >
+          <i class="bi bi-plus-circle"></i> Add Appointment
+        </button>
+        <div class="month-navigator">
+          <span class="nav-arrow" @click="previousYear">&lt;&lt;</span>
+          <span class="nav-arrow" @click="previousMonth">&lt;</span>
+          <span class="current-month">{{ currentMonthYear }}</span>
+          <span class="nav-arrow" @click="nextMonth">&gt;</span>
+          <span class="nav-arrow" @click="nextYear">&gt;&gt;</span>
+        </div>
       </div>
     </div>
     
@@ -41,19 +50,198 @@
       </div>
     </div>
   </div>
+  
+  <!-- Add Event Modal -->
+  <div class="modal fade" :class="{ 'd-block show': showAddEventModal }" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New Appointment</h5>
+          <button type="button" class="btn-close" @click="showAddEventModal = false"></button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-control" v-model="newEvent.date" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Time</label>
+              <input type="time" class="form-control" v-model="newEvent.time" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Patient</label>
+              <select class="form-select" v-model="newEvent.patientId" required>
+                <option value="">Select a patient</option>
+                <option v-for="patient in patients" :key="patient.id" :value="patient.id">
+                  {{ patient.firstName }} {{ patient.lastName }}
+                </option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Duration (minutes)</label>
+              <input type="number" class="form-control" v-model="newEvent.duration" min="15" step="15" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" v-model="newEvent.description" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="showAddEventModal = false">Cancel</button>
+          <button type="button" class="btn btn-primary" @click="saveNewEvent">Save Appointment</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop fade show" v-if="showAddEventModal"></div>
+  </div>
+  
+  <!-- Event Details Modal -->
+  <div class="modal fade" :class="{ 'd-block show': showEventDetailsModal }" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" v-if="currentEvent">
+        <div class="modal-header">
+          <h5 class="modal-title">Appointment Details</h5>
+          <button type="button" class="btn-close" @click="showEventDetailsModal = false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6>Patient</h6>
+            <p>{{ currentEvent.patient }}</p>
+          </div>
+          <div class="mb-3">
+            <h6>Date & Time</h6>
+            <p>{{ currentEvent.date }} at {{ currentEvent.time }}</p>
+          </div>
+          <div class="mb-3" v-if="currentEvent.duration">
+            <h6>Duration</h6>
+            <p>{{ currentEvent.duration }} minutes</p>
+          </div>
+          <div class="mb-3" v-if="currentEvent.description">
+            <h6>Description</h6>
+            <p>{{ currentEvent.description }}</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="showEventDetailsModal = false">Close</button>
+          <button 
+            v-if="userRole === 'admin' || (userRole === 'nurse' && currentEvent.nurseId === userId)"
+            type="button" 
+            class="btn btn-danger" 
+            @click="deleteEvent"
+          >
+            Delete
+          </button>
+          <button 
+            v-if="userRole === 'admin' || (userRole === 'nurse' && currentEvent.nurseId === userId)"
+            type="button" 
+            class="btn btn-primary" 
+            @click="editEvent"
+          >
+            Edit
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop fade show" v-if="showEventDetailsModal"></div>
+  </div>
+  
+  <!-- Edit Event Modal -->
+  <div class="modal fade" :class="{ 'd-block show': showEditEventModal }" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" v-if="currentEvent">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Appointment</h5>
+          <button type="button" class="btn-close" @click="showEditEventModal = false"></button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-control" v-model="currentEvent.date" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Time</label>
+              <input type="time" class="form-control" v-model="currentEvent.time" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Duration (minutes)</label>
+              <input type="number" class="form-control" v-model="currentEvent.duration" min="15" step="15" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" v-model="currentEvent.description" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="showEditEventModal = false">Cancel</button>
+          <button type="button" class="btn btn-primary" @click="updateEvent">Update Appointment</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop fade show" v-if="showEditEventModal"></div>
+  </div>
 </template>
 
 <script>
 import { ref, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import { addNotification } from '../utils/notificationUtils'
 
 export default {
   name: 'CalendarView',
   setup() {
+    const store = useStore()
     const currentDate = ref(new Date())
     const selectedDate = ref(null)
     
-    // Sample events data - cleared all appointments
-    const events = ref([])
+    // Get current user
+    const currentUser = computed(() => store.state.user)
+    const userRole = computed(() => currentUser.value?.role || 'patient')
+    const userId = computed(() => currentUser.value?.id)
+    
+    // Events data
+    const allEvents = ref([])
+    const showAddEventModal = ref(false)
+    const showEventDetailsModal = ref(false)
+    const showEditEventModal = ref(false)
+    const currentEvent = ref(null)
+    
+    // New event form data
+    const newEvent = ref({
+      id: '',
+      date: '',
+      time: '',
+      patient: '',
+      patientId: '',
+      description: '',
+      type: 'appointment',
+      nurseId: '',
+      duration: 30 // minutes
+    })
+    
+    // Get patients list
+    const patients = computed(() => store.state.patients || [])
+    
+    // Filter events based on user role
+    const events = computed(() => {
+      if (userRole.value === 'patient') {
+        // Patients can only see their own appointments
+        return allEvents.value.filter(event => event.patientId === userId.value)
+      } else if (userRole.value === 'nurse') {
+        // Nurses can see all patient appointments they're responsible for
+        return allEvents.value.filter(event => 
+          event.nurseId === userId.value || 
+          event.type === 'clinic'
+        )
+      } else if (userRole.value === 'admin') {
+        // Admins can see all appointments
+        return allEvents.value
+      }
+      return []
+    })
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -192,9 +380,121 @@ export default {
     }
 
     const viewEvent = (event) => {
-      // Handle event click - you can show event details, edit, etc.
-      console.log('Event clicked:', event)
-      // You could emit an event or navigate to event details
+      currentEvent.value = { ...event }
+      showEventDetailsModal.value = true
+    }
+    
+    const editEvent = () => {
+      showEventDetailsModal.value = false
+      showEditEventModal.value = true
+    }
+    
+    const deleteEvent = () => {
+      if (!confirm('Are you sure you want to delete this appointment?')) {
+        return
+      }
+      
+      // Remove event from the list
+      allEvents.value = allEvents.value.filter(e => e.id !== currentEvent.value.id)
+      
+      // Save to localStorage
+      localStorage.setItem('calendarEvents', JSON.stringify(allEvents.value))
+      
+      // Create notification
+      addNotification(store, {
+        title: 'Appointment Deleted',
+        message: `Appointment for ${currentEvent.value.patient} on ${currentEvent.value.date} at ${currentEvent.value.time} has been deleted.`,
+        type: 'warning',
+        noButtons: true
+      })
+      
+      // Close modal
+      showEventDetailsModal.value = false
+      
+      // Show success message
+      alert('Appointment deleted successfully!')
+    }
+    
+    const prepareNewEvent = (date) => {
+      newEvent.value = {
+        id: Date.now().toString(),
+        date: date || selectedDate.value,
+        time: '09:00',
+        patient: '',
+        patientId: '',
+        description: '',
+        type: 'appointment',
+        nurseId: userRole.value === 'nurse' ? userId.value : '',
+        duration: 30
+      }
+      showAddEventModal.value = true
+    }
+    
+    const saveNewEvent = () => {
+      // Validate form
+      if (!newEvent.value.date || !newEvent.value.time || !newEvent.value.patientId) {
+        alert('Please fill in all required fields')
+        return
+      }
+      
+      // Find patient name from ID
+      const patient = patients.value.find(p => p.id === newEvent.value.patientId)
+      if (patient) {
+        newEvent.value.patient = `${patient.firstName} ${patient.lastName}`
+      }
+      
+      // Add event to the list
+      allEvents.value.push({ ...newEvent.value })
+      
+      // Save to localStorage
+      localStorage.setItem('calendarEvents', JSON.stringify(allEvents.value))
+      
+      // Create notification for patient
+      addNotification(store, {
+        title: 'New Appointment',
+        message: `You have a new appointment scheduled on ${newEvent.value.date} at ${newEvent.value.time}.`,
+        type: 'info',
+        recipientId: newEvent.value.patientId,
+        noButtons: true
+      })
+      
+      // Close modal
+      showAddEventModal.value = false
+      
+      // Show success message
+      alert('Appointment added successfully!')
+    }
+    
+    const updateEvent = () => {
+      // Validate form
+      if (!currentEvent.value.date || !currentEvent.value.time) {
+        alert('Please fill in all required fields')
+        return
+      }
+      
+      // Update event in the list
+      const index = allEvents.value.findIndex(e => e.id === currentEvent.value.id)
+      if (index !== -1) {
+        allEvents.value[index] = { ...currentEvent.value }
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('calendarEvents', JSON.stringify(allEvents.value))
+      
+      // Create notification for patient
+      addNotification(store, {
+        title: 'Appointment Updated',
+        message: `Your appointment has been updated to ${currentEvent.value.date} at ${currentEvent.value.time}.`,
+        type: 'info',
+        recipientId: currentEvent.value.patientId,
+        noButtons: true
+      })
+      
+      // Close modal
+      showEditEventModal.value = false
+      
+      // Show success message
+      alert('Appointment updated successfully!')
     }
 
     onMounted(() => {
@@ -202,6 +502,12 @@ export default {
       const today = new Date()
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       selectedDate.value = todayStr
+      
+      // Load events from localStorage
+      const savedEvents = localStorage.getItem('calendarEvents')
+      if (savedEvents) {
+        allEvents.value = JSON.parse(savedEvents)
+      }
     })
 
     return {
@@ -217,7 +523,19 @@ export default {
       previousYear,
       nextYear,
       selectDate,
-      viewEvent
+      viewEvent,
+      showAddEventModal,
+      showEventDetailsModal,
+      showEditEventModal,
+      currentEvent,
+      newEvent,
+      patients,
+      prepareNewEvent,
+      saveNewEvent,
+      editEvent,
+      updateEvent,
+      deleteEvent,
+      userRole
     }
   }
 }
@@ -242,6 +560,14 @@ export default {
   background-color: #007bff;
   color: white;
   border-bottom: 1px solid #0056b3;
+}
+
+.modal {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal.show {
+  display: block;
 }
 
 .calendar-header h2 {

@@ -21,7 +21,6 @@ import {
   loadNotifications,
   saveNotifications,
 } from "./utils/notificationUtils";
-import { userService } from "./services/api";
 
 // Apply animation CSS on app initialization
 import { generateAnimationCSS } from "./utils/animationUtils";
@@ -155,12 +154,17 @@ const store = createStore({
     },
     async loadUsers({ commit }) {
       try {
-        // This action now correctly loads non-admin users for display in user management lists
-        const users = await userService.getAllUsers();
-        commit("setUsers", users);
+        // Load users from localStorage for now since API service was removed
+        const savedUsers = localStorage.getItem('registeredUsers');
+        if (savedUsers) {
+          const users = JSON.parse(savedUsers);
+          commit("setUsers", users);
+        } else {
+          // Set empty users array as fallback
+          commit("setUsers", []);
+        }
       } catch (error) {
-        // This won't block login, but we should log it.
-        console.warn("Backend API not available, using local data only:", error.message);
+        console.warn("Failed to load users:", error.message);
         // Set empty users array as fallback
         commit("setUsers", []);
       }

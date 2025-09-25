@@ -1,16 +1,20 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { usePatientStore } from '../stores/patients';
+import { useNotificationStore } from '../stores/notifications';
+import { useUserStore } from '../stores/user';
 import ActionButtons from '@/components/ActionButtons.vue';
 import { formatDate } from '../utils/dateUtils';
 import { addPatientNotification } from '../utils/notificationUtils';
 import { patientService } from '../services/api';
 
-const store = useStore();
+const patientStore = usePatientStore();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
+const patients = computed(() => patientStore.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const viewMode = ref('table'); // 'card' or 'table'
@@ -92,12 +96,12 @@ onMounted(() => {
   }
   
   if (savedPatients) {
-    store.commit('setPatients', JSON.parse(savedPatients));
+    patientStore.setPatients(JSON.parse(savedPatients));
     isLoading.value = false;
   } else {
     // If no saved data, use mock data
     setTimeout(() => {
-      store.commit('setPatients', mockPatients);
+      patientStore.setPatients(mockPatients);
       isLoading.value = false;
       
       // Save mock data to localStorage
@@ -137,7 +141,7 @@ const deletePatient = (id) => {
     const patientToDelete = patients.value.find(p => p.id === id);
     
     // Delete the patient
-    store.commit('deletePatient', id);
+    patientStore.deletePatient(id);
     
     // Add notification for deleted patient
     if (patientToDelete) {
@@ -622,4 +626,4 @@ const addNewPatient = () => {
   transform: scale(1.01);
   box-shadow: 0 4px 15px rgba(67, 97, 238, 0.2);
 }
-</style> 
+</style>
