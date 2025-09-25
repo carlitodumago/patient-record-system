@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import ActionButtons from '@/components/ActionButtons.vue';
 import { formatDate } from '../utils/dateUtils';
 import { addPatientNotification } from '../utils/notificationUtils';
+import { patientService } from '../services/api';
 
 const store = useStore();
 const router = useRouter();
@@ -13,6 +14,9 @@ const patients = computed(() => store.state.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const viewMode = ref('table'); // 'card' or 'table'
+const error = ref('');
+const showDeleteModal = ref(false);
+const patientToDelete = ref(null);
 
 // Mock patient data for demonstration
 const mockPatients = [

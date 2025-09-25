@@ -104,6 +104,9 @@ const store = createStore({
     setUser(state, user) {
       state.user = user;
     },
+    setUsers(state, users) {
+      state.users = users;
+    },
     // Notification mutations
     addNotification(state, notification) {
       state.notifications.unshift({
@@ -157,24 +160,16 @@ const store = createStore({
         commit("setUsers", users);
       } catch (error) {
         // This won't block login, but we should log it.
-        console.error("Failed to load users from backend:", error);
+        console.warn("Backend API not available, using local data only:", error.message);
+        // Set empty users array as fallback
+        commit("setUsers", []);
       }
     },
   },
 });
 
-// Check local storage for user login state
-const storedUser = localStorage.getItem("user");
-if (storedUser) {
-  try {
-    const userData = JSON.parse(storedUser);
-    store.commit("setAuthenticated", true);
-    store.commit("setUser", userData);
-  } catch (e) {
-    console.error("Error parsing stored user data:", e);
-    localStorage.removeItem("user");
-  }
-}
+// Supabase auth will handle session management
+// No need for localStorage-based initialization
 
 // Load patients from localStorage on app start
 store.dispatch("loadPatients");
@@ -241,3 +236,11 @@ try {
     `;
   }
 }
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  // Clean up any global subscriptions
+  if (window.globalAuthSubscription) {
+    window.globalAuthSubscription.unsubscribe();
+  }
+});

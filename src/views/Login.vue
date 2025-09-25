@@ -2,27 +2,31 @@
 import { ref, computed, onMounted, reactive } from "vue";
 import { useStore } from "vuex";
 import { useRouter, useRoute } from "vue-router";
-import { authService } from "../services/api";
+import { useAuth } from "../composables/useAuth";
 
 const store = useStore();
 const router = useRouter();
 const route = useRoute();
+const {
+  login: supabaseLogin,
+  register: supabaseRegister,
+  loading,
+  isAuthenticated,
+} = useAuth();
 
 // Login form data
 const loginForm = reactive({
   username: "",
   password: "",
-  // role removed as it's now automatically determined
 });
 
 // Register form data
 const registerForm = reactive({
-  username: "",
+  email: "",
   password: "",
   confirmPassword: "",
   role: "patient", // Default role set to patient
   fullName: "",
-  email: "",
 });
 
 // UI state
@@ -80,17 +84,31 @@ const login = async () => {
   isLoading.value = true;
 
   try {
-    // Use the auth service to login
-    const userData = await authService.login({
-      username: loginForm.username,
-      password: loginForm.password,
-    });
+    // Map username to email for Supabase authentication
+    let emailToUse = loginForm.username;
+    
+    // Special case for admin username
+    if (loginForm.username.toLowerCase() === 'admin') {
+      emailToUse = 'admin@patientrecord.system';
+    } else {
+      // For other usernames, try to use them as emails or append a domain
+      if (!loginForm.username.includes('@')) {
+        emailToUse = `${loginForm.username}@patientrecord.system`;
+      }
+    }
 
-    // Update store with user data
-    store.commit("setAuthenticated", true);
-    store.commit("setUser", userData);
+    // Use Supabase auth to login
+    const result = await supabaseLogin(emailToUse, loginForm.password);
 
-    router.push("/dashboard");
+    if (result.success) {
+      // Supabase auth will automatically update the store via useAuth composable
+      // No need to manually store in localStorage
+      
+      // Redirect to dashboard on successful login
+      router.push("/dashboard");
+    } else {
+      errorMessage.value = result.error || "Invalid username or password";
+    }
   } catch (error) {
     errorMessage.value = error.message || "Invalid username or password";
   } finally {
@@ -106,7 +124,7 @@ const register = async () => {
 
   // Basic validation
   if (
-    !registerForm.username ||
+    !registerForm.email ||
     !registerForm.password ||
     !registerForm.confirmPassword
   ) {
@@ -127,24 +145,27 @@ const register = async () => {
   isLoading.value = true;
 
   try {
-    // Use the auth service to register
-    const newUser = {
-      username: registerForm.username,
-      password: registerForm.password,
-      role: registerForm.role,
-      fullName: registerForm.fullName,
-      email: registerForm.email,
-    };
+    // Use Supabase auth to register
+    const result = await supabaseRegister(
+      registerForm.email,
+      registerForm.password,
+      {
+        full_name: registerForm.fullName,
+        role: registerForm.role,
+      }
+    );
 
-    await authService.register(newUser);
+    if (result.success) {
+      // Show success message
+      successMessage.value = "Registration successful! You can now log in.";
 
-    // Show success message
-    successMessage.value = "Registration successful! You can now log in.";
-
-    // Switch to login mode after successful registration
-    setTimeout(() => {
-      switchMode("login");
-    }, 1500);
+      // Switch to login mode after successful registration
+      setTimeout(() => {
+        switchMode("login");
+      }, 1500);
+    } else {
+      errorMessage.value = result.error || "Registration failed";
+    }
   } catch (error) {
     errorMessage.value = error.message || "Registration failed";
   } finally {
@@ -198,7 +219,6 @@ const toggleRegisterFormPassword = () => {
 const fillDemoAccount = (username, password) => {
   loginForm.username = username.toLowerCase();
   loginForm.password = password;
-  // role parameter removed as it's now automatically determined
 };
 </script>
 
@@ -297,6 +317,25 @@ const fillDemoAccount = (username, password) => {
               <a href="#" @click.prevent="switchMode('register')">Register</a>
             </p>
           </div>
+
+          <!-- Demo Admin Account -->
+          <div class="demo-accounts">
+            <h4>Demo Account</h4>
+            <div class="demo-account-grid">
+              <div class="demo-account" @click="fillDemoAccount('admin', 'admin123')">
+                <div class="demo-account-header">
+                  <i class="bi bi-shield-check"></i>
+                  <span>Admin Account</span>
+                </div>
+                <div class="demo-account-details">
+                  Username: admin<br>
+                  Password: admin123<br>
+                  Full system access
+                </div>
+              </div>
+            </div>
+            <p class="demo-note">Click to auto-fill login credentials</p>
+          </div>
         </div>
 
         <!-- Register Form -->
@@ -321,15 +360,15 @@ const fillDemoAccount = (username, password) => {
 
           <form @submit.prevent="register">
             <div class="form-group">
-              <label for="register-username">Username</label>
+              <label for="register-email">Email</label>
               <div class="input-container">
-                <i class="bi bi-person input-icon"></i>
+                <i class="bi bi-envelope input-icon"></i>
                 <input
-                  type="text"
-                  id="register-username"
-                  v-model="registerForm.username"
-                  placeholder="Choose a username"
-                  autocomplete="new-username"
+                  type="email"
+                  id="register-email"
+                  v-model="registerForm.email"
+                  placeholder="Enter your email address"
+                  autocomplete="email"
                   required
                 />
               </div>
@@ -395,19 +434,6 @@ const fillDemoAccount = (username, password) => {
                   id="full-name"
                   v-model="registerForm.fullName"
                   placeholder="Enter your full name"
-                />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="email">Email (Optional)</label>
-              <div class="input-container">
-                <i class="bi bi-envelope input-icon"></i>
-                <input
-                  type="email"
-                  id="email"
-                  v-model="registerForm.email"
-                  placeholder="Enter your email address"
                 />
               </div>
             </div>

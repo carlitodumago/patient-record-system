@@ -22,22 +22,41 @@ const router = useRouter();
 const isAuthenticated = computed(() => store.state.isAuthenticated);
 const user = computed(() => store.state.user);
 
+// Get user role from store instead of localStorage
+const userRole = computed(() => store.state.user?.role || null);
+
 // Get unread notification count
 const unreadNotificationCount = computed(() => {
   return store.state.notifications.filter(n => !n.read).length;
 });
 
-const userRole = ref(null);
-onMounted(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  userRole.value = user?.role || null;
-});
+const systemSettingsExpanded = ref(false);
 
-const logout = () => {
-  localStorage.removeItem('user');
-  store.commit('setAuthenticated', false);
-  store.commit('setUser', null);
-  router.push('/login');
+const logout = async () => {
+  try {
+    // Import supabase for logout
+    const { supabase } = await import('@/services/supabase');
+    await supabase.auth.signOut();
+    
+    // Clear any remaining localStorage items
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    
+    // Update store
+    store.commit('setAuthenticated', false);
+    store.commit('setUser', null);
+    
+    // Redirect to login
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Fallback: clear local state and redirect anyway
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    store.commit('setAuthenticated', false);
+    store.commit('setUser', null);
+    router.push('/login');
+  }
 };
 
 const toggleSidebar = () => {
@@ -46,6 +65,10 @@ const toggleSidebar = () => {
 
 const closeSidebar = () => {
   emit('close-sidebar');
+};
+
+const toggleSystemSettings = () => {
+  systemSettingsExpanded.value = !systemSettingsExpanded.value;
 };
 </script>
 
@@ -77,9 +100,77 @@ const closeSidebar = () => {
               </router-link>
             </li>
             <li class="nav-item">
+              <div class="nav-link text-white system-settings-toggle" @click="toggleSystemSettings" v-if="!isSidebarCollapsed">
+                <i class="bi bi-gear-fill me-2"></i>
+                <span>System Settings</span>
+                <i class="bi ms-auto" :class="systemSettingsExpanded ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+              </div>
+              <router-link v-else class="nav-link text-white" to="/settings" @click="closeSidebar">
+                <i class="bi bi-gear-fill me-2"></i>
+              </router-link>
+              
+              <!-- System Settings Submenu -->
+              <ul v-if="systemSettingsExpanded && !isSidebarCollapsed" class="nav flex-column submenu">
+                <li class="nav-item">
+                  <router-link class="nav-link text-white submenu-link" to="/admin/user-management" @click="closeSidebar">
+                    <i class="bi bi-people-fill me-2"></i>
+                    <span>User Management</span>
+                  </router-link>
+                </li>
+                <li class="nav-item">
+                  <router-link class="nav-link text-white submenu-link" to="/admin/backup-restore" @click="closeSidebar">
+                    <i class="bi bi-cloud-arrow-up me-2"></i>
+                    <span>Backup & Restore</span>
+                  </router-link>
+                </li>
+                <li class="nav-item">
+                  <router-link class="nav-link text-white submenu-link" to="/admin/system-logs" @click="closeSidebar">
+                    <i class="bi bi-file-text me-2"></i>
+                    <span>System Logs</span>
+                  </router-link>
+                </li>
+              </ul>
+            </li>
+            <li class="nav-item">
               <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/register" @click="closeSidebar">
+                <i class="bi bi-person-plus me-2"></i>
+                <span v-if="!isSidebarCollapsed">Register Account</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/patients" @click="closeSidebar">
+                <i class="bi bi-people me-2"></i>
+                <span v-if="!isSidebarCollapsed">Patient List</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
+                <i class="bi bi-calendar-check me-2"></i>
+                <span v-if="!isSidebarCollapsed">Medical Visits</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/history" @click="closeSidebar">
+                <i class="bi bi-clock-history me-2"></i>
+                <span v-if="!isSidebarCollapsed">Medical History</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
+                <i class="bi bi-bell me-2"></i>
+                <span v-if="!isSidebarCollapsed">Notifications</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
+                <i class="bi bi-calendar me-2"></i>
+                <span v-if="!isSidebarCollapsed">Calendar</span>
               </router-link>
             </li>
           </template>
@@ -378,6 +469,56 @@ const closeSidebar = () => {
 /* Add styles for the icons on the right */
 .nav-link i:last-child:not(.me-2) {
     margin-left: auto; /* Push the last icon to the right */
+}
+
+/* System Settings Toggle */
+.system-settings-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.system-settings-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--accent-color);
+}
+
+/* Submenu Styles */
+.submenu {
+  background-color: rgba(0, 0, 0, 0.2);
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  margin-left: 15px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.submenu-link {
+  padding: 8px 15px 8px 20px !important;
+  font-size: 0.9rem;
+  border-left: 2px solid transparent !important;
+}
+
+.submenu-link:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-left: 2px solid var(--accent-color) !important;
+}
+
+.submenu-link.router-link-active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-left: 2px solid var(--accent-color) !important;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+    transform: translateY(0);
+  }
 }
 
 </style>

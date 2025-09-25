@@ -15,6 +15,10 @@ const patient = ref(null);
 const isLoading = ref(true);
 const activeTab = ref('overview');
 const showAddVisitModal = ref(false);
+const showEditVisitModal = ref(false);
+const visitToEdit = ref(null);
+const visitToDelete = ref(null);
+const showDeleteVisitModal = ref(false);
 
 // Create a data structure for the new visit
 const newVisit = ref({
@@ -28,7 +32,21 @@ const newVisit = ref({
   status: 'upcoming'
 });
 
+// Edit visit data
+const editVisit = ref({
+  id: null,
+  patientId: patientId,
+  visitDate: '',
+  purpose: '',
+  physician: '',
+  diagnosis: '',
+  prescription: '',
+  notes: '',
+  status: 'upcoming'
+});
+
 const formErrors = ref({});
+const editFormErrors = ref({});
 
 // Function to validate the visit form
 const validateVisitForm = () => {
@@ -200,6 +218,149 @@ const tabClass = (tab) => {
 
 const viewMedicalHistory = () => {
   router.push('/history');
+};
+
+// Function to validate the edit visit form
+const validateEditVisitForm = () => {
+  const errors = {};
+  
+  if (!editVisit.value.visitDate) {
+    errors.visitDate = 'Visit date is required';
+  }
+  
+  if (!editVisit.value.purpose) {
+    errors.purpose = 'Purpose is required';
+  }
+  
+  if (!editVisit.value.physician) {
+    errors.physician = 'Physician name is required';
+  }
+  
+  editFormErrors.value = errors;
+  return Object.keys(errors).length === 0;
+};
+
+// Function to show edit visit modal
+const showEditVisit = (visit) => {
+  visitToEdit.value = visit;
+  editVisit.value = {
+    id: visit.id,
+    patientId: patientId,
+    visitDate: visit.date,
+    purpose: visit.reason,
+    physician: visit.physician,
+    diagnosis: visit.diagnosis,
+    prescription: visit.prescription,
+    notes: visit.notes,
+    status: 'completed'
+  };
+  editFormErrors.value = {};
+  showEditVisitModal.value = true;
+};
+
+// Function to save edited visit
+const saveEditedVisit = () => {
+  if (!validateEditVisitForm()) {
+    return;
+  }
+  
+  // Find and update the visit in patient's visits array
+  const visitIndex = patient.value.visits.findIndex(v => v.id === editVisit.value.id);
+  if (visitIndex !== -1) {
+    patient.value.visits[visitIndex] = {
+      id: editVisit.value.id,
+      date: editVisit.value.visitDate,
+      physician: editVisit.value.physician,
+      reason: editVisit.value.purpose,
+      diagnosis: editVisit.value.diagnosis || 'Not provided',
+      prescription: editVisit.value.prescription || 'None',
+      notes: editVisit.value.notes || 'No notes'
+    };
+  }
+  
+  // Update in localStorage
+  let visits = [];
+  const savedVisits = localStorage.getItem('medicalVisits');
+  if (savedVisits) {
+    visits = JSON.parse(savedVisits);
+    const globalVisitIndex = visits.findIndex(v => v.id === editVisit.value.id);
+    if (globalVisitIndex !== -1) {
+      visits[globalVisitIndex] = {
+        ...editVisit.value,
+        visitDate: editVisit.value.visitDate
+      };
+      localStorage.setItem('medicalVisits', JSON.stringify(visits));
+    }
+  }
+  
+  showEditVisitModal.value = false;
+  alert('Visit updated successfully!');
+};
+
+// Function to cancel editing visit
+const cancelEditVisit = () => {
+  showEditVisitModal.value = false;
+  visitToEdit.value = null;
+};
+
+// Function to show delete confirmation modal
+const showDeleteVisit = (visit) => {
+  visitToDelete.value = visit;
+  showDeleteVisitModal.value = true;
+};
+
+// Function to delete visit
+const deleteVisit = () => {
+  if (!visitToDelete.value) return;
+  
+  // Remove from patient's visits array
+  const visitIndex = patient.value.visits.findIndex(v => v.id === visitToDelete.value.id);
+  if (visitIndex !== -1) {
+    patient.value.visits.splice(visitIndex, 1);
+  }
+  
+  // Remove from localStorage
+  let visits = [];
+  const savedVisits = localStorage.getItem('medicalVisits');
+  if (savedVisits) {
+    visits = JSON.parse(savedVisits);
+    const globalVisitIndex = visits.findIndex(v => v.id === visitToDelete.value.id);
+    if (globalVisitIndex !== -1) {
+      visits.splice(globalVisitIndex, 1);
+      localStorage.setItem('medicalVisits', JSON.stringify(visits));
+    }
+  }
+  
+  showDeleteVisitModal.value = false;
+  visitToDelete.value = null;
+  alert('Visit deleted successfully!');
+};
+
+// Function to cancel delete
+const cancelDeleteVisit = () => {
+  showDeleteVisitModal.value = false;
+  visitToDelete.value = null;
+};
+
+// Function to download visit record
+const downloadVisitRecord = (visit) => {
+  const visitData = `
+Patient: ${patient.value.firstName} ${patient.value.lastName}
+Visit Date: ${formatDate(visit.date)}
+Physician: ${visit.physician}
+Reason: ${visit.reason}
+Diagnosis: ${visit.diagnosis}
+Prescription: ${visit.prescription}
+Notes: ${visit.notes}
+  `;
+  
+  const blob = new Blob([visitData], { type: 'text/plain' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `visit_${patient.value.firstName}_${patient.value.lastName}_${visit.date.replace(/\//g, '-')}.txt`;
+  a.click();
+  window.URL.revokeObjectURL(url);
 };
 </script>
 
@@ -373,17 +534,16 @@ const viewMedicalHistory = () => {
                     </button>
                     <!-- Action buttons container -->
                     <div class="ms-auto d-flex align-items-center">
-                         <span class="text-muted me-2" style="font-size: 0.9em;">{{ visit.timestamp ? formatDateTime({ timestamp: visit.timestamp }) : '' }}</span>
                          <!-- Download Button -->
-                        <button class="btn btn-sm btn-outline-secondary me-1" title="Download Record">
+                        <button class="btn btn-sm btn-outline-secondary me-1" title="Download Record" @click="downloadVisitRecord(visit)">
                             <i class="bi bi-download"></i>
                         </button>
-                        <!-- Edit Button (Assuming it exists or will be added here) -->
-                        <button class="btn btn-sm btn-outline-primary me-1" title="Edit Record">
+                        <!-- Edit Button -->
+                        <button class="btn btn-sm btn-outline-primary me-1" title="Edit Record" @click="showEditVisit(visit)">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <!-- Delete Button (Assuming it exists or will be added here) -->
-                        <button class="btn btn-sm btn-outline-danger" title="Delete Record">
+                        <!-- Delete Button -->
+                        <button class="btn btn-sm btn-outline-danger" title="Delete Record" @click="showDeleteVisit(visit)">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -563,8 +723,120 @@ const viewMedicalHistory = () => {
     </div>
   </div>
   
+  <!-- Edit Visit Modal -->
+  <div class="modal fade" :class="{ 'd-block show': showEditVisitModal }" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Visit for {{ patient?.firstName }} {{ patient?.lastName }}</h5>
+          <button type="button" class="btn-close" @click="cancelEditVisit"></button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="saveEditedVisit">
+            <div class="mb-3">
+              <label class="form-label">Visit Date</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="editVisit.visitDate"
+                :class="{ 'is-invalid': editFormErrors.visitDate }"
+                placeholder="MM/DD/YYYY"
+              >
+              <div v-if="editFormErrors.visitDate" class="invalid-feedback">
+                {{ editFormErrors.visitDate }}
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Purpose</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="editVisit.purpose"
+                :class="{ 'is-invalid': editFormErrors.purpose }"
+              >
+              <div v-if="editFormErrors.purpose" class="invalid-feedback">
+                {{ editFormErrors.purpose }}
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Physician</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="editVisit.physician"
+                :class="{ 'is-invalid': editFormErrors.physician }"
+              >
+              <div v-if="editFormErrors.physician" class="invalid-feedback">
+                {{ editFormErrors.physician }}
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Diagnosis</label>
+              <textarea 
+                class="form-control"
+                v-model="editVisit.diagnosis"
+                rows="2"
+              ></textarea>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Prescription</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="editVisit.prescription"
+              >
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Notes</label>
+              <textarea 
+                class="form-control"
+                v-model="editVisit.notes"
+                rows="3"
+              ></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="cancelEditVisit">Cancel</button>
+          <button type="button" class="btn btn-primary" @click="saveEditedVisit">Update Visit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Visit Confirmation Modal -->
+  <div class="modal fade" :class="{ 'd-block show': showDeleteVisitModal }" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Visit</h5>
+          <button type="button" class="btn-close" @click="cancelDeleteVisit"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this visit record?</p>
+          <div v-if="visitToDelete" class="alert alert-warning">
+            <strong>Visit Details:</strong><br>
+            Date: {{ formatDate(visitToDelete.date) }}<br>
+            Physician: {{ visitToDelete.physician }}<br>
+            Reason: {{ visitToDelete.reason }}
+          </div>
+          <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="cancelDeleteVisit">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="deleteVisit">Delete Visit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- Modal backdrop -->
-  <div v-if="showAddVisitModal" class="modal-backdrop fade show"></div>
+  <div v-if="showAddVisitModal || showEditVisitModal || showDeleteVisitModal" class="modal-backdrop fade show"></div>
 </template>
 
 <style scoped>
