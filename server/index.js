@@ -44,10 +44,12 @@ if (process.env.NODE_ENV === "production") {
 // Import routes
 import patientRoutes from "./routes/patients.js";
 import userRoutes from "./routes/users.js";
+import notificationRoutes from "./routes/notifications.js";
 
 // Use routes
 app.use("/api/patients", patientRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -69,10 +71,14 @@ app.get("/api/metrics", (req, res) => {
 
   const totalPatients = patients.length;
   const totalRecords = patients.length; // Using patients as records in this mock
-  const staffMembers = users.filter((u) => u.role && u.role !== "patient").length;
+  const staffMembers = users.filter(
+    (u) => u.role && u.role !== "patient"
+  ).length;
   const pendingReviews = patients.filter((p) => p.status === "pending").length;
 
-  res.status(200).json({ totalRecords, totalPatients, staffMembers, pendingReviews });
+  res
+    .status(200)
+    .json({ totalRecords, totalPatients, staffMembers, pendingReviews });
 });
 
 // Catch-all route to return the Vue app in production

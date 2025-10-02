@@ -14,11 +14,13 @@ const routes = [
     path: "/register",
     name: "Register",
     component: () => import("../views/Register.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/register-patient",
     name: "RegisterPatient",
     component: () => import("../views/Register.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/patients",
@@ -54,20 +56,21 @@ const routes = [
     path: "/records",
     name: "MedicalRecords",
     component: () => {
-      // Dynamically import the correct component based on user role
-      const user = localStorage.getItem("user")
-        ? JSON.parse(localStorage.getItem("user"))
-        : { role: "patient" };
-      const role = user.role || "patient";
+      // Dynamically import the correct component based on user role from Supabase
+      return import("../services/supabase").then(({ supabase }) => {
+        return supabase.auth.getSession().then(({ data: { session } }) => {
+          const role = session?.user?.user_metadata?.role || "patient";
 
-      // Map role to component path
-      if (role === "admin") {
-        return import("../views/admin/MedicalRecords.vue");
-      } else if (role === "nurse") {
-        return import("../views/nurse/MedicalRecords.vue");
-      } else {
-        return import("../views/patient/MedicalRecords.vue");
-      }
+          // Map role to component path
+          if (role === "admin") {
+            return import("../views/admin/MedicalRecords.vue");
+          } else if (role === "nurse") {
+            return import("../views/nurse/MedicalRecords.vue");
+          } else {
+            return import("../views/patient/MedicalRecords.vue");
+          }
+        });
+      });
     },
     meta: { requiresAuth: true },
   },
@@ -123,20 +126,21 @@ const routes = [
     path: "/dashboard",
     name: "Dashboard",
     component: () => {
-      // Dynamically import the correct component based on user role
-      const user = localStorage.getItem("user")
-        ? JSON.parse(localStorage.getItem("user"))
-        : { role: "patient" };
-      const role = user.role || "patient";
+      // Dynamically import the correct component based on user role from Supabase
+      return import("../services/supabase").then(({ supabase }) => {
+        return supabase.auth.getSession().then(({ data: { session } }) => {
+          const role = session?.user?.user_metadata?.role || "patient";
 
-      // Map role to component path
-      if (role === "admin") {
-        return import("../views/admin/DashboardView.vue");
-      } else if (role === "nurse") {
-        return import("../views/nurse/DashboardView.vue");
-      } else {
-        return import("../views/patient/DashboardView.vue");
-      }
+          // Map role to component path
+          if (role === "admin") {
+            return import("../views/admin/DashboardView.vue");
+          } else if (role === "nurse") {
+            return import("../views/nurse/DashboardView.vue");
+          } else {
+            return import("../views/patient/DashboardView.vue");
+          }
+        });
+      });
     },
     meta: { requiresAuth: true },
   },
@@ -154,12 +158,16 @@ const router = createRouter({
 });
 
 // Navigation guard for auth protected routes
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   try {
-    const storedUser = localStorage.getItem("user");
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    const isAuthenticated = user !== null;
-    const role = user?.role;
+    // Check Supabase session first
+    const { supabase } = await import("../services/supabase");
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const isAuthenticated = !!session?.user;
+    const role = session?.user?.user_metadata?.role || "patient";
 
     // Define patient-only routes
     const patientOnlyRoutes = [
@@ -181,6 +189,23 @@ router.beforeEach((to, from, next) => {
       "/calendar",
       "/settings",
       "/dashboard",
+    ];
+    // Define admin routes
+    const adminRoutes = [
+      "/patients",
+      "/visits",
+      "/records",
+      "/history",
+      "/notifications",
+      "/calendar",
+      "/settings",
+      "/dashboard",
+      "/profile",
+      "/register",
+      "/register-patient",
+      "/admin/user-management",
+      "/admin/backup-restore",
+      "/admin/system-logs",
     ];
 
     // If route requires authentication and user is not authenticated, redirect to login
@@ -212,8 +237,7 @@ router.beforeEach((to, from, next) => {
         if (
           !patientOnlyRoutes.includes(to.path) &&
           to.path !== "/dashboard" &&
-          to.path !== "/login" &&
-          to.path !== "/register"
+          to.path !== "/login"
         ) {
           next("/dashboard");
           return;
@@ -224,8 +248,13 @@ router.beforeEach((to, from, next) => {
           next("/dashboard");
           return;
         }
+      } else if (role === "admin") {
+        // Admin can access patient list, medical visits, medical history, notifications, and calendar
+        if (!adminRoutes.includes(to.path)) {
+          next("/dashboard");
+          return;
+        }
       }
-      // Admin can access all routes (no additional restrictions)
     }
 
     // Allow access to public routes (login, register) or if no specific role restrictions

@@ -1,44 +1,42 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useUserStore } from '../stores/user';
-import { updateAutoLogout, setupAutoLogout } from '../utils/autoLogout';
+import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
+import { updateAutoLogout, setupAutoLogout } from "../utils/autoLogout";
 
-const userStore = useUserStore();
+const store = useStore();
 const router = useRouter();
 
-const user = computed(() => userStore.user);
+const user = computed(() => store.state.user);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const saveSuccess = ref(false);
-const errorMessage = ref('');
+const errorMessage = ref("");
 
 // Settings form data
 const settingsForm = ref({
   notifications: true,
-  autoLogout: 0
+  autoLogout: 0,
 });
 
 // Auto logout options (in minutes)
 const autoLogoutOptions = [
-  { value: 15, label: '15 minutes' },
-  { value: 30, label: '30 minutes' },
-  { value: 60, label: '1 hour' },
-  { value: 120, label: '2 hours' },
-  { value: 0, label: 'Never' }
+  { value: 15, label: "15 minutes" },
+  { value: 30, label: "30 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 120, label: "2 hours" },
+  { value: 0, label: "Never" },
 ];
-
-
 
 // Load settings
 onMounted(() => {
   if (!user.value) {
-    router.push('/login');
+    router.push("/login");
     return;
   }
-  
+
   // Get saved settings if they exist
-  const savedSettings = localStorage.getItem('userSettings');
+  const savedSettings = localStorage.getItem("userSettings");
   if (savedSettings) {
     try {
       const parsedSettings = JSON.parse(savedSettings);
@@ -46,13 +44,11 @@ onMounted(() => {
       if (parsedSettings.username === user.value.username) {
         settingsForm.value = {
           ...settingsForm.value,
-          ...parsedSettings.settings
+          ...parsedSettings.settings,
         };
-        
-
       }
     } catch (error) {
-      console.error('Failed to parse settings:', error);
+      console.error("Failed to parse settings:", error);
     }
   }
 });
@@ -60,30 +56,28 @@ onMounted(() => {
 // Save settings
 const saveSettings = () => {
   isSaving.value = true;
-  
+
   setTimeout(() => {
     try {
       // Store settings with username for identification
       const settingsData = {
         username: user.value.username,
-        settings: settingsForm.value
+        settings: settingsForm.value,
       };
-      
-      localStorage.setItem('userSettings', JSON.stringify(settingsData));
-      
+
+      localStorage.setItem("userSettings", JSON.stringify(settingsData));
+
       // Apply auto logout settings
       updateAutoLogout(store, router);
-      
 
-      
       saveSuccess.value = true;
       setTimeout(() => {
         saveSuccess.value = false;
       }, 3000);
     } catch (err) {
-      errorMessage.value = 'Failed to save settings. Please try again.';
+      errorMessage.value = "Failed to save settings. Please try again.";
     }
-    
+
     isSaving.value = false;
   }, 600);
 };
@@ -92,7 +86,7 @@ const saveSettings = () => {
 const resetToDefault = () => {
   settingsForm.value = {
     notifications: true,
-    autoLogout: 0
+    autoLogout: 0,
   };
 };
 </script>
@@ -103,23 +97,34 @@ const resetToDefault = () => {
       <h2>Settings</h2>
       <div class="header-actions">
         <button @click="resetToDefault" class="btn btn-outline-secondary me-2">
-          <i class="bi bi-arrow-counterclockwise me-2"></i> <span class="action-text">Reset to Default</span>
+          <i class="bi bi-arrow-counterclockwise me-2"></i>
+          <span class="action-text">Reset to Default</span>
         </button>
-        <button @click="saveSettings" class="btn btn-primary" :disabled="isSaving">
-          <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          <i v-else class="bi bi-check-lg me-2"></i> <span class="action-text">Save Settings</span>
+        <button
+          @click="saveSettings"
+          class="btn btn-primary"
+          :disabled="isSaving"
+        >
+          <span
+            v-if="isSaving"
+            class="spinner-border spinner-border-sm me-2"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          <i v-else class="bi bi-check-lg me-2"></i>
+          <span class="action-text">Save Settings</span>
         </button>
       </div>
     </div>
-    
+
     <div v-if="errorMessage" class="alert alert-danger">
       {{ errorMessage }}
     </div>
-    
+
     <div v-if="saveSuccess" class="alert alert-success">
       Settings saved successfully!
     </div>
-    
+
     <div class="row">
       <div class="col-lg-8 col-md-12 mb-4">
         <div class="card mb-4">
@@ -132,65 +137,79 @@ const resetToDefault = () => {
               <div class="preference-item mb-4">
                 <div class="preference-item-header">
                   <div class="toggle-label">
-                    <label class="form-check-label mb-0 d-flex align-items-center" for="darkMode">
+                    <label
+                      class="form-check-label mb-0 d-flex align-items-center"
+                      for="darkMode"
+                    >
                       <span>Dark Mode</span>
                     </label>
                   </div>
                   <div class="form-check form-switch m-0">
-                    <input 
-                      type="checkbox" 
-                      class="form-check-input" 
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
                       id="darkMode"
                       v-model="settingsForm.darkMode"
-                    >
+                    />
                   </div>
                 </div>
                 <div class="text-muted mt-2 preference-description">
-                  Switch between light and dark theme for better visibility in low-light environments.
+                  Switch between light and dark theme for better visibility in
+                  low-light environments.
                 </div>
               </div>
-            
+
               <div class="preference-item mb-4">
                 <div class="preference-item-header">
                   <div class="toggle-label">
-                    <label class="form-check-label mb-0 d-flex align-items-center" for="notifications">
+                    <label
+                      class="form-check-label mb-0 d-flex align-items-center"
+                      for="notifications"
+                    >
                       <span>Enable Notifications</span>
                     </label>
                   </div>
                   <div class="form-check form-switch m-0">
-                    <input 
-                      type="checkbox" 
-                      class="form-check-input" 
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
                       id="notifications"
                       v-model="settingsForm.notifications"
-                    >
+                    />
                   </div>
                 </div>
                 <div class="text-muted mt-2 preference-description">
-                  Receive notifications about new records, updates, and system messages.
+                  Receive notifications about new records, updates, and system
+                  messages.
                 </div>
               </div>
-              
+
               <div class="preference-item">
-                <label for="autoLogout" class="form-label">Auto Logout Time</label>
-                <select 
-                  id="autoLogout" 
+                <label for="autoLogout" class="form-label"
+                  >Auto Logout Time</label
+                >
+                <select
+                  id="autoLogout"
                   class="form-select"
                   v-model="settingsForm.autoLogout"
                 >
-                  <option v-for="option in autoLogoutOptions" :key="option.value" :value="option.value">
+                  <option
+                    v-for="option in autoLogoutOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.label }}
                   </option>
                 </select>
                 <small class="form-text text-muted preference-description">
-                  Automatically log out after period of inactivity. Default is "Never" (no automatic logout).
+                  Automatically log out after period of inactivity. Default is
+                  "Never" (no automatic logout).
                 </small>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
     </div>
   </div>
 </template>
@@ -206,7 +225,11 @@ const resetToDefault = () => {
 }
 
 .card-header {
-  background: linear-gradient(135deg, var(--secondary-gradient-start), var(--secondary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--secondary-gradient-start),
+    var(--secondary-gradient-end)
+  );
   color: white;
   border-bottom: none;
   padding: 1rem 1.5rem;
@@ -281,13 +304,15 @@ const resetToDefault = () => {
   border-color: var(--primary-gradient-end);
 }
 
-.form-select, .form-control {
+.form-select,
+.form-control {
   background-color: var(--input-bg);
   color: var(--input-color);
   border-color: var(--border-color);
 }
 
-.form-select:focus, .form-control:focus {
+.form-select:focus,
+.form-control:focus {
   background-color: var(--input-bg);
   color: var(--input-color);
 }
@@ -297,7 +322,11 @@ const resetToDefault = () => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
+  );
   border: none;
 }
 
@@ -345,11 +374,19 @@ const resetToDefault = () => {
 }
 
 .primary-color {
-  background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
+  );
 }
 
 .secondary-color {
-  background: linear-gradient(135deg, var(--secondary-gradient-start), var(--secondary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--secondary-gradient-start),
+    var(--secondary-gradient-end)
+  );
 }
 
 .current-theme-label {
@@ -371,11 +408,11 @@ const resetToDefault = () => {
   .preference-item {
     padding: 0.8rem;
   }
-  
+
   .toggle-label {
     font-size: 1rem;
   }
-  
+
   .form-switch .form-check-input {
     width: 2.5em;
     height: 1.3em;
@@ -387,46 +424,46 @@ const resetToDefault = () => {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header-actions {
     width: 100%;
     margin-top: 0.5rem;
   }
-  
+
   .header-actions .btn {
     flex: 1;
     padding: 8px;
   }
-  
+
   .action-text {
     display: none;
   }
-  
+
   .header-actions .bi {
     margin-right: 0 !important;
   }
-  
+
   .preferences-section {
     margin-bottom: 0.5rem;
   }
-  
+
   .preference-item {
     padding: 0.75rem;
   }
-  
+
   .toggle-label {
     font-size: 0.95rem;
   }
-  
+
   .preference-description {
     font-size: 0.8rem;
   }
-  
+
   .form-switch .form-check-input {
     width: 2.2em;
     height: 1.2em;
   }
-  
+
   .theme-preview {
     grid-template-columns: 1fr;
   }

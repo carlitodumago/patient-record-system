@@ -12,7 +12,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Create Supabase client with service role key for server-side operations (if needed)
-export const supabaseAdmin = supabaseServiceRoleKey 
+export const supabaseAdmin = supabaseServiceRoleKey
   ? createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
         autoRefreshToken: false,

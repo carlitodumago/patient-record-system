@@ -1,153 +1,163 @@
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, reactive, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "../composables/useAuth";
+import { notificationService } from "../services/notificationService";
 
-const store = useStore();
+const { register: authRegister, loading: authLoading } = useAuth();
 const router = useRouter();
-const route = useRoute();
 
-// Form data
-const formData = reactive({
-  username: '',
-  password: '',
-  confirmPassword: '',
-  role: 'admin',
-  fullName: '',
-  email: '',
-  agreeTerms: false
+// Register form data
+const registerForm = reactive({
+  username: "",
+  password: "",
+  confirmPassword: "",
+  role: "patient", // Default role set to patient
+  firstName: "",
+  lastName: "",
+  suffix: "",
+  email: "",
+  address: "",
+  gender: "",
+  birthdate: "",
+  contactNumber: "",
 });
 
 // UI state
-const errorMessage = ref('');
 const isLoading = ref(false);
-const registrationSuccess = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
 const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 
-// Animation states - matching Login.vue
-const isAnimating = ref(false);
-const formDirection = ref('right');
-const isLoginMode = ref(false);
+// Check if auth is loading
+const isStoreLoading = authLoading;
 
-// Animated class based on current mode - matching Login.vue
-const containerClass = computed(() => {
-  return {
-    'auth-container': true,
-    'register-mode': !isLoginMode.value,
-    'slide-from-left': formDirection.value === 'left' && isAnimating.value,
-    'slide-from-right': formDirection.value === 'right' && isAnimating.value
-  };
-});
+// Register function
+const register = async () => {
+  // Clear any previous error
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  // Basic validation
+  if (
+    !registerForm.firstName ||
+    !registerForm.lastName ||
+    !registerForm.email ||
+    !registerForm.password ||
+    !registerForm.confirmPassword ||
+    !registerForm.address ||
+    !registerForm.gender ||
+    !registerForm.birthdate ||
+    !registerForm.contactNumber
+  ) {
+    errorMessage.value = "Please fill in all required fields";
+    return;
+  }
+
+  if (registerForm.password !== registerForm.confirmPassword) {
+    errorMessage.value = "Passwords do not match";
+    return;
+  }
+
+  if (registerForm.password.length < 6) {
+    errorMessage.value = "Password must be at least 6 characters long";
+    return;
+  }
+
+  isLoading.value = true;
+
+  try {
+    // Call the register API through the auth composable
+    const metadata = {
+      first_name: registerForm.firstName,
+      last_name: registerForm.lastName,
+      suffix: registerForm.suffix,
+      email: registerForm.email,
+      address: registerForm.address,
+      gender: registerForm.gender,
+      birthdate: registerForm.birthdate,
+      contact_number: registerForm.contactNumber,
+      role: registerForm.role,
+    };
+    const result = await authRegister(
+      registerForm.email,
+      registerForm.password,
+      metadata
+    );
+
+    if (result.success) {
+      // Send welcome notifications (email and SMS)
+      try {
+        const notificationResult =
+          await notificationService.sendWelcomeNotifications({
+            firstName: registerForm.firstName,
+            lastName: registerForm.lastName,
+            username: registerForm.username,
+            password: registerForm.password,
+            email: registerForm.email,
+            contactNumber: registerForm.contactNumber,
+            role: registerForm.role,
+          });
+
+        if (notificationResult.success) {
+          successMessage.value =
+            "Registration successful! Welcome notifications sent. You can now log in.";
+        } else {
+          successMessage.value =
+            "Registration successful! You can now log in. (Note: Some notifications may not have been sent)";
+          console.warn(
+            "Notification sending partially failed:",
+            notificationResult
+          );
+        }
+      } catch (notificationError) {
+        console.error("Notification sending failed:", notificationError);
+        successMessage.value =
+          "Registration successful! You can now log in. (Note: Welcome notifications could not be sent)";
+      }
+
+      // Redirect to login after a delay
+      setTimeout(() => {
+        router.push("/login?register=success");
+      }, 3000); // Increased delay to allow reading the message
+    } else {
+      errorMessage.value =
+        result.error || "Registration failed. Please try again.";
+    }
+  } catch (error) {
+    errorMessage.value = "Registration failed. Please try again.";
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 // Toggle password visibility
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value;
 };
 
-const register = () => {
-  // Clear any previous error
-  errorMessage.value = '';
-  
-  // Basic validation
-  if (!formData.username || !formData.password || !formData.confirmPassword) {
-    errorMessage.value = 'Please fill in all required fields';
-    return;
-  }
-  
-  if (formData.password !== formData.confirmPassword) {
-    errorMessage.value = 'Passwords do not match';
-    return;
-  }
-  
-  if (formData.password.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters long';
-    return;
-  }
-  
-  isLoading.value = true;
-  
-  // Simulate API call delay
-  setTimeout(() => {
-    // Check if username already exists
-    const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const userExists = existingUsers.some(user => user.username === formData.username);
-    
-    if (userExists) {
-      errorMessage.value = 'Username already exists';
-      isLoading.value = false;
-      return;
-    }
-    
-    // Add the new user
-    const newUser = {
-      username: formData.username,
-      password: formData.password, // In a real app, this would be hashed
-      role: formData.role,
-      fullName: formData.fullName,
-      email: formData.email
-    };
-    
-    existingUsers.push(newUser);
-    localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
-    
-    // Add to mock users in store
-    store.commit('addUser', newUser);
-    
-    // Show success message
-    registrationSuccess.value = true;
-    isLoading.value = false;
-    
-    // Redirect to login after a short delay
-    setTimeout(() => {
-      router.push('/login?register=success');
-    }, 2000);
-  }, 1000);
+// Toggle confirm password visibility
+const toggleConfirmPasswordVisibility = () => {
+  showConfirmPassword.value = !showConfirmPassword.value;
 };
 
-// Switch to login mode - matching Login.vue animation
-const switchMode = (mode) => {
-  if ((mode === 'login' && isLoginMode.value) || (mode === 'register' && !isLoginMode.value)) {
-    return; // Already in this mode
-  }
-  
-  // Set animation direction
-  formDirection.value = mode === 'login' ? 'left' : 'right';
-  
-  // Start animation
-  isAnimating.value = true;
-  setTimeout(() => {
-    isLoginMode.value = mode === 'login';
-    
-    // If switching to login, navigate to login page
-    if (isLoginMode.value) {
-      router.push('/login');
-    }
-    
-    // Reset errors
-    errorMessage.value = '';
-    
-    // End animation
-    setTimeout(() => {
-      isAnimating.value = false;
-    }, 300);
-  }, 300); // Match this with the CSS transition time
+// Format date to mm/dd/yyyy
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split("-");
+  return `${month}/${day}/${year}`;
 };
 
-const goToLogin = () => {
-  switchMode('login');
-};
-
-onMounted(() => {
-  // Check if coming from login page
-  if (route.query.login === 'true') {
-    formDirection.value = 'left';
-  }
+// Computed property to format birthdate for display if needed
+const formattedBirthdate = computed(() => {
+  return formatDate(registerForm.birthdate);
 });
 </script>
 
 <template>
-  <div class="auth-page">
-    <div :class="containerClass">
+  <div class="register-page">
+    <div class="register-container">
       <!-- Animated background elements -->
       <div class="animated-bg">
         <div class="circle circle-1"></div>
@@ -155,144 +165,233 @@ onMounted(() => {
         <div class="circle circle-3"></div>
         <div class="circle circle-4"></div>
       </div>
-      
-      <div class="auth-content">
-        <div class="auth-form register-form">
-          <div class="auth-header">
+
+      <div class="register-content">
+        <!-- Register Form -->
+        <div class="register-form">
+          <div class="register-header">
+            <button class="back-button" @click="$router.push('/dashboard')">
+              <i class="bi bi-arrow-left"></i>
+              Back
+            </button>
             <div class="logo-container">
               <i class="bi bi-hospital"></i>
             </div>
-            <h1>Patient Record System</h1>
-            <p class="subtitle">Create a new account</p>
+            <h1>Create Account</h1>
+            <p class="subtitle">Get started with your account</p>
           </div>
-          
+
           <div v-if="errorMessage" class="alert alert-danger">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             {{ errorMessage }}
           </div>
-          
-          <div v-if="registrationSuccess" class="alert alert-success">
+
+          <div v-if="successMessage" class="alert alert-success">
             <i class="bi bi-check-circle-fill me-2"></i>
-            Registration successful! You will be redirected to the login page.
+            {{ successMessage }}
           </div>
-          
-          <form @submit.prevent="register" v-if="!registrationSuccess">
-            <div class="form-row">
+
+          <form @submit.prevent="register">
+            <div class="form-group">
+              <label for="register-username">Username</label>
+              <div class="input-container">
+                <i class="bi bi-person input-icon"></i>
+                <input
+                  type="text"
+                  id="register-username"
+                  v-model="registerForm.username"
+                  placeholder="Choose a username"
+                  autocomplete="new-username"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="register-password">Password</label>
+              <div class="input-container">
+                <i class="bi bi-lock input-icon me-2"></i>
+                <input
+                  :type="showPassword ? 'text' : 'password'"
+                  id="register-password"
+                  v-model="registerForm.password"
+                  placeholder="Create a password"
+                  autocomplete="new-password"
+                  required
+                />
+                <i
+                  class="bi show-password-toggle"
+                  :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"
+                  @click="togglePasswordVisibility"
+                ></i>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="confirm-password">Confirm Password</label>
+              <div class="input-container">
+                <i class="bi bi-lock input-icon"></i>
+                <input
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  id="confirm-password"
+                  v-model="registerForm.confirmPassword"
+                  placeholder="Confirm your password"
+                  autocomplete="new-password"
+                  required
+                />
+                <i
+                  class="bi show-password-toggle"
+                  :class="showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'"
+                  @click="toggleConfirmPasswordVisibility"
+                ></i>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="register-role">Role</label>
+              <div class="input-container">
+                <i class="bi bi-person-badge input-icon"></i>
+                <select id="register-role" v-model="registerForm.role" required>
+                  <option value="nurse">Nurse/Clinic Staff</option>
+                  <option value="patient">Patient</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="name-fields">
               <div class="form-group">
-                <label for="username">Username <span class="required-field">*</span></label>
+                <label for="first-name"
+                  >First Name <span class="required">*</span></label
+                >
                 <div class="input-container">
                   <i class="bi bi-person input-icon"></i>
-                  <input 
-                    type="text" 
-                    id="username" 
-                    v-model="formData.username" 
-                    placeholder="Choose a username"
+                  <input
+                    type="text"
+                    id="first-name"
+                    v-model="registerForm.firstName"
+                    placeholder="Enter your first name"
                     required
-                  />
-                </div>
-              </div>
-              
-              <div class="form-group">
-                <label for="fullName">Full Name</label>
-                <div class="input-container">
-                  <i class="bi bi-person-badge input-icon"></i>
-                  <input 
-                    type="text" 
-                    id="fullName" 
-                    v-model="formData.fullName" 
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label for="password">Password <span class="required-field">*</span></label>
-                <div class="input-container">
-                  <i class="bi bi-lock input-icon"></i>
-                  <input 
-                    :type="showPassword ? 'text' : 'password'" 
-                    id="password" 
-                    v-model="formData.password" 
-                    placeholder="Minimum 6 characters"
-                    required
-                  />
-                  <i 
-                    class="bi toggle-password" 
-                    :class="showPassword ? 'bi-eye-slash' : 'bi-eye'" 
-                    @click="togglePasswordVisibility"
-                  ></i>
-                </div>
-                <div class="password-hint">Minimum 6 characters</div>
-              </div>
-              
-              <div class="form-group">
-                <label for="confirmPassword">Confirm Password <span class="required-field">*</span></label>
-                <div class="input-container">
-                  <i class="bi bi-shield-lock input-icon"></i>
-                  <input 
-                    :type="showPassword ? 'text' : 'password'" 
-                    id="confirmPassword" 
-                    v-model="formData.confirmPassword" 
-                    placeholder="Confirm your password"
-                    required
-                  />
-                  
-                </div>
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label for="email">Email Address</label>
-                <div class="input-container">
-                  <i class="bi bi-envelope input-icon"></i>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    v-model="formData.email" 
-                    placeholder="Enter your email address"
                   />
                 </div>
               </div>
 
-              <!-- New Role Select -->
               <div class="form-group">
-                <label for="role">Role <span class="required-field">*</span></label>
+                <label for="last-name"
+                  >Last Name <span class="required">*</span></label
+                >
                 <div class="input-container">
-                  <i class="bi bi-person-badge input-icon"></i>
-                  <select id="role" v-model="formData.role" required>
-                    <option value="admin">Admin</option>
-                    <option value="employee">Employee</option>
-                    <option value="patient">Patient</option>
-                  </select>
+                  <i class="bi bi-person input-icon"></i>
+                  <input
+                    type="text"
+                    id="last-name"
+                    v-model="registerForm.lastName"
+                    placeholder="Enter your last name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="form-group suffix-field">
+                <label for="suffix">Suffix (Optional)</label>
+                <div class="input-container">
+                  <i class="bi bi-person input-icon"></i>
+                  <input
+                    type="text"
+                    id="suffix"
+                    v-model="registerForm.suffix"
+                    placeholder="e.g., Jr., Sr., III"
+                  />
                 </div>
               </div>
             </div>
 
             <div class="form-group">
-              <label for="agreeTerms">
-                <input type="checkbox" id="agreeTerms" v-model="formData.agreeTerms" required>
-                I agree to the terms and conditions <span class="required-field">*</span>
-              </label>
+              <label for="email">Email <span class="required">*</span></label>
+              <div class="input-container">
+                <i class="bi bi-envelope input-icon"></i>
+                <input
+                  type="email"
+                  id="email"
+                  v-model="registerForm.email"
+                  placeholder="Enter your email address"
+                  required
+                />
+              </div>
             </div>
-            
-            <div class="form-button">
-              <button 
-                type="submit" 
-                class="primary-button"
-                :disabled="isLoading"
+
+            <div class="form-group">
+              <label for="address"
+                >Address <span class="required">*</span></label
               >
-                <span v-if="isLoading" class="spinner"></span>
-                <span>{{ isLoading ? 'Creating Account...' : 'Register' }}</span>
-              </button>
+              <div class="input-container">
+                <i class="bi bi-geo-alt input-icon"></i>
+                <input
+                  type="text"
+                  id="address"
+                  v-model="registerForm.address"
+                  placeholder="Enter your address"
+                  required
+                />
+              </div>
             </div>
+
+            <div class="form-group">
+              <label for="gender">Gender <span class="required">*</span></label>
+              <div class="input-container">
+                <i class="bi bi-person-fill input-icon"></i>
+                <select id="gender" v-model="registerForm.gender" required>
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="birthdate"
+                >Birthdate <span class="required">*</span></label
+              >
+              <div class="input-container">
+                <i class="bi bi-calendar input-icon"></i>
+                <input
+                  type="date"
+                  id="birthdate"
+                  v-model="registerForm.birthdate"
+                  placeholder="Select your birthdate (mm/dd/yyyy)"
+                  required
+                />
+                <div v-if="formattedBirthdate" class="date-display">
+                  Selected: {{ formattedBirthdate }}
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="contact-number"
+                >Contact Number <span class="required">*</span></label
+              >
+              <div class="input-container">
+                <i class="bi bi-telephone input-icon"></i>
+                <input
+                  type="tel"
+                  id="contact-number"
+                  v-model="registerForm.contactNumber"
+                  placeholder="Enter your contact number"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="register-button" :disabled="isLoading">
+              <span
+                v-if="isLoading"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+              {{ isLoading ? "Registering..." : "Create Account" }}
+            </button>
           </form>
-          
-          <div class="form-footer">
-            <p>Already have an account? <a href="#" @click.prevent="goToLogin">Sign in</a></p>
-          </div>
         </div>
       </div>
     </div>
@@ -301,33 +400,35 @@ onMounted(() => {
 
 <style scoped>
 /* Base styling */
-.auth-page {
+.register-page {
   min-height: 100vh;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  overflow: hidden;
   position: relative;
+  display: flex;
+  align-items: stretch;
 }
 
-.auth-container {
+.register-container {
   width: 100%;
-  max-width: 800px;
   position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
   background-color: #fff;
-  transition: all 0.6s ease;
-  transform-style: preserve-3d;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
-.auth-content {
+.register-content {
   padding: 40px;
   position: relative;
   z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Animated background */
@@ -360,92 +461,78 @@ onMounted(() => {
 .circle-2 {
   width: 200px;
   height: 200px;
-  bottom: -100px;
+  bottom: -80px;
   left: -50px;
+  background: linear-gradient(45deg, #20c997, #0dcaf0);
   animation-delay: 2s;
 }
 
 .circle-3 {
-  width: 150px;
-  height: 150px;
-  bottom: 50px;
-  right: 50px;
+  width: 120px;
+  height: 120px;
+  top: 40%;
+  left: 60%;
+  background: linear-gradient(45deg, #0d6efd, #6610f2);
   animation-delay: 4s;
 }
 
 .circle-4 {
-  width: 100px;
-  height: 100px;
-  top: 50px;
-  left: 150px;
+  width: 150px;
+  height: 150px;
+  bottom: 20%;
+  right: 20%;
+  background: linear-gradient(45deg, #20c997, #0d6efd);
   animation-delay: 6s;
 }
 
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(0);
-  }
-  50% {
-    transform: translateY(-20px) rotate(5deg);
-  }
-}
-
-/* Animation classes */
-.slide-from-left {
-  animation: slideFromLeft 0.6s forwards;
-}
-
-.slide-from-right {
-  animation: slideFromRight 0.6s forwards;
-}
-
-@keyframes slideFromLeft {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  50% {
-    transform: translateX(100px);
-    opacity: 0;
-  }
-  51% {
-    transform: translateX(-100px);
-    opacity: 0;
-  }
+  0%,
   100% {
-    transform: translateX(0);
-    opacity: 1;
+    transform: translateY(0) rotate(0deg);
   }
-}
-
-@keyframes slideFromRight {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
+  25% {
+    transform: translateY(-15px) rotate(5deg);
   }
   50% {
-    transform: translateX(-100px);
-    opacity: 0;
+    transform: translateY(0) rotate(0deg);
   }
-  51% {
-    transform: translateX(100px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
+  75% {
+    transform: translateY(15px) rotate(-5deg);
   }
 }
 
-/* Authentication form */
-.auth-form {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.auth-header {
+/* Register header */
+.register-header {
   text-align: center;
   margin-bottom: 30px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #6c757d;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: #f8f9fa;
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.back-button i {
+  font-size: 16px;
 }
 
 .logo-container {
@@ -478,96 +565,168 @@ onMounted(() => {
   }
 }
 
-.auth-header h1 {
+.register-header h1 {
   font-size: 28px;
-  color: #333;
+  font-weight: 700;
   margin-bottom: 5px;
+  background: linear-gradient(45deg, #0d6efd, #0dcaf0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .subtitle {
   color: #6c757d;
   font-size: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
-/* Form styles */
-.form-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 10px;
+/* Form styling */
+.register-form {
+  transition: all 0.5s ease;
 }
 
 .form-group {
-  flex: 1;
-  min-width: 250px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.name-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
   margin-bottom: 20px;
 }
 
-.form-group label {
+.name-fields .form-group {
+  margin-bottom: 0;
+}
+
+.suffix-field {
+  grid-column: 1 / -1;
+}
+
+label {
   display: block;
+  font-size: 14px;
+  font-weight: 600;
   margin-bottom: 8px;
-  font-weight: 500;
   color: #495057;
 }
 
-.required-field {
+.required {
   color: #dc3545;
 }
 
 .input-container {
   position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid #ced4da;
-}
-
-.input-container:focus-within {
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 
 .input-icon {
   position: absolute;
-  left: 12px;
   top: 50%;
+  left: 15px;
   transform: translateY(-50%);
   color: #6c757d;
   font-size: 18px;
 }
 
-.input-container input,
-.input-container select {
-  width: 100%;
-  padding: 12px 12px 12px 40px;
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 16px;
-}
-
-.toggle-password {
+.show-password-toggle {
   position: absolute;
-  right: 12px;
   top: 50%;
+  right: 5px;
   transform: translateY(-50%);
   color: #6c757d;
-  cursor: pointer;
   font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
 }
 
-.password-hint {
+.show-password-toggle:hover {
+  background-color: rgba(108, 117, 125, 0.1);
+}
+
+.date-display {
+  margin-top: 5px;
   font-size: 12px;
   color: #6c757d;
-  margin-top: 5px;
+  font-weight: 500;
 }
 
-.alert {
-  padding: 12px 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+input,
+select {
+  width: 100%;
+  padding: 15px 45px 15px 45px;
+  border: 1px solid #ced4da;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  background-color: #f8f9fa;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+  background-color: #fff;
+}
+
+.register-button {
+  width: 100%;
+  background: linear-gradient(45deg, #0d6efd, #0dcaf0);
+  border: none;
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.register-button:hover {
+  background: linear-gradient(45deg, #0b5ed7, #0bacbe);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
+}
+
+.register-button:disabled {
+  opacity: 0.7;
+  transform: none;
+  cursor: not-allowed;
+}
+
+.login-link {
+  margin-top: 20px;
+  text-align: center;
   font-size: 14px;
+  color: #6c757d;
+}
+
+.login-link a {
+  color: #0d6efd;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.login-link a:hover {
+  color: #0a58ca;
+  text-decoration: underline;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
 }
@@ -575,98 +734,31 @@ onMounted(() => {
 .alert-danger {
   background-color: #f8d7da;
   color: #842029;
-  border: 1px solid #f5c2c7;
+  border-left: 4px solid #dc3545;
 }
 
 .alert-success {
   background-color: #d1e7dd;
   color: #0f5132;
-  border: 1px solid #badbcc;
+  border-left: 4px solid #198754;
 }
 
-.form-button {
-  margin-top: 30px;
-}
-
-.primary-button {
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(to right, #0d6efd, #0dcaf0);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.primary-button:hover {
-  background: linear-gradient(to right, #0b5ed7, #0bacce);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.primary-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.form-footer {
-  margin-top: 25px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.form-footer a {
-  color: #0d6efd;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.form-footer a:hover {
-  text-decoration: underline;
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
-  .auth-container {
-    margin: 20px;
-    max-width: calc(100% - 40px);
-  }
-  
-  .auth-content {
+  .register-content {
     padding: 30px 20px;
   }
-  
-  .form-row {
-    flex-direction: column;
-    gap: 0;
+
+  .register-header h1 {
+    font-size: 24px;
   }
-  
-  .form-group {
-    min-width: 100%;
+
+  .name-fields {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .suffix-field {
+    grid-column: auto;
   }
 }
-</style> 
+</style>

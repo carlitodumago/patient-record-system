@@ -1,23 +1,19 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { usePatientStore } from '../stores/patients';
-import { useNotificationStore } from '../stores/notifications';
-import { useUserStore } from '../stores/user';
-import { formatDate } from '../utils/dateUtils';
-import { addPatientNotification } from '../utils/notificationUtils';
-import { addVisitNotification } from '../utils/notificationUtils';
+import { ref, computed, onMounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useStore } from "vuex";
+import { formatDate } from "../utils/dateUtils";
+import { addPatientNotification } from "../utils/notificationUtils";
+import { addVisitNotification } from "../utils/notificationUtils";
 
-const patientStore = usePatientStore();
-const notificationStore = useNotificationStore();
-const userStore = useUserStore();
+const store = useStore();
 const router = useRouter();
 const route = useRoute();
 
 const patientId = parseInt(route.params.id);
 const patient = ref(null);
 const isLoading = ref(true);
-const activeTab = ref('overview');
+const activeTab = ref("overview");
 const showAddVisitModal = ref(false);
 const showEditVisitModal = ref(false);
 const visitToEdit = ref(null);
@@ -27,26 +23,26 @@ const showDeleteVisitModal = ref(false);
 // Create a data structure for the new visit
 const newVisit = ref({
   patientId: patientId,
-  visitDate: '',
-  purpose: '',
-  physician: '',
-  diagnosis: '',
-  prescription: '',
-  notes: '',
-  status: 'upcoming'
+  visitDate: "",
+  purpose: "",
+  physician: "",
+  diagnosis: "",
+  prescription: "",
+  notes: "",
+  status: "upcoming",
 });
 
 // Edit visit data
 const editVisit = ref({
   id: null,
   patientId: patientId,
-  visitDate: '',
-  purpose: '',
-  physician: '',
-  diagnosis: '',
-  prescription: '',
-  notes: '',
-  status: 'upcoming'
+  visitDate: "",
+  purpose: "",
+  physician: "",
+  diagnosis: "",
+  prescription: "",
+  notes: "",
+  status: "upcoming",
 });
 
 const formErrors = ref({});
@@ -55,19 +51,19 @@ const editFormErrors = ref({});
 // Function to validate the visit form
 const validateVisitForm = () => {
   const errors = {};
-  
+
   if (!newVisit.value.visitDate) {
-    errors.visitDate = 'Visit date is required';
+    errors.visitDate = "Visit date is required";
   }
-  
+
   if (!newVisit.value.purpose) {
-    errors.purpose = 'Purpose is required';
+    errors.purpose = "Purpose is required";
   }
-  
+
   if (!newVisit.value.physician) {
-    errors.physician = 'Physician name is required';
+    errors.physician = "Physician name is required";
   }
-  
+
   formErrors.value = errors;
   return Object.keys(errors).length === 0;
 };
@@ -76,20 +72,20 @@ const validateVisitForm = () => {
 const showAddVisit = () => {
   // Get today's date in MM/DD/YYYY format
   const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
   const year = today.getFullYear();
-  
+
   // Reset form
   newVisit.value = {
     patientId: patientId,
     visitDate: `${month}/${day}/${year}`,
-    purpose: '',
-    physician: '',
-    diagnosis: '',
-    prescription: '',
-    notes: '',
-    status: 'upcoming'
+    purpose: "",
+    physician: "",
+    diagnosis: "",
+    prescription: "",
+    notes: "",
+    status: "upcoming",
   };
   formErrors.value = {};
   showAddVisitModal.value = true;
@@ -98,7 +94,7 @@ const showAddVisit = () => {
 // Function to cancel adding a visit
 const cancelAddVisit = () => {
   showAddVisitModal.value = false;
-  
+
   // If this modal was opened from a different view or URL parameter exists
   if (route.query.fromModal) {
     router.back();
@@ -110,33 +106,41 @@ const saveVisit = () => {
   if (!validateVisitForm()) {
     return;
   }
-  
+
   // Convert the date to expected format for storage
   const visitData = {
     ...newVisit.value,
     id: Date.now(), // Generate a simple ID
   };
-  
+
   // Get current visits from localStorage
   let visits = [];
-  const savedVisits = localStorage.getItem('medicalVisits');
+  const savedVisits = localStorage.getItem("medicalVisits");
   if (savedVisits) {
     visits = JSON.parse(savedVisits);
   }
-  
+
   // Add the new visit
   visits.push(visitData);
-  
+
   // Save back to localStorage
-  localStorage.setItem('medicalVisits', JSON.stringify(visits));
-  
+  localStorage.setItem("medicalVisits", JSON.stringify(visits));
+
   // Add notification
-  addVisitNotification(notificationStore, {
-    ...visitData,
-    physicianName: visitData.physician,
-    visitDate: visitData.visitDate
-  }, (id) => patient.value ? `${patient.value.firstName} ${patient.value.lastName}` : 'Unknown Patient', 'scheduled');
-  
+  addVisitNotification(
+    store,
+    {
+      ...visitData,
+      physicianName: visitData.physician,
+      visitDate: visitData.visitDate,
+    },
+    (id) =>
+      patient.value
+        ? `${patient.value.firstName} ${patient.value.lastName}`
+        : "Unknown Patient",
+    "scheduled"
+  );
+
   // Add visit to patient's visits array if it exists
   if (patient.value.visits) {
     patient.value.visits.push({
@@ -144,58 +148,59 @@ const saveVisit = () => {
       date: visitData.visitDate,
       physician: visitData.physician,
       reason: visitData.purpose,
-      diagnosis: visitData.diagnosis || 'Not provided',
-      prescription: visitData.prescription || 'None',
-      notes: visitData.notes || 'No notes'
+      diagnosis: visitData.diagnosis || "Not provided",
+      prescription: visitData.prescription || "None",
+      notes: visitData.notes || "No notes",
     });
   }
-  
+
   // Close the modal
   showAddVisitModal.value = false;
-  
+
   // Show a success message
-  alert('Visit scheduled successfully!');
+  alert("Visit scheduled successfully!");
 };
 
 onMounted(() => {
   // In a real application, you would fetch the patient's data from an API
-  const foundPatient = patientStore.patients.find(p => p.id === patientId);
-  
+  const foundPatient = store.state.patients.find((p) => p.id === patientId);
+
   if (foundPatient) {
     patient.value = {
       ...foundPatient,
       // Additional mock data for the patient detail view if properties don't exist
-      allergies: foundPatient.allergies || ['Penicillin', 'Peanuts'],
+      allergies: foundPatient.allergies || ["Penicillin", "Peanuts"],
       // Use the patient's actual blood type or provide a default
-      bloodType: foundPatient.bloodType || 'Not specified',
-      height: foundPatient.height || '175 cm',
-      weight: foundPatient.weight || '70 kg',
+      bloodType: foundPatient.bloodType || "Not specified",
+      height: foundPatient.height || "175 cm",
+      weight: foundPatient.weight || "70 kg",
       visits: [
         {
           id: 1,
-          date: '2023-11-15',
-          physician: 'Dr. Smith',
-          reason: 'Regular checkup',
-          diagnosis: 'Healthy',
-          prescription: 'None',
-          notes: 'Patient is in good health. Blood pressure normal.'
+          date: "2023-11-15",
+          physician: "Dr. Smith",
+          reason: "Regular checkup",
+          diagnosis: "Healthy",
+          prescription: "None",
+          notes: "Patient is in good health. Blood pressure normal.",
         },
         {
           id: 2,
-          date: '2023-10-05',
-          physician: 'Dr. Johnson',
-          reason: 'Flu symptoms',
-          diagnosis: 'Seasonal flu',
-          prescription: 'Tamiflu 75mg',
-          notes: 'Patient presented with fever, cough, and fatigue. Rest recommended.'
-        }
-      ]
+          date: "2023-10-05",
+          physician: "Dr. Johnson",
+          reason: "Flu symptoms",
+          diagnosis: "Seasonal flu",
+          prescription: "Tamiflu 75mg",
+          notes:
+            "Patient presented with fever, cough, and fatigue. Rest recommended.",
+        },
+      ],
     };
-    patientStore.setCurrentPatient(patient.value);
+    store.commit("setCurrentPatient", patient.value);
   } else {
-    router.push('/patients');
+    router.push("/patients");
   }
-  
+
   isLoading.value = false;
 });
 
@@ -208,38 +213,42 @@ const goBack = () => {
 };
 
 const confirmDelete = () => {
-  if (confirm(`Are you sure you want to delete ${patient.value.firstName} ${patient.value.lastName}'s record?`)) {
-    addPatientNotification(notificationStore, patient.value, 'deleted', userStore);
-    
-    patientStore.deletePatient(patientId);
-    router.push('/patients');
+  if (
+    confirm(
+      `Are you sure you want to delete ${patient.value.firstName} ${patient.value.lastName}'s record?`
+    )
+  ) {
+    addPatientNotification(store, patient.value, "deleted");
+
+    store.commit("deletePatient", patientId);
+    router.push("/patients");
   }
 };
 
 const tabClass = (tab) => {
-  return activeTab.value === tab ? 'active' : '';
+  return activeTab.value === tab ? "active" : "";
 };
 
 const viewMedicalHistory = () => {
-  router.push('/history');
+  router.push("/history");
 };
 
 // Function to validate the edit visit form
 const validateEditVisitForm = () => {
   const errors = {};
-  
+
   if (!editVisit.value.visitDate) {
-    errors.visitDate = 'Visit date is required';
+    errors.visitDate = "Visit date is required";
   }
-  
+
   if (!editVisit.value.purpose) {
-    errors.purpose = 'Purpose is required';
+    errors.purpose = "Purpose is required";
   }
-  
+
   if (!editVisit.value.physician) {
-    errors.physician = 'Physician name is required';
+    errors.physician = "Physician name is required";
   }
-  
+
   editFormErrors.value = errors;
   return Object.keys(errors).length === 0;
 };
@@ -256,7 +265,7 @@ const showEditVisit = (visit) => {
     diagnosis: visit.diagnosis,
     prescription: visit.prescription,
     notes: visit.notes,
-    status: 'completed'
+    status: "completed",
   };
   editFormErrors.value = {};
   showEditVisitModal.value = true;
@@ -267,38 +276,42 @@ const saveEditedVisit = () => {
   if (!validateEditVisitForm()) {
     return;
   }
-  
+
   // Find and update the visit in patient's visits array
-  const visitIndex = patient.value.visits.findIndex(v => v.id === editVisit.value.id);
+  const visitIndex = patient.value.visits.findIndex(
+    (v) => v.id === editVisit.value.id
+  );
   if (visitIndex !== -1) {
     patient.value.visits[visitIndex] = {
       id: editVisit.value.id,
       date: editVisit.value.visitDate,
       physician: editVisit.value.physician,
       reason: editVisit.value.purpose,
-      diagnosis: editVisit.value.diagnosis || 'Not provided',
-      prescription: editVisit.value.prescription || 'None',
-      notes: editVisit.value.notes || 'No notes'
+      diagnosis: editVisit.value.diagnosis || "Not provided",
+      prescription: editVisit.value.prescription || "None",
+      notes: editVisit.value.notes || "No notes",
     };
   }
-  
+
   // Update in localStorage
   let visits = [];
-  const savedVisits = localStorage.getItem('medicalVisits');
+  const savedVisits = localStorage.getItem("medicalVisits");
   if (savedVisits) {
     visits = JSON.parse(savedVisits);
-    const globalVisitIndex = visits.findIndex(v => v.id === editVisit.value.id);
+    const globalVisitIndex = visits.findIndex(
+      (v) => v.id === editVisit.value.id
+    );
     if (globalVisitIndex !== -1) {
       visits[globalVisitIndex] = {
         ...editVisit.value,
-        visitDate: editVisit.value.visitDate
+        visitDate: editVisit.value.visitDate,
       };
-      localStorage.setItem('medicalVisits', JSON.stringify(visits));
+      localStorage.setItem("medicalVisits", JSON.stringify(visits));
     }
   }
-  
+
   showEditVisitModal.value = false;
-  alert('Visit updated successfully!');
+  alert("Visit updated successfully!");
 };
 
 // Function to cancel editing visit
@@ -316,28 +329,32 @@ const showDeleteVisit = (visit) => {
 // Function to delete visit
 const deleteVisit = () => {
   if (!visitToDelete.value) return;
-  
+
   // Remove from patient's visits array
-  const visitIndex = patient.value.visits.findIndex(v => v.id === visitToDelete.value.id);
+  const visitIndex = patient.value.visits.findIndex(
+    (v) => v.id === visitToDelete.value.id
+  );
   if (visitIndex !== -1) {
     patient.value.visits.splice(visitIndex, 1);
   }
-  
+
   // Remove from localStorage
   let visits = [];
-  const savedVisits = localStorage.getItem('medicalVisits');
+  const savedVisits = localStorage.getItem("medicalVisits");
   if (savedVisits) {
     visits = JSON.parse(savedVisits);
-    const globalVisitIndex = visits.findIndex(v => v.id === visitToDelete.value.id);
+    const globalVisitIndex = visits.findIndex(
+      (v) => v.id === visitToDelete.value.id
+    );
     if (globalVisitIndex !== -1) {
       visits.splice(globalVisitIndex, 1);
-      localStorage.setItem('medicalVisits', JSON.stringify(visits));
+      localStorage.setItem("medicalVisits", JSON.stringify(visits));
     }
   }
-  
+
   showDeleteVisitModal.value = false;
   visitToDelete.value = null;
-  alert('Visit deleted successfully!');
+  alert("Visit deleted successfully!");
 };
 
 // Function to cancel delete
@@ -357,12 +374,14 @@ Diagnosis: ${visit.diagnosis}
 Prescription: ${visit.prescription}
 Notes: ${visit.notes}
   `;
-  
-  const blob = new Blob([visitData], { type: 'text/plain' });
+
+  const blob = new Blob([visitData], { type: "text/plain" });
   const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = `visit_${patient.value.firstName}_${patient.value.lastName}_${visit.date.replace(/\//g, '-')}.txt`;
+  a.download = `visit_${patient.value.firstName}_${
+    patient.value.lastName
+  }_${visit.date.replace(/\//g, "-")}.txt`;
   a.click();
   window.URL.revokeObjectURL(url);
 };
@@ -376,7 +395,7 @@ Notes: ${visit.notes}
       </div>
       <p class="mt-2">Loading patient details...</p>
     </div>
-    
+
     <div v-else-if="patient">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Patient Details</h2>
@@ -384,12 +403,15 @@ Notes: ${visit.notes}
           <button @click="goBack" class="btn btn-outline-secondary me-2">
             <i class="bi bi-arrow-left"></i> Back
           </button>
-          <button @click="viewMedicalHistory" class="btn btn-info me-2 text-white">
+          <button
+            @click="viewMedicalHistory"
+            class="btn btn-info me-2 text-white"
+          >
             <i class="bi bi-clock-history me-1"></i> Medical History
           </button>
           <!-- Download Button (Placeholder) -->
           <button class="btn btn-outline-secondary me-2">
-              <i class="bi bi-download me-1"></i> Download
+            <i class="bi bi-download me-1"></i> Download
           </button>
           <button @click="goToEdit" class="btn btn-primary me-2">
             <i class="bi bi-pencil"></i> Edit
@@ -399,18 +421,23 @@ Notes: ${visit.notes}
           </button>
         </div>
       </div>
-      
+
       <div class="card mb-4">
         <div class="card-body">
           <div class="row">
             <div class="col-md-3 text-center">
               <!-- Placeholder for patient photo -->
-              <div class="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
-                <span class="text-secondary" style="font-size: 4rem;">
+              <div
+                class="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center"
+                style="width: 150px; height: 150px"
+              >
+                <span class="text-secondary" style="font-size: 4rem">
                   <i class="bi bi-person"></i>
                 </span>
               </div>
-              <h4 class="mt-3">{{ patient.firstName }} {{ patient.lastName }}</h4>
+              <h4 class="mt-3">
+                {{ patient.firstName }} {{ patient.lastName }}
+              </h4>
               <p class="text-muted">Patient ID: {{ patient.id }}</p>
             </div>
             <div class="col-md-9">
@@ -425,11 +452,17 @@ Notes: ${visit.notes}
                 </div>
                 <div class="col-sm-6 col-md-4 mb-3">
                   <h6 class="text-muted">Blood Type</h6>
-                  <p v-if="patient.bloodType === 'AB' || patient.bloodType === 'AB+'">
+                  <p
+                    v-if="
+                      patient.bloodType === 'AB' || patient.bloodType === 'AB+'
+                    "
+                  >
                     <span class="blood-type-ab">{{ patient.bloodType }}</span>
                   </p>
                   <p v-else-if="patient.bloodType">
-                    <span class="blood-type-badge">{{ patient.bloodType }}</span>
+                    <span class="blood-type-badge">{{
+                      patient.bloodType
+                    }}</span>
                   </p>
                   <p v-else>Not specified</p>
                 </div>
@@ -450,25 +483,40 @@ Notes: ${visit.notes}
           </div>
         </div>
       </div>
-      
+
       <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
-          <a class="nav-link" :class="tabClass('overview')" @click.prevent="activeTab = 'overview'" href="#">
+          <a
+            class="nav-link"
+            :class="tabClass('overview')"
+            @click.prevent="activeTab = 'overview'"
+            href="#"
+          >
             Overview
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" :class="tabClass('visits')" @click.prevent="activeTab = 'visits'" href="#">
+          <a
+            class="nav-link"
+            :class="tabClass('visits')"
+            @click.prevent="activeTab = 'visits'"
+            href="#"
+          >
             Medical Visits
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" :class="tabClass('details')" @click.prevent="activeTab = 'details'" href="#">
+          <a
+            class="nav-link"
+            :class="tabClass('details')"
+            @click.prevent="activeTab = 'details'"
+            href="#"
+          >
             Additional Details
           </a>
         </li>
       </ul>
-      
+
       <div class="tab-content">
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'" class="tab-pane fade show active">
@@ -479,9 +527,14 @@ Notes: ${visit.notes}
                   <h5 class="mb-0">Medical Conditions</h5>
                 </div>
                 <div class="card-body">
-                  <div v-if="patient.medicalConditions && patient.medicalConditions.length">
-                    <span 
-                      v-for="(condition, index) in patient.medicalConditions" 
+                  <div
+                    v-if="
+                      patient.medicalConditions &&
+                      patient.medicalConditions.length
+                    "
+                  >
+                    <span
+                      v-for="(condition, index) in patient.medicalConditions"
                       :key="index"
                       class="badge bg-info me-2 mb-2 p-2"
                     >
@@ -492,7 +545,7 @@ Notes: ${visit.notes}
                 </div>
               </div>
             </div>
-            
+
             <div class="col-md-6 mb-4">
               <div class="card h-100">
                 <div class="card-header">
@@ -500,8 +553,8 @@ Notes: ${visit.notes}
                 </div>
                 <div class="card-body">
                   <div v-if="patient.allergies && patient.allergies.length">
-                    <span 
-                      v-for="(allergy, index) in patient.allergies" 
+                    <span
+                      v-for="(allergy, index) in patient.allergies"
                       :key="index"
                       class="badge bg-warning text-dark me-2 mb-2 p-2"
                     >
@@ -514,11 +567,13 @@ Notes: ${visit.notes}
             </div>
           </div>
         </div>
-        
+
         <!-- Medical Visits Tab -->
         <div v-if="activeTab === 'visits'" class="tab-pane fade show active">
           <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
               <h5 class="mb-0">Medical Visit History</h5>
               <button @click="showAddVisit" class="btn btn-sm btn-primary">
                 <i class="bi bi-plus-circle"></i> Add Visit
@@ -526,33 +581,54 @@ Notes: ${visit.notes}
             </div>
             <div class="card-body p-0">
               <div class="accordion" id="visitsAccordion">
-                <div v-for="visit in patient.visits" :key="visit.id" class="accordion-item">
+                <div
+                  v-for="visit in patient.visits"
+                  :key="visit.id"
+                  class="accordion-item"
+                >
                   <h2 class="accordion-header d-flex align-items-center">
-                    <button 
-                      class="accordion-button collapsed" 
-                      type="button" 
-                      data-bs-toggle="collapse" 
+                    <button
+                      class="accordion-button collapsed"
+                      type="button"
+                      data-bs-toggle="collapse"
                       :data-bs-target="`#visit${visit.id}`"
                     >
-                      {{ formatDate(visit.date) }} - {{ visit.reason }} ({{ visit.physician }})
+                      {{ formatDate(visit.date) }} - {{ visit.reason }} ({{
+                        visit.physician
+                      }})
                     </button>
                     <!-- Action buttons container -->
                     <div class="ms-auto d-flex align-items-center">
-                         <!-- Download Button -->
-                        <button class="btn btn-sm btn-outline-secondary me-1" title="Download Record" @click="downloadVisitRecord(visit)">
-                            <i class="bi bi-download"></i>
-                        </button>
-                        <!-- Edit Button -->
-                        <button class="btn btn-sm btn-outline-primary me-1" title="Edit Record" @click="showEditVisit(visit)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <!-- Delete Button -->
-                        <button class="btn btn-sm btn-outline-danger" title="Delete Record" @click="showDeleteVisit(visit)">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                      <!-- Download Button -->
+                      <button
+                        class="btn btn-sm btn-outline-secondary me-1"
+                        title="Download Record"
+                        @click="downloadVisitRecord(visit)"
+                      >
+                        <i class="bi bi-download"></i>
+                      </button>
+                      <!-- Edit Button -->
+                      <button
+                        class="btn btn-sm btn-outline-primary me-1"
+                        title="Edit Record"
+                        @click="showEditVisit(visit)"
+                      >
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <!-- Delete Button -->
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        title="Delete Record"
+                        @click="showDeleteVisit(visit)"
+                      >
+                        <i class="bi bi-trash"></i>
+                      </button>
                     </div>
                   </h2>
-                  <div :id="`visit${visit.id}`" class="accordion-collapse collapse">
+                  <div
+                    :id="`visit${visit.id}`"
+                    class="accordion-collapse collapse"
+                  >
                     <div class="accordion-body">
                       <div class="row">
                         <div class="col-md-6 mb-3">
@@ -587,7 +663,7 @@ Notes: ${visit.notes}
             </div>
           </div>
         </div>
-        
+
         <!-- Additional Details Tab -->
         <div v-if="activeTab === 'details'" class="tab-pane fade show active">
           <div class="row">
@@ -608,11 +684,20 @@ Notes: ${visit.notes}
                     </div>
                     <div class="col-6 mb-3">
                       <h6 class="text-muted">Blood Type</h6>
-                      <p v-if="patient.bloodType === 'AB' || patient.bloodType === 'AB+'">
-                        <span class="blood-type-ab">{{ patient.bloodType }}</span>
+                      <p
+                        v-if="
+                          patient.bloodType === 'AB' ||
+                          patient.bloodType === 'AB+'
+                        "
+                      >
+                        <span class="blood-type-ab">{{
+                          patient.bloodType
+                        }}</span>
                       </p>
                       <p v-else-if="patient.bloodType">
-                        <span class="blood-type-badge">{{ patient.bloodType }}</span>
+                        <span class="blood-type-badge">{{
+                          patient.bloodType
+                        }}</span>
                       </p>
                       <p v-else>Not specified</p>
                     </div>
@@ -620,7 +705,7 @@ Notes: ${visit.notes}
                 </div>
               </div>
             </div>
-            
+
             <div class="col-md-6 mb-4">
               <div class="card h-100">
                 <div class="card-header">
@@ -635,83 +720,94 @@ Notes: ${visit.notes}
         </div>
       </div>
     </div>
-    
+
     <div v-else class="alert alert-danger">
-      Patient not found. The record may have been deleted or you don't have access.
+      Patient not found. The record may have been deleted or you don't have
+      access.
     </div>
   </div>
 
   <!-- Add Visit Modal -->
-  <div class="modal fade" :class="{ 'd-block show': showAddVisitModal }" tabindex="-1">
+  <div
+    class="modal fade"
+    :class="{ 'd-block show': showAddVisitModal }"
+    tabindex="-1"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Schedule Visit for {{ patient?.firstName }} {{ patient?.lastName }}</h5>
-          <button type="button" class="btn-close" @click="cancelAddVisit"></button>
+          <h5 class="modal-title">
+            Schedule Visit for {{ patient?.firstName }} {{ patient?.lastName }}
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            @click="cancelAddVisit"
+          ></button>
         </div>
         <div class="modal-body">
           <form @submit.prevent="saveVisit">
             <div class="mb-3">
               <label class="form-label">Visit Date</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="newVisit.visitDate"
                 :class="{ 'is-invalid': formErrors.visitDate }"
                 placeholder="MM/DD/YYYY"
-              >
+              />
               <div v-if="formErrors.visitDate" class="invalid-feedback">
                 {{ formErrors.visitDate }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Purpose</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="newVisit.purpose"
                 :class="{ 'is-invalid': formErrors.purpose }"
-              >
+              />
               <div v-if="formErrors.purpose" class="invalid-feedback">
                 {{ formErrors.purpose }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Physician</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="newVisit.physician"
                 :class="{ 'is-invalid': formErrors.physician }"
-              >
+              />
               <div v-if="formErrors.physician" class="invalid-feedback">
                 {{ formErrors.physician }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Diagnosis (optional)</label>
-              <textarea 
+              <textarea
                 class="form-control"
                 v-model="newVisit.diagnosis"
                 rows="2"
               ></textarea>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Prescription (optional)</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="newVisit.prescription"
-              >
+              />
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Notes (optional)</label>
-              <textarea 
+              <textarea
                 class="form-control"
                 v-model="newVisit.notes"
                 rows="3"
@@ -720,84 +816,102 @@ Notes: ${visit.notes}
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="cancelAddVisit">Cancel</button>
-          <button type="button" class="btn btn-primary" @click="saveVisit">Schedule Visit</button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="cancelAddVisit"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" @click="saveVisit">
+            Schedule Visit
+          </button>
         </div>
       </div>
     </div>
   </div>
-  
+
   <!-- Edit Visit Modal -->
-  <div class="modal fade" :class="{ 'd-block show': showEditVisitModal }" tabindex="-1">
+  <div
+    class="modal fade"
+    :class="{ 'd-block show': showEditVisitModal }"
+    tabindex="-1"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Edit Visit for {{ patient?.firstName }} {{ patient?.lastName }}</h5>
-          <button type="button" class="btn-close" @click="cancelEditVisit"></button>
+          <h5 class="modal-title">
+            Edit Visit for {{ patient?.firstName }} {{ patient?.lastName }}
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            @click="cancelEditVisit"
+          ></button>
         </div>
         <div class="modal-body">
           <form @submit.prevent="saveEditedVisit">
             <div class="mb-3">
               <label class="form-label">Visit Date</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="editVisit.visitDate"
                 :class="{ 'is-invalid': editFormErrors.visitDate }"
                 placeholder="MM/DD/YYYY"
-              >
+              />
               <div v-if="editFormErrors.visitDate" class="invalid-feedback">
                 {{ editFormErrors.visitDate }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Purpose</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="editVisit.purpose"
                 :class="{ 'is-invalid': editFormErrors.purpose }"
-              >
+              />
               <div v-if="editFormErrors.purpose" class="invalid-feedback">
                 {{ editFormErrors.purpose }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Physician</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="editVisit.physician"
                 :class="{ 'is-invalid': editFormErrors.physician }"
-              >
+              />
               <div v-if="editFormErrors.physician" class="invalid-feedback">
                 {{ editFormErrors.physician }}
               </div>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Diagnosis</label>
-              <textarea 
+              <textarea
                 class="form-control"
                 v-model="editVisit.diagnosis"
                 rows="2"
               ></textarea>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Prescription</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 class="form-control"
                 v-model="editVisit.prescription"
-              >
+              />
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label">Notes</label>
-              <textarea 
+              <textarea
                 class="form-control"
                 v-model="editVisit.notes"
                 rows="3"
@@ -806,41 +920,74 @@ Notes: ${visit.notes}
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="cancelEditVisit">Cancel</button>
-          <button type="button" class="btn btn-primary" @click="saveEditedVisit">Update Visit</button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="cancelEditVisit"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="saveEditedVisit"
+          >
+            Update Visit
+          </button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Delete Visit Confirmation Modal -->
-  <div class="modal fade" :class="{ 'd-block show': showDeleteVisitModal }" tabindex="-1">
+  <div
+    class="modal fade"
+    :class="{ 'd-block show': showDeleteVisitModal }"
+    tabindex="-1"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Delete Visit</h5>
-          <button type="button" class="btn-close" @click="cancelDeleteVisit"></button>
+          <button
+            type="button"
+            class="btn-close"
+            @click="cancelDeleteVisit"
+          ></button>
         </div>
         <div class="modal-body">
           <p>Are you sure you want to delete this visit record?</p>
           <div v-if="visitToDelete" class="alert alert-warning">
-            <strong>Visit Details:</strong><br>
-            Date: {{ formatDate(visitToDelete.date) }}<br>
-            Physician: {{ visitToDelete.physician }}<br>
+            <strong>Visit Details:</strong><br />
+            Date: {{ formatDate(visitToDelete.date) }}<br />
+            Physician: {{ visitToDelete.physician }}<br />
             Reason: {{ visitToDelete.reason }}
           </div>
-          <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+          <p class="text-danger">
+            <strong>This action cannot be undone.</strong>
+          </p>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="cancelDeleteVisit">Cancel</button>
-          <button type="button" class="btn btn-danger" @click="deleteVisit">Delete Visit</button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="cancelDeleteVisit"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn btn-danger" @click="deleteVisit">
+            Delete Visit
+          </button>
         </div>
       </div>
     </div>
   </div>
-  
+
   <!-- Modal backdrop -->
-  <div v-if="showAddVisitModal || showEditVisitModal || showDeleteVisitModal" class="modal-backdrop fade show"></div>
+  <div
+    v-if="showAddVisitModal || showEditVisitModal || showDeleteVisitModal"
+    class="modal-backdrop fade show"
+  ></div>
 </template>
 
 <style scoped>

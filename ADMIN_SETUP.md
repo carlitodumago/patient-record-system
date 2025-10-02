@@ -23,7 +23,6 @@ This document explains how to create the admin account for the Patient Record Sy
    ```
 
 3. The script will create an admin account with:
-   - **Email**: `admin@patientrecord.system`
    - **Username**: `admin`
    - **Password**: `admin123`
    - **Role**: `admin`
@@ -35,7 +34,7 @@ This document explains how to create the admin account for the Patient Record Sy
 2. Navigate to Authentication > Users
 3. Click "Add user"
 4. Fill in the details:
-   - Email: `admin@patientrecord.system`
+   - Email: `admin@patientrecord.system` (required by Supabase)
    - Password: `admin123`
    - Email Confirm: Yes
    - User Metadata:
@@ -53,8 +52,6 @@ After creating the admin account, you can log in using:
 
 - **Username**: `admin`
 - **Password**: `admin123`
-
-The system will automatically map the username "admin" to the email `admin@patientrecord.system` for authentication.
 
 ## Security Notes
 

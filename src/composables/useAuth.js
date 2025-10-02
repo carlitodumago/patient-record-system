@@ -25,7 +25,24 @@ export function useAuth() {
           id: userData.id,
           email: userData.email,
           role: userData.user_metadata?.role || "patient",
-          fullName: userData.user_metadata?.full_name || userData.email,
+          firstName: userData.user_metadata?.first_name || "",
+          lastName: userData.user_metadata?.last_name || "",
+          suffix: userData.user_metadata?.suffix || "",
+          address: userData.user_metadata?.address || "",
+          gender: userData.user_metadata?.gender || "",
+          birthdate: userData.user_metadata?.birthdate || "",
+          contactNumber: userData.user_metadata?.contact_number || "",
+          fullName:
+            userData.user_metadata?.first_name &&
+            userData.user_metadata?.last_name
+              ? `${userData.user_metadata.first_name} ${
+                  userData.user_metadata.last_name
+                }${
+                  userData.user_metadata?.suffix
+                    ? " " + userData.user_metadata.suffix
+                    : ""
+                }`
+              : userData.email,
         });
       } else {
         store.commit("setAuthenticated", false);
@@ -39,17 +56,28 @@ export function useAuth() {
   // Initialize auth state
   const initializeAuth = async () => {
     if (authInitialized) return;
-    
+
     try {
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
-      
+
       session.value = currentSession;
       user.value = currentSession?.user ?? null;
-      
+
       updateStore(user.value, session.value);
       authInitialized = true;
+
+      // Auto-login as admin in development mode
+      if (!currentSession && import.meta.env.DEV) {
+        console.log("🔧 Development mode: Auto-logging in as admin...");
+        const result = await login("admin@patientrecord.system", "admin123");
+        if (result.success) {
+          console.log("✅ Auto-login successful");
+        } else {
+          console.log("❌ Auto-login failed:", result.error);
+        }
+      }
     } catch (error) {
       console.error("Error initializing auth:", error);
     } finally {
@@ -67,11 +95,11 @@ export function useAuth() {
       } = supabase.auth.onAuthStateChange(async (event, sessionData) => {
         session.value = sessionData;
         user.value = sessionData?.user ?? null;
-        
+
         updateStore(user.value, session.value);
         loading.value = false;
       });
-      
+
       globalAuthSubscription = subscription;
       window.globalAuthSubscription = subscription;
     }

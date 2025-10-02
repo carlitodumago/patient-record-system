@@ -1,42 +1,42 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useUserStore } from '../stores/user';
-import { useNotificationStore } from '../stores/notifications';
-import { areNotificationsEnabled } from '../utils/notificationUtils';
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
+import { areNotificationsEnabled } from "../utils/notificationUtils";
 
-const userStore = useUserStore();
-const notificationStore = useNotificationStore();
+const store = useStore();
 const router = useRouter();
-const isAuthenticated = computed(() => userStore.isAuthenticated);
-const user = computed(() => userStore.user);
+const isAuthenticated = computed(() => store.state.isAuthenticated);
+const user = computed(() => store.state.user);
 
 // Check if notifications are enabled
-const notificationsEnabled = computed(() => areNotificationsEnabled(user.value));
+const notificationsEnabled = computed(() =>
+  areNotificationsEnabled(user.value)
+);
 
-// Get notifications from Pinia store
-const notifications = computed(() => notificationStore.allNotifications);
+// Get notifications from Vuex store
+const notifications = computed(() => store.state.notifications || []);
 
 // Format time
 const formatTimeAgo = (date) => {
   const seconds = Math.floor((new Date() - date) / 1000);
-  
+
   let interval = seconds / 31536000; // years
-  if (interval > 1) return Math.floor(interval) + ' years ago';
-  
+  if (interval > 1) return Math.floor(interval) + " years ago";
+
   interval = seconds / 2592000; // months
-  if (interval > 1) return Math.floor(interval) + ' months ago';
-  
+  if (interval > 1) return Math.floor(interval) + " months ago";
+
   interval = seconds / 86400; // days
-  if (interval > 1) return Math.floor(interval) + ' days ago';
-  
+  if (interval > 1) return Math.floor(interval) + " days ago";
+
   interval = seconds / 3600; // hours
-  if (interval > 1) return Math.floor(interval) + ' hours ago';
-  
+  if (interval > 1) return Math.floor(interval) + " hours ago";
+
   interval = seconds / 60; // minutes
-  if (interval > 1) return Math.floor(interval) + ' minutes ago';
-  
-  return Math.floor(seconds) + ' seconds ago';
+  if (interval > 1) return Math.floor(interval) + " minutes ago";
+
+  return Math.floor(seconds) + " seconds ago";
 };
 
 // Format date and time
@@ -46,46 +46,48 @@ const formatDateTime = (date) => {
 
 // Toggle notification read status
 const markAsRead = (id) => {
-  store.commit('markNotificationAsRead', id);
+  store.commit("markNotificationAsRead", id);
 };
 
 // Mark all as read
 const markAllAsRead = () => {
-  store.commit('markAllNotificationsAsRead');
+  store.commit("markAllNotificationsAsRead");
 };
 
 // Delete notification
 const deleteNotification = (id) => {
-  store.commit('deleteNotification', id);
+  store.commit("deleteNotification", id);
 };
 
 // Clear all notifications
 const clearAllNotifications = () => {
-  if (confirm('Are you sure you want to delete all notifications?')) {
-    notifications.value.forEach(notification => {
-      store.commit('deleteNotification', notification.id);
+  if (confirm("Are you sure you want to delete all notifications?")) {
+    notifications.value.forEach((notification) => {
+      store.commit("deleteNotification", notification.id);
     });
   }
 };
 
 // Filter notifications
-const notificationFilters = ref('all'); // 'all', 'unread', 'read'
+const notificationFilters = ref("all"); // 'all', 'unread', 'read'
 const filteredNotifications = computed(() => {
-  if (notificationFilters.value === 'all') return notifications.value;
-  if (notificationFilters.value === 'unread') return notifications.value.filter(n => !n.read);
-  if (notificationFilters.value === 'read') return notifications.value.filter(n => n.read);
+  if (notificationFilters.value === "all") return notifications.value;
+  if (notificationFilters.value === "unread")
+    return notifications.value.filter((n) => !n.read);
+  if (notificationFilters.value === "read")
+    return notifications.value.filter((n) => n.read);
   return notifications.value;
 });
 
 // Go to settings page
 const goToSettings = () => {
-  router.push('/settings');
+  router.push("/settings");
 };
 
 // Check if user is authenticated
 onMounted(() => {
   if (!isAuthenticated.value) {
-    router.push('/login');
+    router.push("/login");
   }
 });
 </script>
@@ -96,84 +98,125 @@ onMounted(() => {
       <h2>Notifications</h2>
       <div class="header-actions">
         <button @click="goToSettings" class="btn btn-outline-secondary me-2">
-          <i class="bi bi-gear me-2"></i> <span class="action-text">Settings</span>
+          <i class="bi bi-gear me-2"></i>
+          <span class="action-text">Settings</span>
         </button>
-        <button @click="markAllAsRead" class="btn btn-outline-primary me-2" :disabled="!notificationsEnabled">
-          <i class="bi bi-check-all me-2"></i> <span class="action-text">Mark all as read</span>
+        <button
+          @click="markAllAsRead"
+          class="btn btn-outline-primary me-2"
+          :disabled="!notificationsEnabled"
+        >
+          <i class="bi bi-check-all me-2"></i>
+          <span class="action-text">Mark all as read</span>
         </button>
-        <button @click="clearAllNotifications" class="btn btn-outline-danger" :disabled="!notificationsEnabled">
-          <i class="bi bi-trash me-2"></i> <span class="action-text">Clear all</span>
+        <button
+          @click="clearAllNotifications"
+          class="btn btn-outline-danger"
+          :disabled="!notificationsEnabled"
+        >
+          <i class="bi bi-trash me-2"></i>
+          <span class="action-text">Clear all</span>
         </button>
       </div>
     </div>
-    
+
     <div class="card mb-4">
       <div class="card-body">
         <!-- Notifications disabled message -->
         <div v-if="!notificationsEnabled" class="text-center py-5">
           <i class="bi bi-bell-slash fs-1 text-muted"></i>
-          <p class="mt-3 mb-2 text-muted">Notifications are currently disabled</p>
-          <p class="text-muted small mb-4">You can enable notifications in the settings to receive updates.</p>
+          <p class="mt-3 mb-2 text-muted">
+            Notifications are currently disabled
+          </p>
+          <p class="text-muted small mb-4">
+            You can enable notifications in the settings to receive updates.
+          </p>
           <button @click="goToSettings" class="btn btn-primary">
             <i class="bi bi-bell me-2"></i> Enable Notifications
           </button>
         </div>
-        
+
         <!-- Notifications enabled content -->
         <template v-else>
           <div class="filter-tabs mb-3">
             <div class="btn-group filter-buttons" role="group">
-              <button 
-                @click="notificationFilters = 'all'" 
-                class="btn" 
-                :class="notificationFilters === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
+              <button
+                @click="notificationFilters = 'all'"
+                class="btn"
+                :class="
+                  notificationFilters === 'all'
+                    ? 'btn-primary'
+                    : 'btn-outline-secondary'
+                "
               >
                 All ({{ notifications.length }})
               </button>
-              <button 
-                @click="notificationFilters = 'unread'" 
-                class="btn" 
-                :class="notificationFilters === 'unread' ? 'btn-primary' : 'btn-outline-secondary'"
+              <button
+                @click="notificationFilters = 'unread'"
+                class="btn"
+                :class="
+                  notificationFilters === 'unread'
+                    ? 'btn-primary'
+                    : 'btn-outline-secondary'
+                "
               >
-                Unread ({{ notifications.filter(n => !n.read).length }})
+                Unread ({{ notifications.filter((n) => !n.read).length }})
               </button>
-              <button 
-                @click="notificationFilters = 'read'" 
-                class="btn" 
-                :class="notificationFilters === 'read' ? 'btn-primary' : 'btn-outline-secondary'"
+              <button
+                @click="notificationFilters = 'read'"
+                class="btn"
+                :class="
+                  notificationFilters === 'read'
+                    ? 'btn-primary'
+                    : 'btn-outline-secondary'
+                "
               >
-                Read ({{ notifications.filter(n => n.read).length }})
+                Read ({{ notifications.filter((n) => n.read).length }})
               </button>
             </div>
           </div>
-          
-          <div v-if="filteredNotifications.length === 0" class="text-center py-5">
+
+          <div
+            v-if="filteredNotifications.length === 0"
+            class="text-center py-5"
+          >
             <i class="bi bi-bell-slash fs-1 text-muted"></i>
             <p class="mt-3 text-muted">No notifications to display</p>
           </div>
-          
+
           <div v-else class="notification-list">
-            <div 
-              v-for="notification in filteredNotifications" 
-              :key="notification.id" 
-              class="notification-item" 
-              :class="{ 'unread': !notification.read }"
+            <div
+              v-for="notification in filteredNotifications"
+              :key="notification.id"
+              class="notification-item"
+              :class="{ unread: !notification.read }"
               @click="markAsRead(notification.id)"
             >
               <div class="notification-icon">
-                <i class="bi" :class="{
-                  'bi-info-circle text-info': notification.type === 'info',
-                  'bi-check-circle text-success': notification.type === 'success',
-                  'bi-exclamation-triangle text-warning': notification.type === 'warning',
-                  'bi-x-circle text-danger': notification.type === 'error'
-                }"></i>
+                <i
+                  class="bi"
+                  :class="{
+                    'bi-info-circle text-info': notification.type === 'info',
+                    'bi-check-circle text-success':
+                      notification.type === 'success',
+                    'bi-exclamation-triangle text-warning':
+                      notification.type === 'warning',
+                    'bi-x-circle text-danger': notification.type === 'error',
+                  }"
+                ></i>
               </div>
               <div class="notification-content">
                 <div class="notification-title">{{ notification.title }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-                <div class="notification-time" :title="formatDateTime(notification.date)">{{ formatTimeAgo(notification.date) }}</div>
+                <div class="notification-message">
+                  {{ notification.message }}
+                </div>
+                <div
+                  class="notification-time"
+                  :title="formatDateTime(notification.date)"
+                >
+                  {{ formatTimeAgo(notification.date) }}
+                </div>
               </div>
-
             </div>
           </div>
         </template>
@@ -351,12 +394,12 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-end;
   }
-  
+
   .notification-item {
     padding: 12px;
     padding-right: 50px; /* Maintain space for buttons */
   }
-  
+
   .notification-list {
     max-height: 400px; /* Slightly smaller on mobile devices */
   }
@@ -367,50 +410,50 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header-actions {
     width: 100%;
     flex-wrap: wrap;
   }
-  
+
   .header-actions .btn {
     flex: 1;
     padding: 6px 8px;
     font-size: 0.9rem;
   }
-  
+
   .action-text {
     display: none;
   }
-  
+
   .header-actions .bi {
     margin-right: 0 !important;
   }
-  
+
   .notification-item {
     padding: 10px;
     padding-right: 45px; /* Maintain space for buttons */
     gap: 10px;
   }
-  
+
   .notification-icon {
     font-size: 1.2rem;
     width: 20px;
     height: 20px;
   }
-  
+
   .notification-title {
     font-size: 0.9rem;
   }
-  
+
   .notification-message {
     font-size: 0.8rem;
   }
-  
+
   .notification-time {
     font-size: 0.75rem;
   }
-  
+
   .notification-list {
     max-height: 350px;
   }
