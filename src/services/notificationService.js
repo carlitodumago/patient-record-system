@@ -81,6 +81,54 @@ class NotificationService {
     }
   }
 
+  // Send admin notification about new user registration
+  async sendAdminNotification(userData) {
+    try {
+      // In production, this would send to admin email(s)
+      // For now, we'll use the same email endpoint but with admin subject
+      const adminEmail = "admin@patientrecord.system"; // Default admin email
+
+      const response = await fetch(`${API_BASE_URL}/api/notifications/email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: adminEmail,
+          subject: "New User Registration - Patient Record System",
+          template: "admin_notification",
+          data: {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            contactNumber: userData.contactNumber,
+            role: userData.role,
+            username: userData.username,
+            registrationDate: new Date().toISOString(),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Admin notification error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Admin notification failed:", error);
+      // In development, log the notification content instead of failing
+      if (import.meta.env.DEV) {
+        console.log("📧 [DEV MODE] Admin notification would be sent:", {
+          to: "admin@patientrecord.system",
+          subject: "New User Registration - Patient Record System",
+          content: `New user registration:\n\nName: ${userData.firstName} ${userData.lastName}\nEmail: ${userData.email}\nPhone: ${userData.contactNumber}\nRole: ${userData.role}\nUsername: ${userData.username}\n\nPlease review and approve the account.`,
+        });
+        return { success: true, mode: "development" };
+      }
+      throw error;
+    }
+  }
+
   // Send both email and SMS notifications
   async sendWelcomeNotifications(userData) {
     const notifications = [];

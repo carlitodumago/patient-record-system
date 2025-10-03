@@ -154,18 +154,11 @@ const store = createStore({
     },
     async loadUsers({ commit }) {
       try {
-        // Load users from localStorage for now since API service was removed
-        const savedUsers = localStorage.getItem('registeredUsers');
-        if (savedUsers) {
-          const users = JSON.parse(savedUsers);
-          commit("setUsers", users);
-        } else {
-          // Set empty users array as fallback
-          commit("setUsers", []);
-        }
+        // User management is now handled by Supabase
+        // This action is kept for backward compatibility but doesn't load from localStorage
+        commit("setUsers", []);
       } catch (error) {
         console.warn("Failed to load users:", error.message);
-        // Set empty users array as fallback
         commit("setUsers", []);
       }
     },
@@ -242,7 +235,7 @@ try {
 }
 
 // Clean up on page unload
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   // Clean up any global subscriptions
   if (window.globalAuthSubscription) {
     window.globalAuthSubscription.unsubscribe();

@@ -11,6 +11,56 @@
           >
             <i class="bi bi-plus-circle"></i> Add Appointment
           </button>
+
+          <!-- Google Calendar Integration -->
+          <div
+            v-if="googleCalendarEnabled"
+            class="google-calendar-controls me-3"
+          >
+            <div
+              v-if="!googleCalendarConnected"
+              class="d-flex align-items-center"
+            >
+              <button
+                class="btn btn-sm btn-outline-danger me-2"
+                @click="authenticateGoogleCalendar"
+                :disabled="isGoogleLoading"
+              >
+                <i class="bi bi-google me-1"></i>
+                {{
+                  isGoogleLoading ? "Connecting..." : "Connect Google Calendar"
+                }}
+              </button>
+            </div>
+
+            <div v-else class="d-flex align-items-center">
+              <div class="google-status me-2">
+                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                <small class="text-success">Google Calendar Connected</small>
+              </div>
+
+              <div class="form-check form-switch me-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="googleSync"
+                  v-model="googleSyncEnabled"
+                />
+                <label class="form-check-label" for="googleSync">
+                  <small>Auto-sync</small>
+                </label>
+              </div>
+
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                @click="disconnectGoogleCalendar"
+                title="Disconnect Google Calendar"
+              >
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>
+          </div>
+
           <div class="month-navigator">
             <span class="nav-arrow" @click="previousYear">&lt;&lt;</span>
             <span class="nav-arrow" @click="previousMonth">&lt;</span>
@@ -37,11 +87,14 @@
           <div
             v-for="event in day.events"
             :key="event.id"
-            class="event"
+            :class="['event', { 'google-event': event.source === 'google' }]"
             @click.stop="viewEvent(event)"
           >
             <div class="event-time">{{ event.time }}</div>
             <div class="event-patient">{{ event.patient }}</div>
+            <div v-if="event.source === 'google'" class="event-source">
+              <i class="bi bi-google"></i>
+            </div>
           </div>
 
           <i
@@ -180,6 +233,22 @@
               <h6>Description</h6>
               <p>{{ currentEvent.description }}</p>
             </div>
+            <div class="mb-3" v-if="currentEvent.source">
+              <h6>Source</h6>
+              <p>
+                <span
+                  v-if="currentEvent.source === 'google'"
+                  class="badge bg-danger"
+                >
+                  <i class="bi bi-google me-1"></i>
+                  Google Calendar
+                </span>
+                <span v-else class="badge bg-primary">
+                  <i class="bi bi-hospital me-1"></i>
+                  System Appointment
+                </span>
+              </p>
+            </div>
           </div>
           <div class="modal-footer">
             <button
@@ -291,6 +360,68 @@
       </div>
       <div class="modal-backdrop fade show" v-if="showEditEventModal"></div>
     </div>
+
+    <!-- Google Calendar Auth Modal -->
+    <div
+      class="modal fade"
+      :class="{ 'd-block show': showGoogleAuthModal }"
+      tabindex="-1"
+      role="dialog"
+    >
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-google me-2"></i>
+              Connect Google Calendar
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="showGoogleAuthModal = false"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="text-center">
+              <p>
+                To sync your appointments with Google Calendar, you'll need to
+                authorize this application.
+              </p>
+              <p class="text-muted small">
+                This will allow the system to read and create events in your
+                Google Calendar.
+              </p>
+
+              <div v-if="googleAuthUrl" class="mt-4">
+                <a
+                  :href="googleAuthUrl"
+                  target="_blank"
+                  class="btn btn-danger"
+                  @click="showGoogleAuthModal = false"
+                >
+                  <i class="bi bi-google me-2"></i>
+                  Authorize with Google
+                </a>
+                <p class="mt-3 text-muted small">
+                  Click the button above to open Google authorization in a new
+                  window. After authorization, return here and refresh the page.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="showGoogleAuthModal = false"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-backdrop fade show" v-if="showGoogleAuthModal"></div>
+    </div>
   </div>
 </template>
 
@@ -299,6 +430,20 @@ import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
 import { supabase } from "../services/supabase";
 import { addNotification } from "../utils/notificationUtils";
+import {
+  initializeGoogleAPI,
+  isGoogleAPIConfigured,
+  getAuthUrl,
+  setCredentials,
+  fetchGoogleCalendarEvents,
+  createGoogleCalendarEvent,
+  updateGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+  convertAppointmentToGoogleEvent,
+  convertGoogleEventToAppointment,
+  checkGoogleCalendarAccess,
+  refreshTokensIfNeeded,
+} from "../services/googleCalendar";
 
 export default {
   name: "CalendarView",
@@ -319,6 +464,15 @@ export default {
     const showEditEventModal = ref(false);
     const currentEvent = ref(null);
 
+    // Google Calendar integration
+    const googleCalendarEnabled = ref(false);
+    const googleCalendarConnected = ref(false);
+    const googleEvents = ref([]);
+    const showGoogleAuthModal = ref(false);
+    const googleAuthUrl = ref("");
+    const isGoogleLoading = ref(false);
+    const googleSyncEnabled = ref(false);
+
     // New event form data
     const newEvent = ref({
       id: "",
@@ -335,23 +489,42 @@ export default {
     // Get patients list
     const patients = computed(() => store.state.patients || []);
 
-    // Filter events based on user role
+    // Filter events based on user role and combine with Google Calendar events
     const events = computed(() => {
+      let systemEvents = [];
+
       if (userRole.value === "patient") {
         // Patients can only see their own appointments
-        return allEvents.value.filter(
+        systemEvents = allEvents.value.filter(
           (event) => event.patientId === userId.value
         );
       } else if (userRole.value === "nurse") {
         // Nurses can see all patient appointments they're responsible for
-        return allEvents.value.filter(
+        systemEvents = allEvents.value.filter(
           (event) => event.nurseId === userId.value || event.type === "clinic"
         );
       } else if (userRole.value === "admin") {
         // Admins can see all appointments
-        return allEvents.value;
+        systemEvents = allEvents.value;
       }
-      return [];
+
+      // Combine with Google Calendar events if connected
+      if (googleCalendarConnected.value && googleEvents.value.length > 0) {
+        const combinedEvents = [...systemEvents];
+
+        // Convert Google events to compatible format and add them
+        googleEvents.value.forEach((googleEvent) => {
+          const convertedEvent = convertGoogleEventToAppointment(googleEvent);
+          // Add source indicator
+          convertedEvent.source = "google";
+          convertedEvent.googleEventId = googleEvent.id;
+          combinedEvents.push(convertedEvent);
+        });
+
+        return combinedEvents;
+      }
+
+      return systemEvents;
     });
 
     const dayNames = [
@@ -662,6 +835,16 @@ export default {
           noButtons: true,
         });
 
+        // Sync to Google Calendar if enabled
+        if (googleCalendarConnected.value && googleSyncEnabled.value) {
+          try {
+            await syncEventToGoogleCalendar(data[0]);
+          } catch (syncError) {
+            console.error("Error syncing to Google Calendar:", syncError);
+            // Don't fail the appointment creation for sync errors
+          }
+        }
+
         // Close modal
         showAddEventModal.value = false;
 
@@ -732,6 +915,166 @@ export default {
       }
     };
 
+    // Google Calendar functions
+    const initializeGoogleCalendar = async () => {
+      googleCalendarEnabled.value = isGoogleAPIConfigured();
+
+      if (!googleCalendarEnabled.value) {
+        console.log("Google Calendar API not configured");
+        return;
+      }
+
+      try {
+        const initialized = initializeGoogleAPI();
+        if (initialized) {
+          console.log("Google Calendar API initialized successfully");
+
+          // Check if user already has stored tokens
+          const storedTokens = localStorage.getItem("googleCalendarTokens");
+          if (storedTokens) {
+            try {
+              const tokens = JSON.parse(storedTokens);
+              setCredentials(tokens);
+              googleCalendarConnected.value = await checkGoogleCalendarAccess();
+
+              if (googleCalendarConnected.value) {
+                await loadGoogleCalendarEvents();
+              }
+            } catch (error) {
+              console.error("Error loading stored Google tokens:", error);
+              localStorage.removeItem("googleCalendarTokens");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing Google Calendar:", error);
+      }
+    };
+
+    const authenticateGoogleCalendar = async () => {
+      if (!googleCalendarEnabled.value) {
+        alert(
+          "Google Calendar integration is not configured. Please contact your administrator."
+        );
+        return;
+      }
+
+      try {
+        isGoogleLoading.value = true;
+        const authUrl = getAuthUrl();
+
+        if (authUrl) {
+          // For client-side OAuth, we'll need to redirect to Google
+          // In a production app, you'd handle this more elegantly
+          googleAuthUrl.value = authUrl;
+          showGoogleAuthModal.value = true;
+        } else {
+          alert("Unable to generate Google authentication URL");
+        }
+      } catch (error) {
+        console.error("Error starting Google authentication:", error);
+        alert("Error starting Google authentication. Please try again.");
+      } finally {
+        isGoogleLoading.value = false;
+      }
+    };
+
+    const handleGoogleAuthCallback = async (code) => {
+      try {
+        isGoogleLoading.value = true;
+        const tokens = await getTokensFromCode(code);
+
+        if (tokens) {
+          // Store tokens securely (in production, use secure storage)
+          localStorage.setItem("googleCalendarTokens", JSON.stringify(tokens));
+          setCredentials(tokens);
+
+          googleCalendarConnected.value = true;
+          showGoogleAuthModal.value = false;
+
+          // Load Google Calendar events
+          await loadGoogleCalendarEvents();
+
+          alert("Successfully connected to Google Calendar!");
+        }
+      } catch (error) {
+        console.error("Error completing Google authentication:", error);
+        alert("Error connecting to Google Calendar. Please try again.");
+      } finally {
+        isGoogleLoading.value = false;
+      }
+    };
+
+    const loadGoogleCalendarEvents = async () => {
+      if (!googleCalendarConnected.value) return;
+
+      try {
+        isGoogleLoading.value = true;
+
+        // Get current month date range
+        const year = currentDate.value.getFullYear();
+        const month = currentDate.value.getMonth();
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0);
+
+        const timeMin = startOfMonth.toISOString();
+        const timeMax = endOfMonth.toISOString();
+
+        const events = await fetchGoogleCalendarEvents(timeMin, timeMax);
+        googleEvents.value = events;
+
+        console.log(`Loaded ${events.length} Google Calendar events`);
+      } catch (error) {
+        console.error("Error loading Google Calendar events:", error);
+        // Don't show alert for this, as it might happen if tokens are expired
+      } finally {
+        isGoogleLoading.value = false;
+      }
+    };
+
+    const syncEventToGoogleCalendar = async (appointment) => {
+      if (!googleCalendarConnected.value || !googleSyncEnabled.value) return;
+
+      try {
+        const googleEventData = convertAppointmentToGoogleEvent(appointment);
+        const googleEvent = await createGoogleCalendarEvent(googleEventData);
+
+        // Store the Google event ID in the appointment for future reference
+        await supabase
+          .from("appointments")
+          .update({ google_event_id: googleEvent.id })
+          .eq("id", appointment.id);
+
+        console.log("Event synced to Google Calendar:", googleEvent.id);
+        return googleEvent;
+      } catch (error) {
+        console.error("Error syncing event to Google Calendar:", error);
+        // Don't throw error, just log it
+      }
+    };
+
+    const disconnectGoogleCalendar = async () => {
+      if (
+        !confirm(
+          "Are you sure you want to disconnect Google Calendar? This will stop syncing events."
+        )
+      ) {
+        return;
+      }
+
+      try {
+        localStorage.removeItem("googleCalendarTokens");
+        googleCalendarConnected.value = false;
+        googleEvents.value = [];
+        googleSyncEnabled.value = false;
+
+        alert("Successfully disconnected from Google Calendar.");
+      } catch (error) {
+        console.error("Error disconnecting Google Calendar:", error);
+        alert("Error disconnecting Google Calendar. Please try again.");
+      }
+    };
+
     onMounted(async () => {
       // Set today as initial selected date
       const today = new Date();
@@ -742,6 +1085,9 @@ export default {
 
       // Load events from Supabase
       await loadEventsFromSupabase();
+
+      // Initialize Google Calendar
+      await initializeGoogleCalendar();
     });
 
     const loadEventsFromSupabase = async () => {
@@ -809,6 +1155,16 @@ export default {
       deleteEvent,
       userRole,
       formatDate,
+      // Google Calendar
+      googleCalendarEnabled,
+      googleCalendarConnected,
+      showGoogleAuthModal,
+      googleAuthUrl,
+      isGoogleLoading,
+      googleSyncEnabled,
+      authenticateGoogleCalendar,
+      handleGoogleAuthCallback,
+      disconnectGoogleCalendar,
     };
   },
 };
@@ -1027,5 +1383,35 @@ export default {
 .calendar-grid .day-cell:last-child:nth-last-child(1):first-child {
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
+}
+
+/* Google Calendar Integration Styles */
+.google-calendar-controls {
+  display: flex;
+  align-items: center;
+}
+
+.google-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.google-event {
+  background-color: #fce8e6 !important;
+  border: 1px solid #ea4335 !important;
+  position: relative;
+}
+
+.google-event .event-source {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.6rem;
+  color: #ea4335;
+}
+
+.google-event .event-source i {
+  font-size: 0.5rem;
 }
 </style>

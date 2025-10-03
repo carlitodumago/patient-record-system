@@ -35,10 +35,7 @@ const logout = async () => {
   try {
     await supabase.auth.signOut();
 
-    // Clear any remaining localStorage items
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-
+    // Supabase handles auth state cleanup automatically
     // Update store
     store.commit("setAuthenticated", false);
     store.commit("setUser", null);
@@ -48,8 +45,6 @@ const logout = async () => {
   } catch (error) {
     console.error("Logout error:", error);
     // Fallback: clear local state and redirect anyway
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
     store.commit("setAuthenticated", false);
     store.commit("setUser", null);
     router.push("/login");
@@ -110,16 +105,6 @@ const closeSidebar = () => {
               >
                 <i class="bi bi-people-fill me-2"></i>
                 <span v-if="!isSidebarCollapsed">User Management</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link
-                class="nav-link text-white"
-                to="/admin/backup-restore"
-                @click="closeSidebar"
-              >
-                <i class="bi bi-cloud-arrow-up me-2"></i>
-                <span v-if="!isSidebarCollapsed">Backup & Restore</span>
               </router-link>
             </li>
             <li class="nav-item">

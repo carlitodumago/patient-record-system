@@ -5,7 +5,7 @@ import twilio from "twilio";
 const router = express.Router();
 
 // Email configuration (replace with your actual email service)
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: process.env.SMTP_PORT || 587,
   secure: false,
@@ -16,10 +16,14 @@ const emailTransporter = nodemailer.createTransporter({
 });
 
 // SMS configuration (replace with your actual SMS service)
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID || "your-twilio-sid",
-  process.env.TWILIO_AUTH_TOKEN || "your-twilio-token"
-);
+// Only initialize if credentials are provided
+let twilioClient = null;
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+  twilioClient = twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+}
 
 // Email sending endpoint
 router.post("/email", async (req, res) => {
@@ -124,6 +128,13 @@ router.post("/sms", async (req, res) => {
       return res.status(400).json({
         success: false,
         error: "Missing required fields: to, message",
+      });
+    }
+
+    if (!twilioClient) {
+      return res.status(500).json({
+        success: false,
+        error: "SMS service not configured",
       });
     }
 

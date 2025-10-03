@@ -9,9 +9,6 @@ const router = useRouter();
 
 // Register form data
 const registerForm = reactive({
-  username: "",
-  password: "",
-  confirmPassword: "",
   role: "patient", // Default role set to patient
   firstName: "",
   lastName: "",
@@ -27,8 +24,6 @@ const registerForm = reactive({
 const isLoading = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
 
 // Check if auth is loading
 const isStoreLoading = authLoading;
@@ -44,8 +39,6 @@ const register = async () => {
     !registerForm.firstName ||
     !registerForm.lastName ||
     !registerForm.email ||
-    !registerForm.password ||
-    !registerForm.confirmPassword ||
     !registerForm.address ||
     !registerForm.gender ||
     !registerForm.birthdate ||
@@ -55,36 +48,33 @@ const register = async () => {
     return;
   }
 
-  if (registerForm.password !== registerForm.confirmPassword) {
-    errorMessage.value = "Passwords do not match";
-    return;
-  }
-
-  if (registerForm.password.length < 6) {
-    errorMessage.value = "Password must be at least 6 characters long";
+  // Validate birthdate format (required for password generation)
+  if (!isValidDateFormat(registerForm.birthdate)) {
+    errorMessage.value = "Please enter a valid birthdate in mm/dd/yyyy format";
     return;
   }
 
   isLoading.value = true;
 
   try {
+    // Generate credentials
+    const username = generatedUsername.value;
+    const password = generatedPassword.value;
+
     // Call the register API through the auth composable
     const metadata = {
+      username: username,
       first_name: registerForm.firstName,
       last_name: registerForm.lastName,
       suffix: registerForm.suffix,
       email: registerForm.email,
       address: registerForm.address,
       gender: registerForm.gender,
-      birthdate: registerForm.birthdate,
+      birthdate: convertToISODate(registerForm.birthdate), // Convert to ISO format
       contact_number: registerForm.contactNumber,
       role: registerForm.role,
     };
-    const result = await authRegister(
-      registerForm.email,
-      registerForm.password,
-      metadata
-    );
+    const result = await authRegister(registerForm.email, password, metadata);
 
     if (result.success) {
       // Send welcome notifications (email and SMS)
@@ -93,16 +83,39 @@ const register = async () => {
           await notificationService.sendWelcomeNotifications({
             firstName: registerForm.firstName,
             lastName: registerForm.lastName,
-            username: registerForm.username,
-            password: registerForm.password,
+            username: username,
+            password: password,
             email: registerForm.email,
             contactNumber: registerForm.contactNumber,
             role: registerForm.role,
           });
 
+        // Send admin notification about new registration
+        try {
+          const adminNotificationResult =
+            await notificationService.sendAdminNotification({
+              firstName: registerForm.firstName,
+              lastName: registerForm.lastName,
+              email: registerForm.email,
+              contactNumber: registerForm.contactNumber,
+              role: registerForm.role,
+              username: username,
+            });
+
+          if (!adminNotificationResult.success) {
+            console.warn(
+              "Admin notification failed to send:",
+              adminNotificationResult
+            );
+          }
+        } catch (adminError) {
+          console.warn("Admin notification error:", adminError);
+          // Don't block registration success for admin notification failures
+        }
+
         if (notificationResult.success) {
           successMessage.value =
-            "Registration successful! Welcome notifications sent. You can now log in.";
+            "Registration successful! Your account details have been sent to your email and phone. You can now log in.";
         } else {
           successMessage.value =
             "Registration successful! You can now log in. (Note: Some notifications may not have been sent)";
@@ -132,26 +145,74 @@ const register = async () => {
   }
 };
 
-// Toggle password visibility
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value;
-};
-
-// Toggle confirm password visibility
-const toggleConfirmPasswordVisibility = () => {
-  showConfirmPassword.value = !showConfirmPassword.value;
-};
-
-// Format date to mm/dd/yyyy
+// Format date from yyyy-mm-dd to mm/dd/yyyy
 const formatDate = (dateString) => {
   if (!dateString) return "";
   const [year, month, day] = dateString.split("-");
   return `${month}/${day}/${year}`;
 };
 
-// Computed property to format birthdate for display if needed
-const formattedBirthdate = computed(() => {
-  return formatDate(registerForm.birthdate);
+// Convert mm/dd/yyyy to yyyy-mm-dd for storage
+const convertToISODate = (dateString) => {
+  if (!dateString) return "";
+  const [month, day, year] = dateString.split("/");
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
+// Validate mm/dd/yyyy date format
+const isValidDateFormat = (dateString) => {
+  if (!dateString) return false;
+  const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
+  if (!dateRegex.test(dateString)) return false;
+
+  const [month, day, year] = dateString.split("/");
+  const date = new Date(`${year}-${month}-${day}`);
+  return (
+    date.getFullYear() == year &&
+    date.getMonth() + 1 == month &&
+    date.getDate() == day
+  );
+};
+
+// Handle birthdate input with mask
+const handleBirthdateInput = (event) => {
+  let value = event.target.value.replace(/[^\d/]/g, ""); // Only allow numbers and /
+
+  // Auto-format as user types
+  if (value.length === 2 && !value.includes("/")) {
+    value += "/";
+  } else if (value.length === 5 && value.split("/").length === 2) {
+    value += "/";
+  }
+
+  // Limit to 10 characters (mm/dd/yyyy)
+  if (value.length > 10) {
+    value = value.substring(0, 10);
+  }
+
+  registerForm.birthdate = value;
+};
+
+// Computed property to validate birthdate
+const isBirthdateValid = computed(() => {
+  return !registerForm.birthdate || isValidDateFormat(registerForm.birthdate);
+});
+
+// Auto-generate username from first and last name
+const generatedUsername = computed(() => {
+  if (registerForm.firstName && registerForm.lastName) {
+    return `${registerForm.firstName.toLowerCase()}.${registerForm.lastName.toLowerCase()}`;
+  }
+  return "";
+});
+
+// Auto-generate password from birthdate (mm-dd-yyyy format)
+const generatedPassword = computed(() => {
+  if (registerForm.birthdate && isValidDateFormat(registerForm.birthdate)) {
+    const [month, day, year] = registerForm.birthdate.split("/");
+    return `${month.padStart(2, "0")}-${day.padStart(2, "0")}-${year}`;
+  }
+  return "";
 });
 </script>
 
@@ -178,7 +239,6 @@ const formattedBirthdate = computed(() => {
               <i class="bi bi-hospital"></i>
             </div>
             <h1>Create Account</h1>
-            <p class="subtitle">Get started with your account</p>
           </div>
 
           <div v-if="errorMessage" class="alert alert-danger">
@@ -192,58 +252,36 @@ const formattedBirthdate = computed(() => {
           </div>
 
           <form @submit.prevent="register">
-            <div class="form-group">
-              <label for="register-username">Username</label>
+            <!-- Username and Password are auto-generated -->
+            <div v-if="generatedUsername" class="form-group">
+              <label>Generated Username</label>
               <div class="input-container">
                 <i class="bi bi-person input-icon"></i>
                 <input
                   type="text"
-                  id="register-username"
-                  v-model="registerForm.username"
-                  placeholder="Choose a username"
-                  autocomplete="new-username"
-                  required
+                  :value="generatedUsername"
+                  readonly
+                  class="form-control-plaintext"
+                  style="background-color: #f8f9fa; cursor: not-allowed"
                 />
+                <small class="text-muted">Auto-generated from your name</small>
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="register-password">Password</label>
-              <div class="input-container">
-                <i class="bi bi-lock input-icon me-2"></i>
-                <input
-                  :type="showPassword ? 'text' : 'password'"
-                  id="register-password"
-                  v-model="registerForm.password"
-                  placeholder="Create a password"
-                  autocomplete="new-password"
-                  required
-                />
-                <i
-                  class="bi show-password-toggle"
-                  :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="togglePasswordVisibility"
-                ></i>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="confirm-password">Confirm Password</label>
+            <div v-if="generatedPassword" class="form-group">
+              <label>Generated Password</label>
               <div class="input-container">
                 <i class="bi bi-lock input-icon"></i>
                 <input
-                  :type="showConfirmPassword ? 'text' : 'password'"
-                  id="confirm-password"
-                  v-model="registerForm.confirmPassword"
-                  placeholder="Confirm your password"
-                  autocomplete="new-password"
-                  required
+                  type="text"
+                  :value="generatedPassword"
+                  readonly
+                  class="form-control-plaintext"
+                  style="background-color: #f8f9fa; cursor: not-allowed"
                 />
-                <i
-                  class="bi show-password-toggle"
-                  :class="showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="toggleConfirmPasswordVisibility"
-                ></i>
+                <small class="text-muted"
+                  >Auto-generated from your birthdate</small
+                >
               </div>
             </div>
 
@@ -356,14 +394,28 @@ const formattedBirthdate = computed(() => {
               <div class="input-container">
                 <i class="bi bi-calendar input-icon"></i>
                 <input
-                  type="date"
+                  type="text"
                   id="birthdate"
                   v-model="registerForm.birthdate"
-                  placeholder="Select your birthdate (mm/dd/yyyy)"
+                  @input="handleBirthdateInput"
+                  placeholder="mm/dd/yyyy"
+                  maxlength="10"
+                  :class="{
+                    'is-invalid': registerForm.birthdate && !isBirthdateValid,
+                  }"
                   required
                 />
-                <div v-if="formattedBirthdate" class="date-display">
-                  Selected: {{ formattedBirthdate }}
+                <div
+                  v-if="registerForm.birthdate && !isBirthdateValid"
+                  class="invalid-feedback"
+                >
+                  Please enter a valid date in mm/dd/yyyy format
+                </div>
+                <div
+                  v-if="registerForm.birthdate && isBirthdateValid"
+                  class="date-display"
+                >
+                  Valid date format
                 </div>
               </div>
             </div>
@@ -631,28 +683,28 @@ label {
   font-size: 18px;
 }
 
-.show-password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 5px;
-  transform: translateY(-50%);
-  color: #6c757d;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 3px;
-  transition: background-color 0.2s ease;
-}
-
-.show-password-toggle:hover {
-  background-color: rgba(108, 117, 125, 0.1);
-}
-
 .date-display {
   margin-top: 5px;
   font-size: 12px;
-  color: #6c757d;
+  color: #198754;
   font-weight: 500;
+}
+
+.invalid-feedback {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #dc3545;
+  font-weight: 500;
+}
+
+input.is-invalid {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
+}
+
+input.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
 }
 
 input,

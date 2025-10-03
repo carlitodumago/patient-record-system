@@ -1,39 +1,45 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useStore } from 'vuex';
+import { ref, onMounted, onUnmounted } from "vue";
+import { useStore } from "vuex";
 
 const props = defineProps({
   message: {
     type: String,
-    required: true
+    required: true,
   },
   type: {
     type: String,
-    default: 'success', // success, error, warning, info
-    validator: (value) => ['success', 'error', 'warning', 'info'].includes(value)
+    default: "success", // success, error, warning, info
+    validator: (value) =>
+      ["success", "error", "warning", "info"].includes(value),
   },
   duration: {
     type: Number,
-    default: 3000 // ms, 0 means it won't auto-close
+    default: 3000, // ms, 0 means it won't auto-close
   },
   showOkButton: {
     type: Boolean,
-    default: true
-  }
+    default: true,
+  },
+  persistent: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['closed']);
+const emit = defineEmits(["closed"]);
 const store = useStore();
 const visible = ref(true);
 let timer = null;
 
 const close = () => {
   visible.value = false;
-  emit('closed');
+  emit("closed");
 };
 
 onMounted(() => {
-  if (props.duration > 0) {
+  // Don't auto-close persistent notifications
+  if (props.duration > 0 && !props.persistent) {
     timer = setTimeout(() => {
       close();
     }, props.duration);
@@ -126,4 +132,4 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-</style> 
+</style>

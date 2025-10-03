@@ -67,17 +67,6 @@ export function useAuth() {
 
       updateStore(user.value, session.value);
       authInitialized = true;
-
-      // Auto-login as admin in development mode
-      if (!currentSession && import.meta.env.DEV) {
-        console.log("🔧 Development mode: Auto-logging in as admin...");
-        const result = await login("admin@patientrecord.system", "admin123");
-        if (result.success) {
-          console.log("✅ Auto-login successful");
-        } else {
-          console.log("❌ Auto-login failed:", result.error);
-        }
-      }
     } catch (error) {
       console.error("Error initializing auth:", error);
     } finally {

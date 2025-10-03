@@ -94,10 +94,27 @@ const login = async () => {
     const result = await authLogin(email, loginForm.password);
 
     if (result.success) {
-      // Wait a moment for auth state to update, then redirect to dashboard
-      // The router will dynamically load the correct dashboard component based on user role
-      setTimeout(() => {
-        router.push("/dashboard");
+      // Wait a moment for auth state to update, then redirect based on user role
+      setTimeout(async () => {
+        try {
+          // Get user role from Supabase session
+          const { supabase } = await import("../services/supabase");
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const userRole = session?.user?.user_metadata?.role || "patient";
+
+          // Redirect based on role
+          if (userRole === "admin") {
+            router.push("/admin/dashboard");
+          } else {
+            router.push("/dashboard");
+          }
+        } catch (error) {
+          console.error("Error getting user role for redirection:", error);
+          // Fallback to generic dashboard
+          router.push("/dashboard");
+        }
       }, 500);
     } else {
       errorMessage.value = result.error || "Login failed. Please try again.";
@@ -206,13 +223,6 @@ const switchMode = (mode) => {
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value;
 };
-
-// Function to fill demo account credentials
-const fillDemoAccount = (username, password) => {
-  loginForm.username = username.toLowerCase();
-  loginForm.password = password;
-  // role parameter removed as it's now automatically determined
-};
 </script>
 
 <template>
@@ -303,67 +313,6 @@ const fillDemoAccount = (username, password) => {
               </button>
             </div>
           </form>
-
-          <div class="form-footer">
-            <p>
-              Don't have an account?
-              <a href="#" @click.prevent="switchMode('register')">Register</a>
-            </p>
-          </div>
-
-          <!-- Demo Accounts Section -->
-          <div class="demo-accounts">
-            <h4>Demo Accounts</h4>
-            <div class="demo-account-grid">
-              <div
-                class="demo-account"
-                @click="fillDemoAccount('admin', 'admin123')"
-              >
-                <div class="demo-account-header">
-                  <i class="bi bi-shield-check"></i>
-                  <span>Admin</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> admin<br />
-                  <strong>Password:</strong> admin123<br />
-                  <strong>Role:</strong> Administrator
-                </div>
-              </div>
-
-              <div
-                class="demo-account"
-                @click="fillDemoAccount('nurse', 'nurse123')"
-              >
-                <div class="demo-account-header">
-                  <i class="bi bi-heart-pulse"></i>
-                  <span>Nurse</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> nurse<br />
-                  <strong>Password:</strong> nurse123<br />
-                  <strong>Role:</strong> Nurse/Clinic Staff
-                </div>
-              </div>
-
-              <div
-                class="demo-account"
-                @click="fillDemoAccount('patient', 'patient123')"
-              >
-                <div class="demo-account-header">
-                  <i class="bi bi-person"></i>
-                  <span>Patient</span>
-                </div>
-                <div class="demo-account-details">
-                  <strong>Username:</strong> patient<br />
-                  <strong>Password:</strong> patient123<br />
-                  <strong>Role:</strong> Patient
-                </div>
-              </div>
-            </div>
-            <p class="demo-note">
-              Click any account to auto-fill the login form
-            </p>
-          </div>
         </div>
 
         <!-- Register Form -->
@@ -373,7 +322,6 @@ const fillDemoAccount = (username, password) => {
               <i class="bi bi-hospital"></i>
             </div>
             <h1>Create Account</h1>
-            <p class="subtitle">Get started with your account</p>
           </div>
 
           <div v-if="errorMessage" class="alert alert-danger">
@@ -1017,83 +965,5 @@ select:focus {
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-/* Demo Accounts Section */
-.demo-accounts {
-  margin-top: 30px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  border: 1px solid #dee2e6;
-}
-
-.demo-accounts h4 {
-  color: #495057;
-  font-size: 18px;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-.demo-account-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.demo-account {
-  background: white;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.demo-account:hover {
-  border-color: #4361ee;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.15);
-}
-
-.demo-account-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-weight: 600;
-  color: #495057;
-}
-
-.demo-account-header i {
-  font-size: 18px;
-  color: #4361ee;
-}
-
-.demo-account-details {
-  font-size: 12px;
-  color: #6c757d;
-  line-height: 1.4;
-}
-
-.demo-note {
-  text-align: center;
-  font-size: 12px;
-  color: #6c757d;
-  margin: 0;
-  font-style: italic;
-}
-
-@media (max-width: 768px) {
-  .demo-account-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .demo-accounts {
-    margin-top: 20px;
-    padding: 15px;
-  }
 }
 </style>

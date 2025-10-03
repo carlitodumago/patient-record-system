@@ -2,7 +2,10 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
+import { supabase } from "@/services/supabase";
+import { useAuth } from "@/composables/useAuth";
 
+const { user: authUser } = useAuth();
 const store = useStore();
 const router = useRouter();
 
@@ -18,10 +21,8 @@ const imagePreview = ref("");
 
 // Form data for editing
 const profileForm = ref({
-  username: "",
   fullName: "",
   email: "",
-  role: "",
   password: "",
   confirmPassword: "",
   changePassword: false,
@@ -56,37 +57,49 @@ const handleImageUpload = (event) => {
 };
 
 // Load user profile data into form
-onMounted(() => {
+onMounted(async () => {
   if (!user.value) {
     router.push("/login");
     return;
   }
 
-  // Get the full user details from stored users
-  const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-  const defaultUsers = userStore.users;
+  try {
+    // Get current user data from Supabase
+    const {
+      data: { user: supabaseUser },
+      error,
+    } = await supabase.auth.getUser();
 
-  // Find the user in either registered or default users
-  const currentUser = [...users, ...defaultUsers].find(
-    (u) => u.username === user.value.username
-  );
-
-  if (currentUser) {
-    profileForm.value = {
-      username: currentUser.username,
-      fullName: currentUser.fullName || "",
-      email: currentUser.email || "",
-      role: currentUser.role || "user",
-      password: "",
-      confirmPassword: "",
-      changePassword: false,
-      profilePicture: currentUser.profilePicture || "",
-    };
-
-    // Set image preview if profile picture exists
-    if (currentUser.profilePicture) {
-      imagePreview.value = currentUser.profilePicture;
+    if (error) {
+      console.error("Error fetching user data:", error);
+      errorMessage.value = "Failed to load user data";
+      return;
     }
+
+    if (supabaseUser) {
+      profileForm.value = {
+        fullName:
+          supabaseUser.user_metadata?.full_name ||
+          `${supabaseUser.user_metadata?.first_name || ""} ${
+            supabaseUser.user_metadata?.last_name || ""
+          }`.trim() ||
+          supabaseUser.email ||
+          "",
+        email: supabaseUser.email || "",
+        password: "",
+        confirmPassword: "",
+        changePassword: false,
+        profilePicture: supabaseUser.user_metadata?.profile_picture || "",
+      };
+
+      // Set image preview if profile picture exists
+      if (supabaseUser.user_metadata?.profile_picture) {
+        imagePreview.value = supabaseUser.user_metadata.profile_picture;
+      }
+    }
+  } catch (error) {
+    console.error("Error loading user profile:", error);
+    errorMessage.value = "Failed to load user profile";
   }
 });
 
@@ -171,103 +184,93 @@ const saveProfile = () => {
   }, 800);
 };
 
-const saveProfileData = () => {
-  // Get existing users
-  const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-  const defaultUsers = store.state.users;
+const saveProfileData = async () => {
+  try {
+    // Prepare metadata update
+    const metadata = {
+      full_name: profileForm.value.fullName,
+      profile_picture: profileForm.value.profilePicture,
+    };
 
-  // Find and update the user
-  let userUpdated = false;
+    // Update user metadata in Supabase
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: metadata,
+    });
 
-  // Try to update in registered users first
-  for (let i = 0; i < users.length; i++) {
-    if (users[i].username === user.value.username) {
-      users[i].fullName = profileForm.value.fullName;
-      users[i].email = profileForm.value.email;
-      users[i].profilePicture = profileForm.value.profilePicture;
-
-      if (profileForm.value.changePassword) {
-        users[i].password = profileForm.value.password;
-      }
-
-      userUpdated = true;
-      break;
+    if (updateError) {
+      throw updateError;
     }
-  }
 
-  // Then try default users if not found
-  if (!userUpdated) {
-    for (let i = 0; i < defaultUsers.length; i++) {
-      if (defaultUsers[i].username === user.value.username) {
-        defaultUsers[i].fullName = profileForm.value.fullName;
-        defaultUsers[i].email = profileForm.value.email;
-        defaultUsers[i].profilePicture = profileForm.value.profilePicture;
+    // Update password if requested
+    if (profileForm.value.changePassword) {
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: profileForm.value.password,
+      });
 
-        if (profileForm.value.changePassword) {
-          defaultUsers[i].password = profileForm.value.password;
-        }
-
-        userUpdated = true;
-        break;
+      if (passwordError) {
+        throw passwordError;
       }
     }
+
+    // Update the current user in Vuex store
+    const updatedUserData = {
+      ...user.value,
+      fullName: profileForm.value.fullName,
+      profilePicture: profileForm.value.profilePicture,
+    };
+    store.commit("setUser", updatedUserData);
+
+    saveSuccess.value = true;
+    isEditing.value = false;
+
+    // Reset success message after a while
+    setTimeout(() => {
+      saveSuccess.value = false;
+    }, 3000);
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    errorMessage.value = "Failed to update profile. Please try again.";
+  } finally {
+    isSaving.value = false;
   }
-
-  // Save changes back to storage
-  localStorage.setItem("registeredUsers", JSON.stringify(users));
-
-  // Update the current user in Vuex store
-  const updatedUserData = {
-    ...user.value,
-    fullName: profileForm.value.fullName,
-    profilePicture: profileForm.value.profilePicture,
-  };
-  store.commit("setUser", updatedUserData);
-
-  // Update localStorage user data
-  localStorage.setItem("user", JSON.stringify(updatedUserData));
-
-  saveSuccess.value = true;
-  isEditing.value = false;
-
-  // Reset success message after a while
-  setTimeout(() => {
-    saveSuccess.value = false;
-  }, 3000);
-
-  isSaving.value = false;
 };
 
-// Delete account
-const deleteAccount = () => {
+// Delete account (Note: In production, this should be handled by admin or through proper account deactivation)
+const deleteAccount = async () => {
   isLoading.value = true;
 
-  setTimeout(() => {
-    try {
-      // Get registered users
-      const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+  try {
+    // For Supabase, account deletion is typically handled differently
+    // This is a simplified version - in production you'd want proper account deactivation
+    const confirmed = confirm(
+      "Are you sure you want to delete your account? This action cannot be undone and will log you out immediately."
+    );
 
-      // Remove current user
-      const updatedUsers = users.filter(
-        (u) => u.username !== user.value.username
-      );
-
-      // Save changes back to storage
-      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
-
-      // Log out user
-      localStorage.removeItem("user");
-      store.commit("setAuthenticated", false);
-      store.commit("setUser", null);
-
-      // Redirect to login
-      router.push("/login");
-    } catch (err) {
-      errorMessage.value = "Failed to delete account. Please try again.";
+    if (!confirmed) {
       isLoading.value = false;
       showDeleteConfirm.value = false;
+      return;
     }
-  }, 1000);
+
+    // Sign out the user (this effectively "deletes" their session)
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+    // Clear local state
+    store.commit("setAuthenticated", false);
+    store.commit("setUser", null);
+
+    // Redirect to login
+    router.push("/login");
+  } catch (err) {
+    console.error("Error during account deletion:", err);
+    errorMessage.value = "Failed to delete account. Please try again.";
+    isLoading.value = false;
+    showDeleteConfirm.value = false;
+  }
 };
 </script>
 
@@ -352,10 +355,10 @@ const deleteAccount = () => {
 
               <div class="row mb-3">
                 <div class="col-sm-4">
-                  <h6 class="text-muted">Username</h6>
+                  <h6 class="text-muted">Email</h6>
                 </div>
                 <div class="col-sm-8">
-                  <p>{{ user?.username }}</p>
+                  <p>{{ user?.email }}</p>
                 </div>
               </div>
 
@@ -382,7 +385,11 @@ const deleteAccount = () => {
                   <h6 class="text-muted">Role</h6>
                 </div>
                 <div class="col-sm-8">
-                  <p><span class="badge bg-primary">Administrator</span></p>
+                  <p>
+                    <span class="badge bg-primary">{{
+                      user?.role || "Patient"
+                    }}</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -441,18 +448,6 @@ const deleteAccount = () => {
               </div>
 
               <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input
-                  type="text"
-                  id="username"
-                  class="form-control"
-                  v-model="profileForm.username"
-                  disabled
-                />
-                <small class="text-muted">Username cannot be changed</small>
-              </div>
-
-              <div class="mb-3">
                 <label for="fullName" class="form-label">Full Name</label>
                 <input
                   type="text"
@@ -479,10 +474,12 @@ const deleteAccount = () => {
                   type="text"
                   id="role"
                   class="form-control"
-                  value="admin"
+                  :value="user?.role || 'Patient'"
                   disabled
                 />
-                <small class="text-muted">Role cannot be changed</small>
+                <small class="text-muted"
+                  >Role can only be changed by administrators</small
+                >
               </div>
 
               <div class="mb-3 form-check">
@@ -537,7 +534,11 @@ const deleteAccount = () => {
                 <h6 class="text-muted">Account Type</h6>
               </div>
               <div class="col-sm-6">
-                <p><span class="badge bg-primary">Administrator</span></p>
+                <p>
+                  <span class="badge bg-primary">{{
+                    user?.role || "Patient"
+                  }}</span>
+                </p>
               </div>
             </div>
 

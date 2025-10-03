@@ -79,7 +79,14 @@
           <div
             class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2"
           >
-            <h5 class="mb-0">System Users</h5>
+            <h5 class="mb-0">User Management</h5>
+            <router-link
+              to="/admin/user-management"
+              class="btn btn-primary btn-sm"
+            >
+              <i class="bi bi-people-fill me-1"></i>
+              Manage Users
+            </router-link>
           </div>
           <div class="card-body">
             <!-- Users List -->
@@ -142,13 +149,50 @@
               </div>
             </div>
 
-            <!-- Empty State -->
-            <div v-else class="empty-users-state text-center py-5">
-              <i class="bi bi-people fs-1 text-muted mb-3"></i>
-              <h6 class="text-muted">No Users Found</h6>
-              <p class="text-muted small mb-3">
-                No users available for display
-              </p>
+            <!-- User Management Interface -->
+            <div class="user-management-interface">
+              <!-- Current Admin User Display -->
+              <div
+                v-if="currentUser"
+                class="current-admin-card p-3 border rounded mb-3"
+              >
+                <div class="d-flex align-items-center">
+                  <div class="user-avatar me-3">
+                    <i class="bi bi-person-circle fs-4 text-primary"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="fw-bold">
+                      {{ currentUser.fullName || currentUser.email }}
+                    </div>
+                    <div class="text-muted small">
+                      Administrator (Current Session)
+                    </div>
+                  </div>
+                  <span class="badge bg-success">Active</span>
+                </div>
+              </div>
+
+              <!-- User Statistics -->
+              <div class="user-stats-grid mb-3">
+                <div class="stat-item">
+                  <div class="stat-number">{{ totalUsers }}</div>
+                  <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-number">{{ activeUsers }}</div>
+                  <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-number">{{ adminUsers }}</div>
+                  <div class="stat-label">Administrators</div>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              ></div>
+              <div class="quick-actions-grid mb-3"></div>
             </div>
           </div>
         </div>
@@ -232,12 +276,14 @@ const currentUser = computed(() => store.state.user);
 
 // Statistics computed properties
 const totalPatients = ref(0);
-
 const totalRecords = ref(0);
-
 const staffMembers = ref(0);
-
 const pendingReviews = ref(0);
+
+// User statistics
+const totalUsers = ref(1); // At least the current admin
+const activeUsers = ref(1);
+const adminUsers = ref(1);
 
 // Fetch pending reviews from Supabase
 const fetchPendingReviews = async () => {
@@ -310,17 +356,14 @@ const fetchTotalPatients = async () => {
 // Fetch staff members count from Supabase
 const fetchStaffMembers = async () => {
   try {
-    const { count, error } = await supabase
-      .from("users")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "nurse");
+    // Note: In a production environment, you would use Supabase admin functions
+    // or a server-side API to get user counts by role for security reasons
+    // For now, we'll show 0 as user management is handled through Supabase auth
+    staffMembers.value = 0;
 
-    if (error) {
-      console.error("Error fetching staff members count:", error);
-      staffMembers.value = 0;
-    } else {
-      staffMembers.value = count || 0;
-    }
+    console.log(
+      "Staff members count: User management integrated with Supabase Auth"
+    );
   } catch (err) {
     console.error("Error fetching staff members:", err);
     staffMembers.value = 0;
@@ -408,22 +451,15 @@ const deleteUser = (userId) => {
   }
 };
 
-// Add current admin user if not already present
-const initializeAdminUser = () => {
-  if (currentUser.value && systemUsers.value.length === 0) {
-    addUser(
-      currentUser.value.fullName || "Administrator",
-      currentUser.value.username || "admin",
-      "admin",
-      "active"
-    );
-  }
+// Quick add user modal
+const showQuickAddModal = () => {
+  alert(
+    "Quick user creation requires server-side Supabase admin functions for security.\n\nPlease use:\n• Registration form for new patients\n• User Management page for advanced operations\n• Contact system administrator for bulk user creation"
+  );
 };
 
+// Initialize dashboard - user management is now handled through Supabase
 onMounted(async () => {
-  // Initialize admin user
-  initializeAdminUser();
-
   // Fetch statistics from Supabase
   await Promise.all([
     fetchTotalRecords(),
@@ -763,6 +799,127 @@ onMounted(async () => {
 
   .user-details .small {
     font-size: 0.75rem;
+  }
+}
+
+/* User Management Interface Styles */
+.user-management-interface {
+  width: 100%;
+}
+
+.current-admin-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-color: #0d6efd !important;
+}
+
+.user-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0d6efd;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.action-card:hover {
+  border-color: #0d6efd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.15);
+}
+
+.action-icon {
+  font-size: 1.5rem;
+  color: #0d6efd;
+  margin-bottom: 0.5rem;
+}
+
+.action-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+  color: #495057;
+}
+
+.system-status {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  border-color: #0dcaf0 !important;
+}
+
+@media (max-width: 768px) {
+  .user-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .user-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .stat-item {
+    padding: 0.5rem;
+  }
+
+  .stat-number {
+    font-size: 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-card {
+    padding: 0.75rem;
   }
 }
 </style>

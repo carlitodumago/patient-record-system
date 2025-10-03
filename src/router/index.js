@@ -111,15 +111,15 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
-    path: "/admin/backup-restore",
-    name: "BackupRestore",
-    component: () => import("../views/admin/BackupRestore.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
-  },
-  {
     path: "/admin/system-logs",
     name: "SystemLogs",
     component: () => import("../views/admin/SystemLogs.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/admin/dashboard",
+    name: "AdminDashboard",
+    component: () => import("../views/admin/DashboardView.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
@@ -203,8 +203,8 @@ router.beforeEach(async (to, from, next) => {
       "/profile",
       "/register",
       "/register-patient",
+      "/admin/dashboard",
       "/admin/user-management",
-      "/admin/backup-restore",
       "/admin/system-logs",
     ];
 
