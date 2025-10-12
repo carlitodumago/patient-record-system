@@ -1,18 +1,18 @@
 <template>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+  <v-container fluid class="mt-3">
+    <v-row>
+      <v-col cols="12">
+        <div class="d-flex justify-space-between align-center mb-4">
           <div>
             <h1 class="mb-1">Medical Records</h1>
             <p class="text-muted">
               Manage patient medical records and health information
             </p>
           </div>
-          <button class="btn btn-primary" @click="showCreateRecordModal = true">
-            <i class="bi bi-plus-circle me-2"></i>
+          <v-btn color="primary" @click="showCreateRecordModal = true">
+            <v-icon left>mdi-plus-circle</v-icon>
             Add Medical Record
-          </button>
+          </v-btn>
         </div>
 
         <!-- Medical Records Statistics Cards -->
@@ -79,7 +79,126 @@
           </div>
         </div>
 
-        <!-- Filters -->
+        <!-- Patient Search Section -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Patient Search</h5>
+          </div>
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <div class="input-group">
+                  <input
+                    type="text"
+                    v-model="patientSearchQuery"
+                    @input="debouncePatientSearch"
+                    class="form-control"
+                    placeholder="Search patients by name or contact number..."
+                  />
+                  <button class="btn btn-outline-secondary" type="button">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <button
+                  class="btn btn-outline-primary w-100"
+                  @click="clearPatientSearch"
+                >
+                  <i class="bi bi-x-circle me-2"></i>Clear Search
+                </button>
+              </div>
+            </div>
+
+            <!-- Search Results -->
+            <div v-if="patientSearchResults.length > 0" class="mt-3">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Patient</th>
+                      <th>Contact</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="patient in patientSearchResults"
+                      :key="patient.patient_id"
+                    >
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <div class="avatar-sm me-3">
+                            <div
+                              class="avatar-title bg-success-subtle text-success rounded-circle"
+                            >
+                              {{ getPatientInitials(patient) }}
+                            </div>
+                          </div>
+                          <div>
+                            <h6 class="mb-0">
+                              {{ patient.first_name }} {{ patient.surname }}
+                            </h6>
+                            <small class="text-muted"
+                              >ID: {{ patient.patient_id }}</small
+                            >
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div>{{ patient.contact_number }}</div>
+                        <small class="text-muted">{{
+                          patient.email || "No email"
+                        }}</small>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button
+                            class="btn btn-outline-primary"
+                            @click="viewPatientDetails(patient)"
+                          >
+                            <i class="bi bi-eye me-1"></i>View
+                          </button>
+                          <button
+                            class="btn btn-outline-success"
+                            @click="createRecordForPatient(patient)"
+                          >
+                            <i class="bi bi-plus-circle me-1"></i>Add Record
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- No Results -->
+            <div
+              v-else-if="patientSearchQuery && !isSearchingPatients"
+              class="text-center p-4"
+            >
+              <i class="bi bi-search fs-1 text-muted mb-3"></i>
+              <h6 class="text-muted">No patients found</h6>
+              <p class="text-muted small">
+                Try searching with a different name or contact number
+              </p>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="isSearchingPatients" class="text-center p-3">
+              <div
+                class="spinner-border spinner-border-sm text-primary"
+                role="status"
+              >
+                <span class="visually-hidden">Searching...</span>
+              </div>
+              <span class="ms-2 text-muted">Searching patients...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medical Records Filters -->
         <div class="card mb-4">
           <div class="card-body">
             <div class="row align-items-center">
@@ -542,13 +661,262 @@
       </div>
     </div>
 
-    <!-- Backdrop for modal -->
+    <!-- Edit Medical Record Modal -->
     <div
-      v-if="showCreateRecordModal"
+      class="modal fade"
+      :class="{ show: showEditRecordModal }"
+      :style="{ display: showEditRecordModal ? 'block' : 'none' }"
+      tabindex="-1"
+    >
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Edit Medical Record</h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="closeEditRecordModal"
+            ></button>
+          </div>
+          <form @submit.prevent="updateRecord">
+            <div class="modal-body">
+              <!-- Patient and Appointment Selection -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Patient *</label>
+                  <select
+                    v-model="editRecordForm.patientId"
+                    class="form-select"
+                    required
+                  >
+                    <option value="">Select Patient</option>
+                    <option
+                      v-for="patient in availablePatients"
+                      :key="patient.patient_id"
+                      :value="patient.patient_id"
+                    >
+                      {{ patient.first_name }} {{ patient.surname }}
+                    </option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Healthcare Provider *</label>
+                  <select
+                    v-model="editRecordForm.staffId"
+                    class="form-select"
+                    required
+                  >
+                    <option value="">Select Provider</option>
+                    <option
+                      v-for="staff in availableStaff"
+                      :key="staff.staff_id"
+                      :value="staff.staff_id"
+                    >
+                      {{ staff.first_name }} {{ staff.surname }} -
+                      {{ staff.specialization }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Chief Complaint -->
+              <div class="row mb-3">
+                <div class="col-12">
+                  <label class="form-label">Chief Complaint *</label>
+                  <textarea
+                    v-model="editRecord.chiefComplaint"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Patient's main reason for visit..."
+                    required
+                  ></textarea>
+                </div>
+              </div>
+
+              <!-- Vital Signs -->
+              <div class="row mb-3">
+                <div class="col-12">
+                  <label class="form-label">Vital Signs</label>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <input
+                        type="text"
+                        v-model="editRecord.vitalSigns.bp"
+                        class="form-control"
+                        placeholder="Blood Pressure (e.g., 120/80)"
+                      />
+                    </div>
+                    <div class="col-md-3">
+                      <input
+                        type="text"
+                        v-model="editRecord.vitalSigns.hr"
+                        class="form-control"
+                        placeholder="Heart Rate"
+                      />
+                    </div>
+                    <div class="col-md-3">
+                      <input
+                        type="text"
+                        v-model="editRecord.vitalSigns.temp"
+                        class="form-control"
+                        placeholder="Temperature (°C)"
+                      />
+                    </div>
+                    <div class="col-md-3">
+                      <input
+                        type="text"
+                        v-model="editRecord.vitalSigns.rr"
+                        class="form-control"
+                        placeholder="Respiratory Rate"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- History and Examination -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">History of Present Illness</label>
+                  <textarea
+                    v-model="editRecord.historyPresentIllness"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Detailed history of current condition..."
+                  ></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Physical Examination</label>
+                  <textarea
+                    v-model="editRecord.physicalExamination"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Physical examination findings..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <!-- Diagnosis and Treatment -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Diagnosis</label>
+                  <select v-model="editRecord.diagnosisId" class="form-select">
+                    <option value="">Select Diagnosis</option>
+                    <option
+                      v-for="diagnosis in availableDiagnosis"
+                      :key="diagnosis.diagnosis_id"
+                      :value="diagnosis.diagnosis_id"
+                    >
+                      {{ diagnosis.description }} ({{ diagnosis.icd_code }})
+                    </option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Treatment</label>
+                  <select v-model="editRecord.treatmentId" class="form-select">
+                    <option value="">Select Treatment</option>
+                    <option
+                      v-for="treatment in availableTreatments"
+                      :key="treatment.treatment_id"
+                      :value="treatment.treatment_id"
+                    >
+                      {{ treatment.name }} ({{ treatment.treatment_code }})
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Assessment and Plan -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Assessment</label>
+                  <textarea
+                    v-model="editRecord.assessment"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Clinical assessment and impression..."
+                  ></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Treatment Plan</label>
+                  <textarea
+                    v-model="editRecord.plan"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Treatment plan and recommendations..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <!-- Follow-up -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up Date</label>
+                  <input
+                    type="date"
+                    v-model="editRecord.followUpDate"
+                    class="form-control"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up Instructions</label>
+                  <textarea
+                    v-model="editRecord.followUpInstructions"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Instructions for follow-up care..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <!-- Notes -->
+              <div class="row mb-3">
+                <div class="col-12">
+                  <label class="form-label">Additional Notes</label>
+                  <textarea
+                    v-model="editRecord.notes"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Additional notes or observations..."
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="closeEditRecordModal"
+                :disabled="isUpdating"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="isUpdating || !isEditRecordFormValid"
+              >
+                <span
+                  v-if="isUpdating"
+                  class="spinner-border spinner-border-sm me-2"
+                ></span>
+                Update Medical Record
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backdrop for modals -->
+    <div
+      v-if="showCreateRecordModal || showEditRecordModal"
       class="modal-backdrop fade show"
       @click="closeCreateRecordModal"
     ></div>
-  </div>
+</v-col>
+</v-row>
+</v-container>
 </template>
 
 <script setup>
@@ -559,8 +927,8 @@ import {
   DiagnosisService,
   TreatmentService,
 } from "@/services/medicalRecordService";
-import PatientService from "@/services/patientService";
-import StaffService from "@/services/staffService";
+import { patientService as PatientService } from "@/services/patientService";
+import { staffService as StaffService } from "@/services/staffService";
 import jsPDF from "jspdf";
 import Papa from "papaparse";
 
@@ -568,14 +936,58 @@ const notificationsStore = useNotificationsStore();
 
 // Reactive data
 const showCreateRecordModal = ref(false);
+const showEditRecordModal = ref(false);
 const isCreating = ref(false);
+const isUpdating = ref(false);
 const isExporting = ref(false);
 const medicalRecords = ref([]);
 const availablePatients = ref([]);
 const availableStaff = ref([]);
 const availableDiagnosis = ref([]);
 const availableTreatments = ref([]);
+const selectedRecord = ref(null);
 const isLoading = ref(true);
+
+// Patient search reactive data
+const patientSearchQuery = ref("");
+const patientSearchResults = ref([]);
+const isSearchingPatients = ref(false);
+
+// Debounced search functions
+const debouncePatientSearch = debounce(async () => {
+  if (!patientSearchQuery.value.trim()) {
+    patientSearchResults.value = [];
+    return;
+  }
+
+  isSearchingPatients.value = true;
+  try {
+    const results = await PatientService.searchPatients(
+      patientSearchQuery.value.trim()
+    );
+    patientSearchResults.value = results;
+  } catch (error) {
+    console.error("Error searching patients:", error);
+    patientSearchResults.value = [];
+  } finally {
+    isSearchingPatients.value = false;
+  }
+}, 500);
+
+const clearPatientSearch = () => {
+  patientSearchQuery.value = "";
+  patientSearchResults.value = [];
+};
+
+const viewPatientDetails = (patient) => {
+  // TODO: Navigate to patient details page
+  console.log("View patient details:", patient);
+};
+
+const createRecordForPatient = (patient) => {
+  newRecord.value.patientId = patient.patient_id;
+  showCreateRecordModal.value = true;
+};
 
 const recordFilters = ref({
   search: "",
@@ -593,6 +1005,30 @@ const recordStats = ref({
 
 // New record form data
 const newRecord = ref({
+  patientId: "",
+  staffId: "",
+  appointmentId: null,
+  chiefComplaint: "",
+  historyPresentIllness: "",
+  physicalExamination: "",
+  vitalSigns: {
+    bp: "",
+    hr: "",
+    temp: "",
+    rr: "",
+  },
+  assessment: "",
+  plan: "",
+  diagnosisId: "",
+  treatmentId: "",
+  followUpDate: "",
+  followUpInstructions: "",
+  notes: "",
+});
+
+// Edit record form data
+const editRecordForm = ref({
+  recordId: "",
   patientId: "",
   staffId: "",
   appointmentId: null,
@@ -787,13 +1223,43 @@ const deleteRecord = async (record) => {
 const exportRecords = async () => {
   isExporting.value = true;
   try {
-    // TODO: Implement record export
-    console.log("Export records");
+    // Prepare data for export
+    const exportData = medicalRecords.value.map((record) => ({
+      "Patient Name": getPatientName(record.patient),
+      "Contact Number": record.patient?.contact_number || "",
+      Date: formatDate(record.created_at),
+      Time: formatTime(record.created_at),
+      "Healthcare Provider": record.entered_by_staff
+        ? `${record.entered_by_staff.first_name} ${record.entered_by_staff.surname}`
+        : "Not specified",
+      Diagnosis: record.diagnosis
+        ? record.diagnosis.description
+        : "No diagnosis",
+      "ICD Code": record.diagnosis ? record.diagnosis.icd_code : "",
+      Treatment: record.treatment ? record.treatment.name : "No treatment",
+      "Treatment Code": record.treatment ? record.treatment.treatment_code : "",
+      Status: "Active",
+    }));
+
+    // Export to CSV using PapaParse
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `medical_records_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
     notificationsStore.addNotification({
-      title: "Export Started",
-      message: "Medical records export has been initiated",
-      type: "info",
+      title: "Export Completed",
+      message: "Medical records exported successfully to CSV",
+      type: "success",
     });
   } catch (error) {
     notificationsStore.addNotification({

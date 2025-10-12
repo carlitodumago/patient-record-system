@@ -31,10 +31,10 @@
 - [x] Staff Management: CRUD, role assignment
 - [x] Appointment Scheduling: Calendar view, approval system
 - [ ] Medical Records: Create/edit records, export PDF/CSV
-  - [ ] Fix medicalRecordService.js: Correct getRecordsByPatientDirect query to join through Appointment table, add DiagnosisService and TreatmentService exports, update create/update methods to use AppointmentID
+  - [x] Fix medicalRecordService.js: Correct getRecordsByPatientDirect query to join through Appointment table, add DiagnosisService and TreatmentService exports, update create/update methods to use AppointmentID
   - [x] Update MedicalRecordsManagement.vue: Fix import name (MedicalRecordService -> medicalRecordService), add edit record modal and functionality, implement PDF/CSV export
   - [ ] Fix PatientMedicalRecords.vue: Update service calls to use corrected methods
-  - [ ] Add missing dependencies: Install jsPDF and PapaParse for export functionality
+  - [x] Add missing dependencies: Install jsPDF and PapaParse for export functionality
   - [ ] Test create/edit/export functionality
   - [ ] Update main TODO.md to mark medical records as completed
 - [ ] Notifications: Real-time alerts, auto reminders

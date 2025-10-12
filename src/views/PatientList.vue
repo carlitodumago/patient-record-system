@@ -1,149 +1,102 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
-import ActionButtons from '@/components/ActionButtons.vue';
-import { formatDate } from '../utils/dateUtils';
-import { addPatientNotification } from '../utils/notificationUtils';
+import { ref, onMounted, computed, watch } from "vue";
+import { useRouter } from "vue-router";
+import { usePatientsStore } from "@/stores/patients";
+import { useNotificationsStore } from "@/stores/notifications";
+import ActionButtons from "@/components/ActionButtons.vue";
+import { formatDate } from "../utils/dateUtils";
 
-const store = useStore();
+const patientsStore = usePatientsStore();
+const notificationsStore = useNotificationsStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
-const isLoading = ref(true);
-const searchQuery = ref('');
-const viewMode = ref('table'); // 'card' or 'table'
-
-// Mock patient data for demonstration
-const mockPatients = [
-  {
-    id: 1,
-    firstName: 'John',
-    lastName: 'Doe',
-    dob: '1980-05-15',
-    gender: 'Male',
-    phone: '555-123-4567',
-    email: 'john.doe@example.com',
-    address: '123 Main St, Anytown, CA',
-    medicalConditions: ['Hypertension', 'Diabetes Type 2'],
-    bloodType: 'A+',
-    lastVisit: '2023-10-05'
-  },
-  {
-    id: 2,
-    firstName: 'Jane',
-    lastName: 'Smith',
-    dob: '1975-08-23',
-    gender: 'Female',
-    phone: '555-987-6543',
-    email: 'jane.smith@example.com',
-    address: '456 Oak Ave, Somewhere, CA',
-    medicalConditions: ['Asthma', 'Allergies'],
-    bloodType: 'O-',
-    lastVisit: '2023-11-12'
-  },
-  {
-    id: 3,
-    firstName: 'Michael',
-    lastName: 'Johnson',
-    dob: '1990-02-10',
-    gender: 'Male',
-    phone: '555-456-7890',
-    email: 'michael.j@example.com',
-    address: '789 Pine St, Nowhere, CA',
-    medicalConditions: ['Anxiety', 'Insomnia'],
-    bloodType: 'B+',
-    lastVisit: '2023-09-28'
-  },
-  {
-    id: 4,
-    firstName: 'Sarah',
-    lastName: 'Williams',
-    dob: '1988-11-30',
-    gender: 'Female',
-    phone: '555-321-6547',
-    email: 'sarah.w@example.com',
-    address: '321 Elm St, Elsewhere, CA',
-    medicalConditions: ['Migraines', 'Depression'],
-    bloodType: 'AB+',
-    lastVisit: '2023-12-03'
-  }
-];
+const patients = computed(() => patientsStore.filteredPatients);
+const isLoading = computed(() => patientsStore.isLoading);
+const searchQuery = ref("");
+const viewMode = ref("table"); // 'card' or 'table'
+const selectedGender = ref("");
+const selectedBloodType = ref("");
+const medicalConditionFilter = ref("");
 
 // Toggle view mode
 const toggleViewMode = () => {
-  viewMode.value = viewMode.value === 'card' ? 'table' : 'card';
+  viewMode.value = viewMode.value === "card" ? "table" : "card";
   // Save user preference
-  localStorage.setItem('patientListViewMode', viewMode.value);
+  localStorage.setItem("patientListViewMode", viewMode.value);
 };
 
-onMounted(() => {
-  // Try to load patients from localStorage first
-  const savedPatients = localStorage.getItem('patientRecords');
-  
+const clearFilters = () => {
+  searchQuery.value = "";
+  selectedGender.value = "";
+  selectedBloodType.value = "";
+  medicalConditionFilter.value = "";
+  patientsStore.clearFilters();
+};
+
+onMounted(async () => {
   // Load user preference for view mode
-  const savedViewMode = localStorage.getItem('patientListViewMode');
+  const savedViewMode = localStorage.getItem("patientListViewMode");
   if (savedViewMode) {
     viewMode.value = savedViewMode;
   }
-  
-  if (savedPatients) {
-    store.commit('setPatients', JSON.parse(savedPatients));
-    isLoading.value = false;
-  } else {
-    // If no saved data, use mock data
-    setTimeout(() => {
-      store.commit('setPatients', mockPatients);
-      isLoading.value = false;
-      
-      // Save mock data to localStorage
-      localStorage.setItem('patientRecords', JSON.stringify(mockPatients));
-    }, 800);
+
+  // Load patients from Supabase
+  await patientsStore.loadPatients(true);
+  await patientsStore.loadStatistics();
+});
+
+// Watch for filter changes
+watch(
+  [searchQuery, selectedGender, selectedBloodType, medicalConditionFilter],
+  () => {
+    patientsStore.updateFilters({
+      search: searchQuery.value,
+      gender: selectedGender.value,
+      bloodType: selectedBloodType.value,
+      medicalCondition: medicalConditionFilter.value,
+    });
   }
-});
+);
 
-// Watch for changes in patients and save to localStorage
-watch(patients, (newPatients) => {
-  localStorage.setItem('patientRecords', JSON.stringify(newPatients));
-}, { deep: true });
-
-const filteredPatients = computed(() => {
-  if (!searchQuery.value) return patients.value;
-  
-  const query = searchQuery.value.toLowerCase();
-  return patients.value.filter(patient => 
-    patient.firstName.toLowerCase().includes(query) || 
-    patient.lastName.toLowerCase().includes(query) ||
-    patient.medicalConditions.some(condition => condition.toLowerCase().includes(query)) ||
-    (patient.bloodType && patient.bloodType.toLowerCase().includes(query))
-  );
-});
-
-const viewPatient = (id) => {
-  router.push(`/patients/${id}`);
+const viewPatient = (patientId) => {
+  router.push(`/patients/${patientId}`);
 };
 
-const editPatient = (id) => {
-  router.push(`/patients/${id}/edit`);
+const editPatient = (patientId) => {
+  router.push(`/patients/${patientId}/edit`);
 };
 
-const deletePatient = (id) => {
-  if (confirm('Are you sure you want to delete this patient record?')) {
-    // Get patient before deletion to use in notification
-    const patientToDelete = patients.value.find(p => p.id === id);
-    
-    // Delete the patient
-    store.commit('deletePatient', id);
-    
-    // Add notification for deleted patient
-    if (patientToDelete) {
-      addPatientNotification(store, patientToDelete, 'deleted');
+const deletePatient = async (patientId) => {
+  if (confirm("Are you sure you want to delete this patient record?")) {
+    try {
+      // Get patient before deletion for notification
+      const patientToDelete = patients.value.find(
+        (p) => p.patient_id === patientId
+      );
+
+      // Delete the patient
+      await patientsStore.deletePatient(patientId);
+
+      // Add notification for deleted patient
+      if (patientToDelete) {
+        notificationsStore.addNotification({
+          title: "Patient Record Deleted",
+          message: `Patient ${patientToDelete.first_name} ${patientToDelete.surname} has been removed from the system`,
+          type: "warning",
+        });
+      }
+    } catch (error) {
+      notificationsStore.addNotification({
+        title: "Error",
+        message: "Failed to delete patient record",
+        type: "danger",
+      });
     }
   }
 };
 
 const addNewPatient = () => {
-  router.push('/patients/new');
+  router.push("/patients/new");
 };
 </script>
 
@@ -153,18 +106,22 @@ const addNewPatient = () => {
       <h2 class="animate-fade-in-left">Patient List</h2>
       <div class="d-flex gap-2 animate-fade-in-right">
         <div class="btn-group me-2" role="group" aria-label="View options">
-          <button 
-            @click="viewMode = 'table'" 
-            class="btn" 
-            :class="viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary'"
+          <button
+            @click="viewMode = 'table'"
+            class="btn"
+            :class="
+              viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary'
+            "
             title="Table View"
           >
             <i class="bi bi-table"></i>
           </button>
-          <button 
-            @click="viewMode = 'card'" 
-            class="btn" 
-            :class="viewMode === 'card' ? 'btn-primary' : 'btn-outline-secondary'"
+          <button
+            @click="viewMode = 'card'"
+            class="btn"
+            :class="
+              viewMode === 'card' ? 'btn-primary' : 'btn-outline-secondary'
+            "
             title="Card View"
           >
             <i class="bi bi-grid-3x3-gap"></i>
@@ -175,7 +132,7 @@ const addNewPatient = () => {
         </button>
       </div>
     </div>
-    
+
     <div class="card mb-4 search-card animate-fade-in-down">
       <div class="card-body">
         <div class="input-group">
@@ -187,18 +144,18 @@ const addNewPatient = () => {
             class="form-control search-input"
             placeholder="Search patients by name or medical condition..."
             v-model="searchQuery"
-          >
+          />
         </div>
       </div>
     </div>
-    
+
     <div v-if="isLoading" class="text-center my-5 animate-fade-in">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
       <p class="mt-2">Loading patient records...</p>
     </div>
-    
+
     <div v-else>
       <!-- Card View -->
       <div v-if="viewMode === 'card'" class="row g-3">
@@ -207,63 +164,112 @@ const addNewPatient = () => {
             No patients found matching your search criteria.
           </div>
         </div>
-        
-        <div 
-          v-for="(patient, index) in filteredPatients" 
-          :key="patient.id" 
+
+        <div
+          v-for="(patient, index) in filteredPatients"
+          :key="patient.id"
           class="col-xl-3 col-lg-4 col-md-6 col-sm-12"
         >
-          <div class="card patient-card h-100 animate-fade-in-up" :style="{ animationDelay: `${index * 0.05}s` }">
-            <div class="card-header d-flex justify-content-between align-items-center">
+          <div
+            class="card patient-card h-100 animate-fade-in-up"
+            :style="{ animationDelay: `${index * 0.05}s` }"
+          >
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
               <h5 class="mb-0 patient-name">
-                {{ patient.firstName }} {{ patient.lastName }}
+                {{ patient.first_name }} {{ patient.surname }}
               </h5>
               <span class="badge bg-info">{{ patient.gender }}</span>
             </div>
             <div class="card-body">
               <div class="patient-details">
                 <div class="detail-row">
-                  <span class="detail-label"><i class="bi bi-calendar me-2"></i>Date of Birth: </span>
-                  <span class="detail-value">{{ patient.dob }}</span>
+                  <span class="detail-label"
+                    ><i class="bi bi-calendar me-2"></i>Date of Birth:
+                  </span>
+                  <span class="detail-value">{{
+                    formatDate(patient.birth_date)
+                  }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label"><i class="bi bi-telephone me-2"></i>Phone: </span>
-                  <span class="detail-value">{{ patient.phone }}</span>
+                  <span class="detail-label"
+                    ><i class="bi bi-telephone me-2"></i>Phone:
+                  </span>
+                  <span class="detail-value">{{ patient.contact_number }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label"><i class="bi bi-droplet me-2"></i>Blood Type: </span>
-                  <span v-if="patient.bloodType === 'AB' || patient.bloodType === 'AB+'" class="blood-type-ab">{{ patient.bloodType }}</span>
-                  <span v-else-if="patient.bloodType" class="blood-type-badge">{{ patient.bloodType }}</span>
+                  <span class="detail-label"
+                    ><i class="bi bi-droplet me-2"></i>Blood Type:
+                  </span>
+                  <span
+                    v-if="
+                      patient.blood_type === 'AB' ||
+                      patient.blood_type === 'AB+'
+                    "
+                    class="blood-type-ab"
+                    >{{ patient.blood_type }}</span
+                  >
+                  <span
+                    v-else-if="patient.blood_type"
+                    class="blood-type-badge"
+                    >{{ patient.blood_type }}</span
+                  >
                   <span v-else class="detail-value">Unknown</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label"><i class="bi bi-calendar-check me-2"></i>Last Visit: </span>
-                  <span class="detail-value">{{ patient.lastVisit || 'None' }}</span>
+                  <span class="detail-label"
+                    ><i class="bi bi-calendar-check me-2"></i>Created:
+                  </span>
+                  <span class="detail-value">{{
+                    formatDate(patient.created_at)
+                  }}</span>
                 </div>
                 <div class="detail-row mt-3">
-                  <div class="small fw-bold mb-1"><i class="bi bi-heart-pulse me-2"></i>Medical Conditions:</div>
+                  <div class="small fw-bold mb-1">
+                    <i class="bi bi-heart-pulse me-2"></i>Medical Conditions:
+                  </div>
                   <div class="medical-conditions">
-                    <span 
-                      v-for="(condition, idx) in patient.medicalConditions" 
-                      :key="idx" 
+                    <span
+                      v-for="(condition, idx) in patient.medical_conditions"
+                      :key="idx"
                       class="badge bg-light text-dark me-1 mb-1"
                     >
                       {{ condition }}
                     </span>
-                    <span v-if="!patient.medicalConditions || patient.medicalConditions.length === 0" class="badge bg-light text-dark">None</span>
+                    <span
+                      v-if="
+                        !patient.medical_conditions ||
+                        patient.medical_conditions.length === 0
+                      "
+                      class="badge bg-light text-dark"
+                      >None</span
+                    >
                   </div>
                 </div>
               </div>
             </div>
             <div class="card-footer">
               <div class="d-flex justify-content-end gap-2">
-                <button @click="viewPatient(patient.id)" class="btn btn-sm btn-primary" title="View">
+                <button
+                  @click="viewPatient(patient.id)"
+                  class="btn btn-sm btn-primary"
+                  title="View"
+                >
                   <i class="bi bi-eye"></i>
                 </button>
-                <button @click="editPatient(patient.id)" class="btn btn-sm btn-secondary" title="Edit">
+                <button
+                  @click="editPatient(patient.id)"
+                  class="btn btn-sm btn-secondary"
+                  title="Edit"
+                >
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button @click="deletePatient(patient.id)" class="btn btn-sm btn-danger" title="Delete">
+                <button
+                  @click="deletePatient(patient.id)"
+                  class="btn btn-sm btn-danger"
+                  title="Delete"
+                >
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -271,7 +277,7 @@ const addNewPatient = () => {
           </div>
         </div>
       </div>
-      
+
       <!-- Table View with animation -->
       <div v-else-if="viewMode === 'table'" class="animate-fade-in">
         <div class="table-responsive">
@@ -290,42 +296,53 @@ const addNewPatient = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="patient in filteredPatients" :key="patient.id">
-                <td>{{ patient.id }}</td>
-                <td>{{ patient.firstName }} {{ patient.lastName }}</td>
-                <td>{{ formatDate(patient.dob) }}</td>
+              <tr v-for="patient in filteredPatients" :key="patient.patient_id">
+                <td>{{ patient.patient_id.slice(0, 8) }}</td>
+                <td>{{ patient.first_name }} {{ patient.surname }}</td>
+                <td>{{ formatDate(patient.birth_date) }}</td>
                 <td>{{ patient.gender }}</td>
                 <td>
-                  <div v-if="patient.bloodType" class="d-flex align-items-center">
+                  <div
+                    v-if="patient.blood_type"
+                    class="d-flex align-items-center"
+                  >
                     <span class="blood-type-text me-1">Blood Type:</span>
-                    <span v-if="patient.bloodType === 'AB' || patient.bloodType === 'AB+'" class="blood-type-ab">
-                      {{ patient.bloodType }}
+                    <span
+                      v-if="
+                        patient.blood_type === 'AB' ||
+                        patient.blood_type === 'AB+'
+                      "
+                      class="blood-type-ab"
+                    >
+                      {{ patient.blood_type }}
                     </span>
                     <span v-else class="blood-type-badge">
-                      {{ patient.bloodType }}
+                      {{ patient.blood_type }}
                     </span>
                   </div>
                   <span v-else class="text-muted small">Not specified</span>
                 </td>
                 <td>
-                  <div>{{ patient.phone }}</div>
-                  <div><small>{{ patient.email }}</small></div>
+                  <div>{{ patient.contact_number }}</div>
+                  <div>
+                    <small>{{ patient.user?.email }}</small>
+                  </div>
                 </td>
                 <td>
-                  <span 
-                    v-for="(condition, index) in patient.medicalConditions" 
+                  <span
+                    v-for="(condition, index) in patient.medical_conditions"
                     :key="index"
                     class="badge bg-info me-1 mb-1"
                   >
                     {{ condition }}
                   </span>
                 </td>
-                <td>{{ formatDate(patient.lastVisit) }}</td>
+                <td>{{ formatDate(patient.created_at) }}</td>
                 <td>
-                  <ActionButtons 
-                    :onView="() => viewPatient(patient.id)" 
-                    :onEdit="() => editPatient(patient.id)" 
-                    :onDelete="() => deletePatient(patient.id)" 
+                  <ActionButtons
+                    :onView="() => viewPatient(patient.patient_id)"
+                    :onEdit="() => editPatient(patient.patient_id)"
+                    :onDelete="() => deletePatient(patient.patient_id)"
                   />
                 </td>
               </tr>
@@ -459,7 +476,7 @@ const addNewPatient = () => {
   .card-header h6 {
     max-width: 120px;
   }
-  
+
   .blood-type-text {
     font-size: 0.8rem;
   }
@@ -523,7 +540,7 @@ const addNewPatient = () => {
     min-width: 105px;
     font-size: 0.85rem;
   }
-  
+
   .info-value {
     font-size: 0.85rem;
   }
@@ -533,11 +550,11 @@ const addNewPatient = () => {
   .info-label {
     font-size: 0.8rem;
   }
-  
+
   .info-value {
     font-size: 0.8rem;
   }
-  
+
   .compact-card .card-body {
     padding: 0.5rem 0.5rem;
   }
@@ -606,16 +623,16 @@ const addNewPatient = () => {
 }
 
 .btn-success.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.250, 0.460, 0.450, 0.940) infinite;
+  animation: pulse 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
   animation-duration: 3s;
 }
 
 .search-card {
-  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1.000);
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .search-card:focus-within {
   transform: scale(1.01);
   box-shadow: 0 4px 15px rgba(67, 97, 238, 0.2);
 }
-</style> 
+</style>
