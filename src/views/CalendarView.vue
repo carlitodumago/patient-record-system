@@ -1,431 +1,729 @@
 <template>
-  <div class="calendar-container mt-4">
-    <div class="calendar-header">
-      <h2>Schedule Patients</h2>
-      <div class="month-navigator">
-        <span class="nav-arrow" @click="previousYear">&lt;&lt;</span>
-        <span class="nav-arrow" @click="previousMonth">&lt;</span>
-        <span class="current-month">{{ currentMonthYear }}</span>
-        <span class="nav-arrow" @click="nextMonth">&gt;</span>
-        <span class="nav-arrow" @click="nextYear">&gt;&gt;</span>
-      </div>
-    </div>
-    
-    <div class="days-header">
-      <div class="day-name" v-for="day in dayNames" :key="day">{{ day }}</div>
-    </div>
-    
-    <div class="calendar-grid">
-      <div 
-        v-for="(day, index) in calendarDays" 
-        :key="index"
-        :class="getDayCellClasses(day)"
-        @click="selectDate(day)"
-      >
-        <span class="day-number">{{ day.date }}</span>
-        
-        <div 
-          v-for="event in day.events" 
-          :key="event.id"
-          class="event"
-          @click.stop="viewEvent(event)"
-        >
-          <div class="event-time">{{ event.time }}</div>
-          <div class="event-patient">{{ event.patient }}</div>
-        </div>
-        
-        <i 
-          v-if="day.events.length > 0" 
-          class="bi bi-calendar-event event-icon"
-        ></i>
-      </div>
-    </div>
-  </div>
+  <v-container fluid class="mt-3">
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title class="d-flex justify-space-between align-center">
+            <div>
+              <h1 class="mb-1">Appointment Calendar</h1>
+              <p class="text-caption text-medium-emphasis">
+                Schedule and manage patient appointments
+              </p>
+            </div>
+            <div class="d-flex gap-2">
+              <v-btn
+                color="primary"
+                @click="showCreateAppointmentModal = true"
+                prepend-icon="mdi-plus"
+              >
+                New Appointment
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                @click="refreshCalendar"
+                :loading="isRefreshing"
+                prepend-icon="mdi-refresh"
+              >
+                Refresh
+              </v-btn>
+            </div>
+          </v-card-title>
+
+          <v-card-text>
+            <!-- Calendar Filters -->
+            <v-row class="mb-4">
+              <v-col cols="12" md="4">
+                <v-select
+                  v-model="selectedStaff"
+                  :items="staffOptions"
+                  label="Filter by Staff"
+                  variant="outlined"
+                  clearable
+                  @update:model-value="filterAppointments"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="searchQuery"
+                  label="Search Appointments"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-magnify"
+                  @input="debounceSearch"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-select
+                  v-model="statusFilter"
+                  :items="statusOptions"
+                  label="Status Filter"
+                  variant="outlined"
+                  @update:model-value="filterAppointments"
+                ></v-select>
+              </v-col>
+            </v-row>
+
+            <!-- V-Calendar Component -->
+            <div class="calendar-container">
+              <v-calendar
+                ref="calendarRef"
+                v-model="selectedDate"
+                :attributes="calendarAttributes"
+                :masks="calendarMasks"
+                @dayclick="handleDateClick"
+                class="v-calendar"
+              >
+                <template v-slot:day-content="{ day, attributes }">
+                  <div class="day-content">
+                    <p>{{ day.day }}</p>
+                    <div class="day-events">
+                      <div
+                        v-for="attr in attributes"
+                        :key="attr.key"
+                        :class="['event-dot', `event-${attr.customData.status}`]"
+                        @click.stop="handleEventClick(attr.customData)"
+                      ></div>
+                    </div>
+                  </div>
+                </template>
+              </v-calendar>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Create Appointment Modal -->
+    <v-dialog
+      v-model="showCreateAppointmentModal"
+      max-width="600px"
+      persistent
+    >
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Create New Appointment</span>
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="appointmentForm" @submit.prevent="createAppointment">
+            <v-row>
+              <v-col cols="12">
+                <v-select
+                  v-model="newAppointment.patientId"
+                  :items="patientOptions"
+                  label="Patient *"
+                  variant="outlined"
+                  required
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="newAppointment.staffId"
+                  :items="staffOptions"
+                  label="Healthcare Provider *"
+                  variant="outlined"
+                  required
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newAppointment.date"
+                  label="Date *"
+                  type="date"
+                  variant="outlined"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newAppointment.startTime"
+                  label="Start Time *"
+                  type="time"
+                  variant="outlined"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newAppointment.endTime"
+                  label="End Time *"
+                  type="time"
+                  variant="outlined"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12">
+                <v-textarea
+                  v-model="newAppointment.notes"
+                  label="Notes"
+                  variant="outlined"
+                  rows="3"
+                ></v-textarea>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            variant="text"
+            @click="closeCreateAppointmentModal"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="createAppointment"
+            :loading="isCreatingAppointment"
+          >
+            Create Appointment
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Appointment Details Modal -->
+    <v-dialog
+      v-model="showAppointmentDetailsModal"
+      max-width="600px"
+    >
+      <v-card v-if="selectedAppointment">
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span class="text-h5">Appointment Details</span>
+          <v-btn
+            icon
+            variant="text"
+            @click="showAppointmentDetailsModal = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-row>
+            <v-col cols="12">
+              <v-chip
+                :color="getStatusColor(selectedAppointment.status)"
+                variant="flat"
+                class="mb-3"
+              >
+                {{ selectedAppointment.status }}
+              </v-chip>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-subtitle-2 text-medium-emphasis">Patient</div>
+              <div class="text-h6">{{ selectedAppointment.patient?.first_name }} {{ selectedAppointment.patient?.surname }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-subtitle-2 text-medium-emphasis">Healthcare Provider</div>
+              <div class="text-h6">{{ selectedAppointment.staff?.first_name }} {{ selectedAppointment.staff?.surname }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-subtitle-2 text-medium-emphasis">Date & Time</div>
+              <div>{{ formatDateTime(selectedAppointment.appointment_date, selectedAppointment.start_time) }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-subtitle-2 text-medium-emphasis">Duration</div>
+              <div>{{ calculateDuration(selectedAppointment.start_time, selectedAppointment.end_time) }}</div>
+            </v-col>
+            <v-col cols="12" v-if="selectedAppointment.notes">
+              <div class="text-subtitle-2 text-medium-emphasis">Notes</div>
+              <div>{{ selectedAppointment.notes }}</div>
+            </v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            variant="outlined"
+            @click="editAppointment(selectedAppointment)"
+          >
+            Edit
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="outlined"
+            @click="cancelAppointment(selectedAppointment)"
+          >
+            Cancel Appointment
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
-<script>
-import { ref, computed, onMounted } from 'vue'
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import VCalendar from 'v-calendar';
+import 'v-calendar/style.css';
+import { useStore } from "vuex";
+import { useRouter } from "vue-router";
+import AppointmentService from "@/services/appointmentService";
+import { patientService as PatientService } from "@/services/patientService";
+import { staffService as StaffService } from "@/services/staffService";
+import { useNotificationsStore } from "@/stores/notifications";
 
-export default {
-  name: 'CalendarView',
-  setup() {
-    const currentDate = ref(new Date())
-    const selectedDate = ref(null)
-    
-    // Sample events data - cleared all appointments
-    const events = ref([])
+const store = useStore();
+const router = useRouter();
+const notificationsStore = useNotificationsStore();
 
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+// Reactive data
+const calendarRef = ref(null);
+const isRefreshing = ref(false);
+const isCreatingAppointment = ref(false);
+const showCreateAppointmentModal = ref(false);
+const showAppointmentDetailsModal = ref(false);
+const selectedAppointment = ref(null);
+const appointments = ref([]);
+const patients = ref([]);
+const staff = ref([]);
 
-    const currentMonthYear = computed(() => {
-      const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ]
-      return `${months[currentDate.value.getMonth()]} ${currentDate.value.getFullYear()}`
-    })
+// Form data
+const newAppointment = ref({
+  patientId: null,
+  staffId: null,
+  date: new Date().toISOString().split('T')[0],
+  startTime: "09:00",
+  endTime: "10:00",
+  notes: "",
+});
 
-    const calendarDays = computed(() => {
-      const year = currentDate.value.getFullYear()
-      const month = currentDate.value.getMonth()
-      
-      // First day of the month
-      const firstDay = new Date(year, month, 1)
-      // Last day of the month
-      const lastDay = new Date(year, month + 1, 0)
-      // First day of the week for the first day of the month (0 = Sunday)
-      const firstDayOfWeek = firstDay.getDay()
-      // Number of days in the month
-      const daysInMonth = lastDay.getDate()
-      
-      const days = []
-      
-      // Add previous month's trailing days
-      const prevMonth = month === 0 ? 11 : month - 1
-      const prevYear = month === 0 ? year - 1 : year
-      const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0).getDate()
-      
-      for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-        const date = prevMonthLastDay - i
-        const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-        days.push({
-          date,
-          isCurrentMonth: false,
-          isToday: false,
-          dateString: dateStr,
-          events: getEventsForDate(dateStr)
-        })
-      }
-      
-      // Add current month's days
-      for (let date = 1; date <= daysInMonth; date++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-        const today = new Date()
-        const isToday = year === today.getFullYear() && 
-                       month === today.getMonth() && 
-                       date === today.getDate()
-        
-        days.push({
-          date,
-          isCurrentMonth: true,
-          isToday,
-          dateString: dateStr,
-          events: getEventsForDate(dateStr)
-        })
-      }
-      
-      // Add next month's leading days to complete the grid (42 cells = 6 weeks)
-      const remainingCells = 42 - days.length
-      const nextMonth = month === 11 ? 0 : month + 1
-      const nextYear = month === 11 ? year + 1 : year
-      
-      for (let date = 1; date <= remainingCells; date++) {
-        const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-        days.push({
-          date,
-          isCurrentMonth: false,
-          isToday: false,
-          dateString: dateStr,
-          events: getEventsForDate(dateStr)
-        })
-      }
-      
-      return days
-    })
+// Filters
+const selectedStaff = ref(null);
+const searchQuery = ref("");
+const statusFilter = ref("all");
 
-    const getEventsForDate = (dateString) => {
-      return events.value.filter(event => event.date === dateString)
-    }
+const statusOptions = [
+  { title: "All", value: "all" },
+  { title: "Scheduled", value: "scheduled" },
+  { title: "Completed", value: "completed" },
+  { title: "Cancelled", value: "cancelled" },
+];
 
-    const getDayCellClasses = (day) => {
-      const classes = ['day-cell']
-      
-      if (!day.isCurrentMonth) {
-        classes.push('empty')
-      }
-      
-      if (day.isToday) {
-        classes.push('today')
-      }
-      
-      if (selectedDate.value && selectedDate.value === day.dateString) {
-        classes.push('selected')
-      }
-      
-      if (day.events.length > 2) {
-        classes.push('busy')
-      }
-      
-      return classes
-    }
+// Computed properties
+const patientOptions = computed(() => {
+  return patients.value.map(patient => ({
+    title: `${patient.first_name} ${patient.surname}`,
+    value: patient.patient_id,
+  }));
+});
 
-    const previousMonth = () => {
-      const newDate = new Date(currentDate.value)
-      newDate.setMonth(newDate.getMonth() - 1)
-      currentDate.value = newDate
-    }
+const staffOptions = computed(() => {
+  return staff.value.map(member => ({
+    title: `${member.first_name} ${member.surname} (${member.role})`,
+    value: member.staff_id,
+  }));
+});
 
-    const nextMonth = () => {
-      const newDate = new Date(currentDate.value)
-      newDate.setMonth(newDate.getMonth() + 1)
-      currentDate.value = newDate
-    }
+const filteredAppointments = computed(() => {
+  let filtered = appointments.value;
 
-    const previousYear = () => {
-      const newDate = new Date(currentDate.value)
-      newDate.setFullYear(newDate.getFullYear() - 1)
-      currentDate.value = newDate
-    }
+  if (selectedStaff.value) {
+    filtered = filtered.filter(apt => apt.staff_id === selectedStaff.value);
+  }
 
-    const nextYear = () => {
-      const newDate = new Date(currentDate.value)
-      newDate.setFullYear(newDate.getFullYear() + 1)
-      currentDate.value = newDate
-    }
+  if (statusFilter.value !== "all") {
+    filtered = filtered.filter(apt => apt.status === statusFilter.value);
+  }
 
-    const selectDate = (day) => {
-      if (day.isCurrentMonth) {
-        selectedDate.value = day.dateString
-        // You can emit an event here or call a method to handle date selection
-        console.log('Selected date:', day.dateString)
-      }
-    }
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(apt =>
+      apt.patient?.first_name?.toLowerCase().includes(query) ||
+      apt.patient?.surname?.toLowerCase().includes(query) ||
+      apt.staff?.first_name?.toLowerCase().includes(query) ||
+      apt.staff?.surname?.toLowerCase().includes(query)
+    );
+  }
 
-    const viewEvent = (event) => {
-      // Handle event click - you can show event details, edit, etc.
-      console.log('Event clicked:', event)
-      // You could emit an event or navigate to event details
-    }
+  return filtered;
+});
 
-    onMounted(() => {
-      // Set today as initial selected date
-      const today = new Date()
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-      selectedDate.value = todayStr
-    })
+// Calendar attributes for v-calendar
+const selectedDate = ref(new Date());
 
-    return {
-      currentDate,
-      selectedDate,
-      events,
-      dayNames,
-      currentMonthYear,
-      calendarDays,
-      getDayCellClasses,
-      previousMonth,
-      nextMonth,
-      previousYear,
-      nextYear,
-      selectDate,
-      viewEvent
+const calendarAttributes = computed(() => {
+  return filteredAppointments.value.map(appointment => ({
+    key: appointment.appointment_id,
+    dates: new Date(appointment.appointment_date),
+    customData: appointment,
+    highlight: {
+      color: getAppointmentColor(appointment.status),
+      fillMode: 'solid',
+    },
+    popover: {
+      label: `${appointment.patient?.first_name} ${appointment.patient?.surname}`,
+      visibility: 'hover',
+    },
+  }));
+});
+
+const calendarMasks = {
+  title: 'MMMM YYYY',
+  weekdays: 'WWW',
+  dayPopover: 'DD/MM/YYYY',
+};
+
+// Methods
+const loadAppointments = async () => {
+  try {
+    const data = await AppointmentService.getAllAppointments();
+    appointments.value = data;
+  } catch (error) {
+    console.error("Error loading appointments:", error);
+    notificationsStore.addNotification({
+      title: "Error",
+      message: "Failed to load appointments",
+      type: "error",
+    });
+  }
+};
+
+const loadPatients = async () => {
+  try {
+    const data = await PatientService.getAllPatients();
+    patients.value = data;
+  } catch (error) {
+    console.error("Error loading patients:", error);
+  }
+};
+
+const loadStaff = async () => {
+  try {
+    const data = await StaffService.getAllStaff();
+    staff.value = data;
+  } catch (error) {
+    console.error("Error loading staff:", error);
+  }
+};
+
+const refreshCalendar = async () => {
+  isRefreshing.value = true;
+  try {
+    await Promise.all([loadAppointments(), loadPatients(), loadStaff()]);
+  } finally {
+    isRefreshing.value = false;
+  }
+};
+
+const createAppointment = async () => {
+  if (!newAppointment.value.patientId || !newAppointment.value.staffId) {
+    notificationsStore.addNotification({
+      title: "Validation Error",
+      message: "Please select both patient and healthcare provider",
+      type: "warning",
+    });
+    return;
+  }
+
+  isCreatingAppointment.value = true;
+  try {
+    const appointmentData = {
+      patient_id: newAppointment.value.patientId,
+      staff_id: newAppointment.value.staffId,
+      appointment_date: newAppointment.value.date,
+      start_time: newAppointment.value.startTime,
+      end_time: newAppointment.value.endTime,
+      notes: newAppointment.value.notes,
+      status: "scheduled",
+    };
+
+    await AppointmentService.createAppointment(appointmentData);
+    await loadAppointments();
+
+    notificationsStore.addNotification({
+      title: "Success",
+      message: "Appointment created successfully",
+      type: "success",
+    });
+
+    closeCreateAppointmentModal();
+  } catch (error) {
+    console.error("Error creating appointment:", error);
+    notificationsStore.addNotification({
+      title: "Error",
+      message: "Failed to create appointment",
+      type: "error",
+    });
+  } finally {
+    isCreatingAppointment.value = false;
+  }
+};
+
+const closeCreateAppointmentModal = () => {
+  showCreateAppointmentModal.value = false;
+  newAppointment.value = {
+    patientId: null,
+    staffId: null,
+    date: new Date().toISOString().split('T')[0],
+    startTime: "09:00",
+    endTime: "10:00",
+    notes: "",
+  };
+};
+
+const handleEventClick = (appointment) => {
+  selectedAppointment.value = appointment;
+  showAppointmentDetailsModal.value = true;
+};
+
+const handleDateClick = (day) => {
+  newAppointment.value.date = day.date.toISOString().split('T')[0];
+  showCreateAppointmentModal.value = true;
+};
+
+const handleEventDrop = async (info) => {
+  try {
+    const appointment = info.event.extendedProps.appointment;
+    const newDate = info.event.start.toISOString().split('T')[0];
+    const newStartTime = info.event.start.toTimeString().slice(0, 5);
+    const newEndTime = info.event.end.toTimeString().slice(0, 5);
+
+    await AppointmentService.updateAppointment(appointment.appointment_id, {
+      appointment_date: newDate,
+      start_time: newStartTime,
+      end_time: newEndTime,
+    });
+
+    await loadAppointments();
+    notificationsStore.addNotification({
+      title: "Success",
+      message: "Appointment updated successfully",
+      type: "success",
+    });
+  } catch (error) {
+    console.error("Error updating appointment:", error);
+    info.revert();
+    notificationsStore.addNotification({
+      title: "Error",
+      message: "Failed to update appointment",
+      type: "error",
+    });
+  }
+};
+
+const handleEventResize = async (info) => {
+  try {
+    const appointment = info.event.extendedProps.appointment;
+    const newEndTime = info.event.end.toTimeString().slice(0, 5);
+
+    await AppointmentService.updateAppointment(appointment.appointment_id, {
+      end_time: newEndTime,
+    });
+
+    await loadAppointments();
+    notificationsStore.addNotification({
+      title: "Success",
+      message: "Appointment updated successfully",
+      type: "success",
+    });
+  } catch (error) {
+    console.error("Error updating appointment:", error);
+    info.revert();
+    notificationsStore.addNotification({
+      title: "Error",
+      message: "Failed to update appointment",
+      type: "error",
+    });
+  }
+};
+
+const changeView = (view) => {
+  if (calendarRef.value) {
+    calendarRef.value.getApi().changeView(view);
+  }
+};
+
+const filterAppointments = () => {
+  // Calendar will automatically update due to computed property
+};
+
+const debounceSearch = (() => {
+  let timeout;
+  return () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(filterAppointments, 300);
+  };
+})();
+
+const editAppointment = (appointment) => {
+  // TODO: Implement edit functionality
+  console.log("Edit appointment:", appointment);
+};
+
+const cancelAppointment = async (appointment) => {
+  if (confirm("Are you sure you want to cancel this appointment?")) {
+    try {
+      await AppointmentService.updateAppointment(appointment.appointment_id, {
+        status: "cancelled",
+      });
+      await loadAppointments();
+      showAppointmentDetailsModal.value = false;
+      notificationsStore.addNotification({
+        title: "Success",
+        message: "Appointment cancelled successfully",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error cancelling appointment:", error);
+      notificationsStore.addNotification({
+        title: "Error",
+        message: "Failed to cancel appointment",
+        type: "error",
+      });
     }
   }
-}
+};
+
+// Helper functions
+const getAppointmentColor = (status) => {
+  const colors = {
+    scheduled: "#2196F3",
+    completed: "#4CAF50",
+    cancelled: "#F44336",
+    "no-show": "#FF9800",
+  };
+  return colors[status] || "#9E9E9E";
+};
+
+const getStatusColor = (status) => {
+  const colors = {
+    scheduled: "primary",
+    completed: "success",
+    cancelled: "error",
+    "no-show": "warning",
+  };
+  return colors[status] || "grey";
+};
+
+const formatDateTime = (date, time) => {
+  return new Date(`${date}T${time}`).toLocaleString();
+};
+
+const calculateDuration = (startTime, endTime) => {
+  const start = new Date(`1970-01-01T${startTime}`);
+  const end = new Date(`1970-01-01T${endTime}`);
+  const diff = end - start;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}h ${minutes}m`;
+};
+
+// Lifecycle
+onMounted(async () => {
+  await refreshCalendar();
+});
 </script>
 
 <style scoped>
 .calendar-container {
-  max-width: 900px;
-  margin: 20px auto;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  background: white;
+  border-radius: 8px;
   overflow: hidden;
-  font-family: sans-serif;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.calendar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  background-color: #007bff;
-  color: white;
-  border-bottom: 1px solid #0056b3;
+.full-calendar {
+  font-family: inherit;
 }
 
-.calendar-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: white;
+:deep(.fc) {
+  font-family: inherit;
 }
 
-.month-navigator {
-  display: flex;
-  align-items: center;
+:deep(.fc-header-toolbar) {
+  margin-bottom: 1rem !important;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.nav-arrow {
-  font-size: 1rem;
-  cursor: pointer;
-  margin: 0 5px;
-  color: white;
-  padding: 5px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
+:deep(.fc-button) {
+  background: rgb(var(--v-theme-primary)) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
 }
 
-.nav-arrow:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+:deep(.fc-button:hover) {
+  background: rgb(var(--v-theme-primary-darken-1)) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.current-month {
-  font-size: 1rem;
-  font-weight: bold;
-  color: white;
-  margin: 0 10px;
-  min-width: 120px;
-  text-align: center;
+:deep(.fc-button:not(:disabled).fc-button-active) {
+  background: rgb(var(--v-theme-primary-darken-2)) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.days-header {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  background-color: #e9ecef;
-  border-bottom: 1px solid #ccc;
+:deep(.fc-daygrid-day) {
+  transition: background-color 0.2s ease;
 }
 
-.day-name {
-  text-align: center;
-  padding: 8px 0;
-  font-weight: bold;
-  color: #555;
-  font-size: 0.8rem;
+:deep(.fc-daygrid-day:hover) {
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
 }
 
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-gap: 1px;
-  background-color: #ccc;
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
-  overflow: hidden;
+:deep(.fc-day-today) {
+  background-color: rgba(var(--v-theme-warning), 0.1) !important;
 }
 
-.day-cell {
-  background-color: #fff;
-  padding: 5px;
-  min-height: 80px;
-  position: relative;
-  font-size: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  overflow: hidden;
-  cursor: pointer;
-  transition: background-color 0.2s;
+:deep(.fc-event) {
+  border-radius: 4px !important;
+  border: none !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  padding: 2px 6px !important;
+  transition: all 0.2s ease;
 }
 
-.day-cell:hover {
-  background-color: #f8f9fa;
+:deep(.fc-event:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.day-cell.empty {
-  background-color: #f8f9fa;
-  color: #999;
+:deep(.fc-event-title) {
+  font-weight: 600 !important;
 }
 
-.day-cell.empty:hover {
-  background-color: #e9ecef;
+:deep(.fc-col-header-cell) {
+  background: rgb(var(--v-theme-surface-variant));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85rem;
 }
 
-.day-cell.today {
-  background-color: #fff3cd;
-  border: 2px solid #ffc107;
+:deep(.fc-timegrid-slot) {
+  height: 3rem !important;
 }
 
-.day-cell.selected {
-  background-color: #cfe2ff;
-  border: 2px solid #007bff;
+:deep(.fc-timegrid-axis) {
+  font-weight: 600;
 }
 
-.day-cell.busy {
-  background-color: #ffe6e6;
+:deep(.fc-popover) {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
 }
 
-.day-number {
-  font-size: 0.8em;
-  font-weight: bold;
-  color: #555;
-  position: absolute;
-  top: 5px;
-  right: 5px;
+:deep(.fc-popover-header) {
+  background: rgb(var(--v-theme-surface-variant)) !important;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant)) !important;
+  font-weight: 600 !important;
 }
 
-.day-cell.empty .day-number {
-  color: #ccc;
-}
+@media (max-width: 768px) {
+  :deep(.fc-header-toolbar) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-.day-cell.today .day-number {
-  color: #856404;
-  font-weight: 900;
-}
-
-.day-cell .event {
-  background-color: #e9ecef;
-  font-size: 0.7rem;
-  padding: 2px 4px;
-  border-radius: 3px;
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  width: calc(100% - 6px);
-  box-sizing: border-box;
-  color: #333;
-  border: 1px solid #ccc;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.day-cell .event:hover {
-  background-color: #dee2e6;
-}
-
-.day-cell .event:first-of-type {
-  margin-top: 18px;
-}
-
-.day-cell .event-time {
-  font-weight: bold;
-  font-size: 0.65rem;
-}
-
-.day-cell .event-patient {
-  color: #555;
-  margin-top: 1px;
-  font-size: 0.6rem;
-}
-
-.event-icon {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  font-size: 1rem;
-  color: #007bff;
-  pointer-events: none;
-}
-
-/* Apply border radius to bottom-left of the first cell in the last row */
-.calendar-grid .day-cell:nth-last-child(-n + 7):first-child {
-  border-bottom-left-radius: 5px;
-}
-
-/* Apply border radius to bottom-right of the last cell */
-.calendar-grid .day-cell:last-child {
-  border-bottom-right-radius: 5px;
-}
-
-/* Ensure non-corner cells in the last row don't have border radius */
-.calendar-grid .day-cell:nth-last-child(-n + 7):not(:first-child):not(:last-child) {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* Handle edge case where the last row has only one cell which is the first */
-.calendar-grid .day-cell:last-child:nth-last-child(1):first-child {
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  :deep(.fc-toolbar-chunk) {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+  }
 }
 </style>

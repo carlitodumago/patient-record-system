@@ -2,10 +2,10 @@
   <v-container fluid class="mt-3">
     <v-row>
       <v-col cols="12">
-        <div class="d-flex justify-space-between align-center mb-4">
+        <v-card-title class="d-flex justify-space-between align-center mb-4">
           <div>
             <h1 class="mb-1">Medical Records</h1>
-            <p class="text-muted">
+            <p class="text-caption">
               Manage patient medical records and health information
             </p>
           </div>
@@ -13,241 +13,214 @@
             <v-icon left>mdi-plus-circle</v-icon>
             Add Medical Record
           </v-btn>
-        </div>
+        </v-card-title>
 
         <!-- Medical Records Statistics Cards -->
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+        <v-row class="mb-4">
+          <v-col cols="12" md="3">
+            <v-card color="primary" theme="dark">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ recordStats.totalRecords }}
-                  </h5>
-                  <small>Total Records</small>
+                  <div class="text-h5">{{ recordStats.totalRecords }}</div>
+                  <div class="text-body-2">Total Records</div>
                 </div>
-                <i class="bi bi-file-earmark-medical fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48" class="opacity-75">mdi-file-medical</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="success" theme="dark">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ recordStats.monthlyRecords }}
-                  </h5>
-                  <small>This Month</small>
+                  <div class="text-h5">{{ recordStats.monthlyRecords }}</div>
+                  <div class="text-body-2">This Month</div>
                 </div>
-                <i class="bi bi-graph-up fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48" class="opacity-75">mdi-graph-up</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="info" theme="dark">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ Object.keys(recordStats.diagnosisDistribution).length }}
-                  </h5>
-                  <small>Diagnosis Types</small>
+                  <div class="text-h5">{{ Object.keys(recordStats.diagnosisDistribution).length }}</div>
+                  <div class="text-body-2">Diagnosis Types</div>
                 </div>
-                <i class="bi bi-clipboard-pulse fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-dark">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48" class="opacity-75">mdi-clipboard-pulse</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="warning" theme="dark">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ Object.keys(recordStats.treatmentDistribution).length }}
-                  </h5>
-                  <small>Treatments</small>
+                  <div class="text-h5">{{ Object.keys(recordStats.treatmentDistribution).length }}</div>
+                  <div class="text-body-2">Treatments</div>
                 </div>
-                <i class="bi bi-capsule fs-3"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+                <v-icon size="48" class="opacity-75">mdi-capsule</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Patient Search Section -->
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Patient Search</h5>
-          </div>
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <div class="input-group">
-                  <input
-                    type="text"
-                    v-model="patientSearchQuery"
-                    @input="debouncePatientSearch"
-                    class="form-control"
-                    placeholder="Search patients by name or contact number..."
-                  />
-                  <button class="btn btn-outline-secondary" type="button">
-                    <i class="bi bi-search"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <button
-                  class="btn btn-outline-primary w-100"
+        <v-card class="mb-4">
+          <v-card-title>Patient Search</v-card-title>
+          <v-card-text>
+            <v-row align="center">
+              <v-col cols="12" md="8">
+                <v-text-field
+                  v-model="patientSearchQuery"
+                  @input="debouncePatientSearch"
+                  placeholder="Search patients by name or contact number..."
+                  append-inner-icon="mdi-magnify"
+                  variant="outlined"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-btn
+                  variant="outlined"
+                  color="primary"
+                  block
                   @click="clearPatientSearch"
                 >
-                  <i class="bi bi-x-circle me-2"></i>Clear Search
-                </button>
-              </div>
-            </div>
+                  <v-icon left>mdi-close-circle</v-icon>
+                  Clear Search
+                </v-btn>
+              </v-col>
+            </v-row>
 
             <!-- Search Results -->
             <div v-if="patientSearchResults.length > 0" class="mt-3">
-              <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Patient</th>
-                      <th>Contact</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="patient in patientSearchResults"
-                      :key="patient.patient_id"
-                    >
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="avatar-sm me-3">
-                            <div
-                              class="avatar-title bg-success-subtle text-success rounded-circle"
-                            >
-                              {{ getPatientInitials(patient) }}
-                            </div>
+              <v-table>
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Contact</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="patient in patientSearchResults"
+                    :key="patient.patient_id"
+                  >
+                    <td>
+                      <div class="d-flex align-center">
+                        <v-avatar size="40" class="me-3">
+                          <v-avatar color="success" theme="dark">
+                            {{ getPatientInitials(patient) }}
+                          </v-avatar>
+                        </v-avatar>
+                        <div>
+                          <div class="text-h6 mb-0">
+                            {{ patient.first_name }} {{ patient.surname }}
                           </div>
-                          <div>
-                            <h6 class="mb-0">
-                              {{ patient.first_name }} {{ patient.surname }}
-                            </h6>
-                            <small class="text-muted"
-                              >ID: {{ patient.patient_id }}</small
-                            >
+                          <div class="text-caption text-medium-emphasis">
+                            ID: {{ patient.patient_id }}
                           </div>
                         </div>
-                      </td>
-                      <td>
-                        <div>{{ patient.contact_number }}</div>
-                        <small class="text-muted">{{
-                          patient.email || "No email"
-                        }}</small>
-                      </td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <button
-                            class="btn btn-outline-primary"
-                            @click="viewPatientDetails(patient)"
-                          >
-                            <i class="bi bi-eye me-1"></i>View
-                          </button>
-                          <button
-                            class="btn btn-outline-success"
-                            @click="createRecordForPatient(patient)"
-                          >
-                            <i class="bi bi-plus-circle me-1"></i>Add Record
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div>{{ patient.contact_number }}</div>
+                      <div class="text-caption text-medium-emphasis">{{
+                        patient.email || "No email"
+                      }}</div>
+                    </td>
+                    <td>
+                      <div class="d-flex gap-2">
+                        <v-btn
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          @click="viewPatientDetails(patient)"
+                        >
+                          <v-icon left>mdi-eye</v-icon>
+                          View
+                        </v-btn>
+                        <v-btn
+                          size="small"
+                          variant="outlined"
+                          color="success"
+                          @click="createRecordForPatient(patient)"
+                        >
+                          <v-icon left>mdi-plus-circle</v-icon>
+                          Add Record
+                        </v-btn>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
             </div>
 
             <!-- No Results -->
             <div
               v-else-if="patientSearchQuery && !isSearchingPatients"
-              class="text-center p-4"
+              class="text-center pa-4"
             >
-              <i class="bi bi-search fs-1 text-muted mb-3"></i>
-              <h6 class="text-muted">No patients found</h6>
-              <p class="text-muted small">
+              <v-icon size="64" class="text-medium-emphasis mb-3">mdi-magnify</v-icon>
+              <div class="text-h6 text-medium-emphasis">No patients found</div>
+              <div class="text-body-2 text-medium-emphasis">
                 Try searching with a different name or contact number
-              </p>
+              </div>
             </div>
 
             <!-- Loading -->
-            <div v-if="isSearchingPatients" class="text-center p-3">
-              <div
-                class="spinner-border spinner-border-sm text-primary"
-                role="status"
-              >
-                <span class="visually-hidden">Searching...</span>
-              </div>
-              <span class="ms-2 text-muted">Searching patients...</span>
+            <div v-if="isSearchingPatients" class="text-center pa-3">
+              <v-progress-circular
+                indeterminate
+                color="primary"
+                size="24"
+              ></v-progress-circular>
+              <span class="ms-2 text-medium-emphasis">Searching patients...</span>
             </div>
-          </div>
-        </div>
+          </v-card-text>
+        </v-card>
 
         <!-- Medical Records Filters -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-3">
-                <input
-                  type="text"
+        <v-card class="mb-4">
+          <v-card-text>
+            <v-row align="center">
+              <v-col cols="12" md="3">
+                <v-text-field
                   v-model="recordFilters.search"
                   @input="debounceSearch"
-                  class="form-control"
                   placeholder="Search records..."
-                />
-              </div>
-              <div class="col-md-3">
-                <select
+                  variant="outlined"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
                   v-model="recordFilters.patientId"
-                  @change="loadRecords"
-                  class="form-select"
-                >
-                  <option value="">All Patients</option>
-                  <option
-                    v-for="patient in availablePatients"
-                    :key="patient.patient_id"
-                    :value="patient.patient_id"
-                  >
-                    {{ patient.first_name }} {{ patient.surname }}
-                  </option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <input
+                  @update:model-value="loadRecords"
+                  :items="availablePatients.map(p => ({ title: `${p.first_name} ${p.surname}`, value: p.patient_id }))"
+                  placeholder="All Patients"
+                  variant="outlined"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
                   type="date"
                   v-model="recordFilters.dateFrom"
-                  @change="loadRecords"
-                  class="form-control"
+                  @update:model-value="loadRecords"
                   placeholder="From Date"
-                />
-              </div>
-              <div class="col-md-3">
-                <input
+                  variant="outlined"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
                   type="date"
                   v-model="recordFilters.dateTo"
-                  @change="loadRecords"
-                  class="form-control"
+                  @update:model-value="loadRecords"
                   placeholder="To Date"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+                  variant="outlined"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
 
         <!-- Medical Records Table -->
         <div class="card">
@@ -914,7 +887,8 @@
       class="modal-backdrop fade show"
       @click="closeCreateRecordModal"
     ></div>
-</v-col>
+
+  </v-col>
 </v-row>
 </v-container>
 </template>

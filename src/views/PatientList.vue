@@ -98,260 +98,274 @@ const deletePatient = async (patientId) => {
 const addNewPatient = () => {
   router.push("/patients/new");
 };
+
+const tableHeaders = [
+  { title: "ID", key: "patient_id" },
+  { title: "Name", key: "name" },
+  { title: "Date of Birth", key: "birth_date" },
+  { title: "Gender", key: "gender" },
+  { title: "Blood Type", key: "blood_type" },
+  { title: "Contact", key: "contact" },
+  { title: "Medical Conditions", key: "medical_conditions" },
+  { title: "Last Visit", key: "created_at" },
+  { title: "Actions", key: "actions", sortable: false },
+];
+
+const getBloodTypeColor = (bloodType) => {
+  if (bloodType === "AB" || bloodType === "AB+") {
+    return "purple";
+  }
+  return "red";
+};
 </script>
 
 <template>
-  <div class="patient-list">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="animate-fade-in-left">Patient List</h2>
-      <div class="d-flex gap-2 animate-fade-in-right">
-        <div class="btn-group me-2" role="group" aria-label="View options">
-          <button
-            @click="viewMode = 'table'"
-            class="btn"
-            :class="
-              viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary'
-            "
-            title="Table View"
-          >
-            <i class="bi bi-table"></i>
-          </button>
-          <button
-            @click="viewMode = 'card'"
-            class="btn"
-            :class="
-              viewMode === 'card' ? 'btn-primary' : 'btn-outline-secondary'
-            "
-            title="Card View"
-          >
-            <i class="bi bi-grid-3x3-gap"></i>
-          </button>
-        </div>
-        <button @click="addNewPatient" class="btn btn-success">
-          <i class="bi bi-plus-circle me-2"></i> Add New Patient
-        </button>
-      </div>
-    </div>
+  <v-container class="patient-list">
+    <v-row class="mb-4">
+      <v-col cols="12">
+        <v-row align="center" justify="space-between">
+          <v-col cols="auto">
+            <h2 class="animate-fade-in-left">Patient List</h2>
+          </v-col>
+          <v-col cols="auto">
+            <v-row align="center" class="animate-fade-in-right">
+              <v-col cols="auto" class="mr-2">
+                <v-btn-group>
+                  <v-btn
+                    @click="viewMode = 'table'"
+                    :color="viewMode === 'table' ? 'primary' : 'grey lighten-2'"
+                    title="Table View"
+                  >
+                    <v-icon>mdi-table</v-icon>
+                  </v-btn>
+                  <v-btn
+                    @click="viewMode = 'card'"
+                    :color="viewMode === 'card' ? 'primary' : 'grey lighten-2'"
+                    title="Card View"
+                  >
+                    <v-icon>mdi-view-grid</v-icon>
+                  </v-btn>
+                </v-btn-group>
+              </v-col>
+              <v-col cols="auto">
+                <v-btn @click="addNewPatient" color="success">
+                  <v-icon left>mdi-plus-circle</v-icon> Add New Patient
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-col>
+        </v-row>
+      </v-col>
+    </v-row>
 
-    <div class="card mb-4 search-card animate-fade-in-down">
-      <div class="card-body">
-        <div class="input-group">
-          <span class="input-group-text">
-            <i class="bi bi-search"></i>
-          </span>
-          <input
-            type="text"
-            class="form-control search-input"
-            placeholder="Search patients by name or medical condition..."
-            v-model="searchQuery"
-          />
-        </div>
-      </div>
-    </div>
+    <v-card class="mb-4 search-card animate-fade-in-down">
+      <v-card-text>
+        <v-text-field
+          v-model="searchQuery"
+          placeholder="Search patients by name or medical condition..."
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="comfortable"
+        ></v-text-field>
+      </v-card-text>
+    </v-card>
 
-    <div v-if="isLoading" class="text-center my-5 animate-fade-in">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-2">Loading patient records...</p>
-    </div>
+    <v-progress-circular
+      v-if="isLoading"
+      indeterminate
+      color="primary"
+      class="d-flex mx-auto my-5"
+    ></v-progress-circular>
 
-    <div v-else>
+    <v-row v-else>
       <!-- Card View -->
-      <div v-if="viewMode === 'card'" class="row g-3">
-        <div v-if="filteredPatients.length === 0" class="col-12 text-center">
-          <div class="alert alert-info animate-fade-in">
-            No patients found matching your search criteria.
-          </div>
-        </div>
+      <v-col v-if="viewMode === 'card'" cols="12">
+        <v-row v-if="patients.length === 0" justify="center">
+          <v-col cols="12" class="text-center">
+            <v-alert type="info" class="animate-fade-in">
+              No patients found matching your search criteria.
+            </v-alert>
+          </v-col>
+        </v-row>
 
-        <div
-          v-for="(patient, index) in filteredPatients"
-          :key="patient.id"
-          class="col-xl-3 col-lg-4 col-md-6 col-sm-12"
-        >
-          <div
-            class="card patient-card h-100 animate-fade-in-up"
-            :style="{ animationDelay: `${index * 0.05}s` }"
+        <v-row v-else>
+          <v-col
+            v-for="(patient, index) in patients"
+            :key="patient.patient_id"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="3"
           >
-            <div
-              class="card-header d-flex justify-content-between align-items-center"
+            <v-card
+              class="patient-card h-100 animate-fade-in-up"
+              :style="{ animationDelay: `${index * 0.05}s` }"
+              elevation="2"
             >
-              <h5 class="mb-0 patient-name">
-                {{ patient.first_name }} {{ patient.surname }}
-              </h5>
-              <span class="badge bg-info">{{ patient.gender }}</span>
-            </div>
-            <div class="card-body">
-              <div class="patient-details">
-                <div class="detail-row">
-                  <span class="detail-label"
-                    ><i class="bi bi-calendar me-2"></i>Date of Birth:
-                  </span>
-                  <span class="detail-value">{{
-                    formatDate(patient.birth_date)
-                  }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label"
-                    ><i class="bi bi-telephone me-2"></i>Phone:
-                  </span>
-                  <span class="detail-value">{{ patient.contact_number }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label"
-                    ><i class="bi bi-droplet me-2"></i>Blood Type:
-                  </span>
-                  <span
-                    v-if="
-                      patient.blood_type === 'AB' ||
-                      patient.blood_type === 'AB+'
-                    "
-                    class="blood-type-ab"
-                    >{{ patient.blood_type }}</span
-                  >
-                  <span
-                    v-else-if="patient.blood_type"
-                    class="blood-type-badge"
-                    >{{ patient.blood_type }}</span
-                  >
-                  <span v-else class="detail-value">Unknown</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label"
-                    ><i class="bi bi-calendar-check me-2"></i>Created:
-                  </span>
-                  <span class="detail-value">{{
-                    formatDate(patient.created_at)
-                  }}</span>
-                </div>
-                <div class="detail-row mt-3">
-                  <div class="small fw-bold mb-1">
-                    <i class="bi bi-heart-pulse me-2"></i>Medical Conditions:
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="patient-name">
+                  {{ patient.first_name }} {{ patient.surname }}
+                </span>
+                <v-chip
+                  :color="patient.gender === 'Male' ? 'blue' : 'pink'"
+                  small
+                >
+                  {{ patient.gender }}
+                </v-chip>
+              </v-card-title>
+              <v-card-text>
+                <div class="patient-details">
+                  <div class="detail-row">
+                    <v-icon small class="mr-2">mdi-calendar</v-icon>
+                    <span class="detail-label">Date of Birth:</span>
+                    <span class="detail-value">{{
+                      formatDate(patient.birth_date)
+                    }}</span>
                   </div>
-                  <div class="medical-conditions">
-                    <span
-                      v-for="(condition, idx) in patient.medical_conditions"
-                      :key="idx"
-                      class="badge bg-light text-dark me-1 mb-1"
+                  <div class="detail-row">
+                    <v-icon small class="mr-2">mdi-phone</v-icon>
+                    <span class="detail-label">Phone:</span>
+                    <span class="detail-value">{{
+                      patient.contact_number
+                    }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <v-icon small class="mr-2">mdi-water</v-icon>
+                    <span class="detail-label">Blood Type:</span>
+                    <v-chip
+                      v-if="patient.blood_type"
+                      :color="getBloodTypeColor(patient.blood_type)"
+                      small
+                      dark
                     >
-                      {{ condition }}
-                    </span>
-                    <span
-                      v-if="
-                        !patient.medical_conditions ||
-                        patient.medical_conditions.length === 0
-                      "
-                      class="badge bg-light text-dark"
-                      >None</span
-                    >
+                      {{ patient.blood_type }}
+                    </v-chip>
+                    <span v-else class="detail-value">Unknown</span>
+                  </div>
+                  <div class="detail-row">
+                    <v-icon small class="mr-2">mdi-calendar-check</v-icon>
+                    <span class="detail-label">Created:</span>
+                    <span class="detail-value">{{
+                      formatDate(patient.created_at)
+                    }}</span>
+                  </div>
+                  <div class="detail-row mt-3">
+                    <v-icon small class="mr-2">mdi-heart-pulse</v-icon>
+                    <span class="fw-bold">Medical Conditions:</span>
+                    <div class="medical-conditions mt-2">
+                      <v-chip
+                        v-for="(condition, idx) in patient.medical_conditions"
+                        :key="idx"
+                        small
+                        class="mr-1 mb-1"
+                      >
+                        {{ condition }}
+                      </v-chip>
+                      <v-chip
+                        v-if="
+                          !patient.medical_conditions ||
+                          patient.medical_conditions.length === 0
+                        "
+                        small
+                        outlined
+                      >
+                        None
+                      </v-chip>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div class="card-footer">
-              <div class="d-flex justify-content-end gap-2">
-                <button
-                  @click="viewPatient(patient.id)"
-                  class="btn btn-sm btn-primary"
+              </v-card-text>
+              <v-card-actions class="justify-end">
+                <v-btn
+                  @click="viewPatient(patient.patient_id)"
+                  color="primary"
+                  small
+                  icon
                   title="View"
                 >
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button
-                  @click="editPatient(patient.id)"
-                  class="btn btn-sm btn-secondary"
+                  <v-icon>mdi-eye</v-icon>
+                </v-btn>
+                <v-btn
+                  @click="editPatient(patient.patient_id)"
+                  color="secondary"
+                  small
+                  icon
                   title="Edit"
                 >
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button
-                  @click="deletePatient(patient.id)"
-                  class="btn btn-sm btn-danger"
+                  <v-icon>mdi-pencil</v-icon>
+                </v-btn>
+                <v-btn
+                  @click="deletePatient(patient.patient_id)"
+                  color="error"
+                  small
+                  icon
                   title="Delete"
                 >
-                  <i class="bi bi-trash"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                  <v-icon>mdi-delete</v-icon>
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-col>
 
-      <!-- Table View with animation -->
-      <div v-else-if="viewMode === 'table'" class="animate-fade-in">
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead class="table-light">
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Date of Birth</th>
-                <th>Gender</th>
-                <th>Blood Type</th>
-                <th>Contact</th>
-                <th>Medical Conditions</th>
-                <th>Last Visit</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="patient in filteredPatients" :key="patient.patient_id">
-                <td>{{ patient.patient_id.slice(0, 8) }}</td>
-                <td>{{ patient.first_name }} {{ patient.surname }}</td>
-                <td>{{ formatDate(patient.birth_date) }}</td>
-                <td>{{ patient.gender }}</td>
-                <td>
-                  <div
-                    v-if="patient.blood_type"
-                    class="d-flex align-items-center"
-                  >
-                    <span class="blood-type-text me-1">Blood Type:</span>
-                    <span
-                      v-if="
-                        patient.blood_type === 'AB' ||
-                        patient.blood_type === 'AB+'
-                      "
-                      class="blood-type-ab"
-                    >
-                      {{ patient.blood_type }}
-                    </span>
-                    <span v-else class="blood-type-badge">
-                      {{ patient.blood_type }}
-                    </span>
-                  </div>
-                  <span v-else class="text-muted small">Not specified</span>
-                </td>
-                <td>
-                  <div>{{ patient.contact_number }}</div>
-                  <div>
-                    <small>{{ patient.user?.email }}</small>
-                  </div>
-                </td>
-                <td>
-                  <span
-                    v-for="(condition, index) in patient.medical_conditions"
-                    :key="index"
-                    class="badge bg-info me-1 mb-1"
-                  >
-                    {{ condition }}
-                  </span>
-                </td>
-                <td>{{ formatDate(patient.created_at) }}</td>
-                <td>
-                  <ActionButtons
-                    :onView="() => viewPatient(patient.patient_id)"
-                    :onEdit="() => editPatient(patient.patient_id)"
-                    :onDelete="() => deletePatient(patient.patient_id)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+      <!-- Table View -->
+      <v-col v-else-if="viewMode === 'table'" cols="12" class="animate-fade-in">
+        <v-data-table
+          :headers="tableHeaders"
+          :items="patients"
+          :items-per-page="10"
+          class="elevation-1"
+        >
+          <template v-slot:item.patient_id="{ item }">
+            {{ item.patient_id.slice(0, 8) }}
+          </template>
+          <template v-slot:item.name="{ item }">
+            {{ item.first_name }} {{ item.surname }}
+          </template>
+          <template v-slot:item.birth_date="{ item }">
+            {{ formatDate(item.birth_date) }}
+          </template>
+          <template v-slot:item.blood_type="{ item }">
+            <v-chip
+              v-if="item.blood_type"
+              :color="getBloodTypeColor(item.blood_type)"
+              small
+              dark
+            >
+              {{ item.blood_type }}
+            </v-chip>
+            <span v-else class="text-muted">Not specified</span>
+          </template>
+          <template v-slot:item.contact="{ item }">
+            <div>{{ item.contact_number }}</div>
+            <small>{{ item.user?.email }}</small>
+          </template>
+          <template v-slot:item.medical_conditions="{ item }">
+            <v-chip
+              v-for="(condition, index) in item.medical_conditions"
+              :key="index"
+              small
+              color="info"
+              class="mr-1 mb-1"
+            >
+              {{ condition }}
+            </v-chip>
+          </template>
+          <template v-slot:item.created_at="{ item }">
+            {{ formatDate(item.created_at) }}
+          </template>
+          <template v-slot:item.actions="{ item }">
+            <ActionButtons
+              :onView="() => viewPatient(item.patient_id)"
+              :onEdit="() => editPatient(item.patient_id)"
+              :onDelete="() => deletePatient(item.patient_id)"
+            />
+          </template>
+        </v-data-table>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <style scoped>

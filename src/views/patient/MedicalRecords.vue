@@ -72,41 +72,41 @@ onMounted(() => {
     // Save to localStorage
     localStorage.setItem('medicalRecords', JSON.stringify(mockMedicalRecords));
   }
-  
+
   isLoading.value = false;
 });
 
 // Get filtered records for the current patient
 const patientRecords = computed(() => {
   if (!currentUser.value || !currentUser.value.id) return [];
-  
+
   let records = medicalRecords.value
     .filter(record => record.patientId === currentUser.value.id)
     .sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate)); // Newest first
-  
+
   // Apply search filter if provided
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    records = records.filter(record => 
-      record.condition.toLowerCase().includes(query) || 
+    records = records.filter(record =>
+      record.condition.toLowerCase().includes(query) ||
       record.diagnosis.toLowerCase().includes(query) ||
       record.treatmentPlan.toLowerCase().includes(query) ||
       record.physicianName.toLowerCase().includes(query)
     );
   }
-  
+
   return records;
 });
 
 // Format date with time for display in 12-hour format
 const formatDateWithTime = (record) => {
   if (!record.recordDate) return '';
-  
+
   const date = new Date(record.recordDate);
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   const year = date.getFullYear();
-  
+
   // Get time from timestamp or recordTime in 12-hour format
   let formattedTime = '';
   if (record.timestamp) {
@@ -114,7 +114,7 @@ const formatDateWithTime = (record) => {
     const hours = timestamp.getHours();
     const minutes = String(timestamp.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? 'PM' : 'AM';
-    
+
     // Convert to 12-hour format
     const displayHours = hours % 12 || 12; // Convert 0 to 12
     formattedTime = `${displayHours}:${minutes} ${period}`;
@@ -123,76 +123,77 @@ const formatDateWithTime = (record) => {
   } else {
     formattedTime = '9:00 AM'; // Default time in 12-hour format
   }
-  
+
   return `${month}/${day}/${year} ${formattedTime}`;
 };
 </script>
 
 <template>
-  <div class="medical-records">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>My Medical Records</h2>
-      <div>
-        <button class="btn btn-primary">
-          <i class="bi bi-printer me-1"></i> Print Records
-        </button>
-      </div>
-    </div>
-    
-    <div class="card mb-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Medical History</h5>
-        <div class="input-group" style="max-width: 300px;">
-          <span class="input-group-text">
-            <i class="bi bi-search"></i>
-          </span>
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Search records..."
-            v-model="searchQuery"
-          >
-        </div>
-      </div>
-      <div class="card-body">
+  <v-container fluid class="medical-records">
+    <v-row class="mb-4" align="center">
+      <v-col cols="12" md="8">
+        <h2>My Medical Records</h2>
+      </v-col>
+      <v-col cols="12" md="4" class="text-right">
+        <v-btn color="primary" prepend-icon="mdi-printer">
+          Print Records
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <v-card class="mb-4">
+      <v-card-title class="d-flex justify-space-between align-center">
+        <span>Medical History</span>
+        <v-text-field
+          v-model="searchQuery"
+          label="Search records..."
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="compact"
+          style="max-width: 300px;"
+        ></v-text-field>
+      </v-card-title>
+      <v-card-text>
         <div v-if="isLoading" class="text-center my-3">
-          <div class="spinner-border text-primary spinner-border-sm" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
+          <v-progress-circular indeterminate color="primary" size="24"></v-progress-circular>
         </div>
-        <div v-else-if="patientRecords.length === 0" class="alert alert-info">
+        <v-alert v-else-if="patientRecords.length === 0" type="info">
           No medical records found.
-        </div>
+        </v-alert>
         <div v-else>
-          <div v-for="record in patientRecords" :key="record.id" class="medical-record mb-4">
-            <div class="d-flex justify-content-between align-items-start">
-              <h5 class="mb-2">{{ record.condition }}</h5>
-              <span class="text-muted small">{{ formatDateWithTime(record) }}</span>
-            </div>
-            <div class="diagnosis mb-2">
-              <strong>Diagnosis:</strong> {{ record.diagnosis }}
-            </div>
-            <div class="treatment mb-2">
-              <strong>Treatment Plan:</strong> {{ record.treatmentPlan }}
-            </div>
-            <div class="physician small highlight-note mt-2">
-              <strong>Physician:</strong> {{ record.physicianName }}
-            </div>
-            <hr class="my-3" />
-          </div>
+          <v-card
+            v-for="record in patientRecords"
+            :key="record.id"
+            class="medical-record mb-4"
+            variant="outlined"
+          >
+            <v-card-text>
+              <div class="d-flex justify-space-between align-start mb-2">
+                <h5>{{ record.condition }}</h5>
+                <span class="text-caption">{{ formatDateWithTime(record) }}</span>
+              </div>
+              <div class="mb-2">
+                <strong>Diagnosis:</strong> {{ record.diagnosis }}
+              </div>
+              <div class="mb-2">
+                <strong>Treatment Plan:</strong> {{ record.treatmentPlan }}
+              </div>
+              <div class="text-caption pa-1 rounded highlight-note">
+                <strong>Physician:</strong> {{ record.physicianName }}
+              </div>
+            </v-card-text>
+          </v-card>
         </div>
-      </div>
-    </div>
-    
-    <div class="card">
-      <div class="card-header">
-        <h5 class="mb-0">Upcoming Appointments</h5>
-      </div>
-      <div class="card-body">
-        <p class="text-muted">View your upcoming appointments in the <a href="/calendar">Calendar</a> section.</p>
-      </div>
-    </div>
-  </div>
+      </v-card-text>
+    </v-card>
+
+    <v-card>
+      <v-card-title>Upcoming Appointments</v-card-title>
+      <v-card-text>
+        <p class="text-body-2">View your upcoming appointments in the <router-link to="/calendar">Calendar</router-link> section.</p>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <style scoped>

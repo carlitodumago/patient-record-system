@@ -1,82 +1,76 @@
 <template>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h1 class="mb-1">Appointment Management</h1>
+  <v-container class="appointment-management">
+    <v-row>
+      <v-col cols="12">
+        <v-row align="center" justify="space-between" class="mb-4">
+          <v-col cols="auto">
+            <h1 class="animate-fade-in-left">Appointment Management</h1>
             <p class="text-muted">Schedule and manage patient appointments</p>
-          </div>
-          <button
-            class="btn btn-primary"
-            @click="showCreateAppointmentModal = true"
-          >
-            <i class="bi bi-plus-circle me-2"></i>
-            Schedule Appointment
-          </button>
-        </div>
+          </v-col>
+          <v-col cols="auto">
+            <v-btn
+              color="primary"
+              @click="showCreateAppointmentModal = true"
+              prepend-icon="mdi-plus-circle"
+            >
+              Schedule Appointment
+            </v-btn>
+          </v-col>
+        </v-row>
 
         <!-- Appointment Statistics Cards -->
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+        <v-row class="mb-4">
+          <v-col cols="12" md="3">
+            <v-card color="primary" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
+                  <div class="text-h5 mb-1">
                     {{ appointmentStats.totalAppointments }}
-                  </h5>
-                  <small>Total Appointments</small>
+                  </div>
+                  <div class="text-caption">Total Appointments</div>
                 </div>
-                <i class="bi bi-calendar-check fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-calendar-check</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="success" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
+                  <div class="text-h5 mb-1">
                     {{ appointmentStats.todayAppointments }}
-                  </h5>
-                  <small>Today's Appointments</small>
+                  </div>
+                  <div class="text-caption">Today's Appointments</div>
                 </div>
-                <i class="bi bi-calendar-day fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-calendar-today</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="info" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
+                  <div class="text-h5 mb-1">
                     {{ appointmentStats.monthlyAppointments }}
-                  </h5>
-                  <small>This Month</small>
+                  </div>
+                  <div class="text-caption">This Month</div>
                 </div>
-                <i class="bi bi-calendar-month fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-dark">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-calendar-month</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="warning" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ getScheduledCount() }}</h5>
-                  <small>Scheduled</small>
+                  <div class="text-h5 mb-1">{{ getScheduledCount() }}</div>
+                  <div class="text-caption">Scheduled</div>
                 </div>
-                <i class="bi bi-clock-history fs-3"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+                <v-icon size="x-large">mdi-clock-outline</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Filters and View Toggle -->
         <div class="card mb-4">
@@ -321,8 +315,8 @@
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </v-col>
+    </v-row>
 
     <!-- Create Appointment Modal -->
     <div
@@ -499,7 +493,9 @@
       class="modal-backdrop fade show"
       @click="closeCreateAppointmentModal"
     ></div>
-  </div>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>

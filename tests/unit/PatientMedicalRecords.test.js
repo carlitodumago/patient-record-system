@@ -208,6 +208,8 @@ describe("PatientMedicalRecords Component", () => {
         appointmentId: null,
         enteredBy: "test-user-id",
         notes: "Test description",
+        diagnosisId: null,
+        treatmentId: null,
       });
     });
 

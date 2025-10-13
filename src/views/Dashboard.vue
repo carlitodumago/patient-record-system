@@ -1,10 +1,14 @@
 <template>
-  <div class="dashboard-view p-4">
-    <h2 class="mb-4">Dashboard</h2>
-    <div class="alert alert-info">
-      Welcome to your dashboard! Here you can get an overview of the system.
-    </div>
-  </div>
+  <v-container class="dashboard-view">
+    <v-card>
+      <v-card-title>Dashboard</v-card-title>
+      <v-card-text>
+        <v-alert type="info">
+          Welcome to your dashboard! Here you can get an overview of the system.
+        </v-alert>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <script setup>

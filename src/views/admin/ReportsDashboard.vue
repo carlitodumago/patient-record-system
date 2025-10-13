@@ -1,393 +1,310 @@
 <template>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h1 class="mb-1">Reports Dashboard</h1>
+  <v-container class="reports-dashboard">
+    <v-row>
+      <v-col cols="12">
+        <v-row align="center" justify="space-between" class="mb-4">
+          <v-col cols="auto">
+            <h1 class="animate-fade-in-left">Reports Dashboard</h1>
             <p class="text-muted">
               Analytics and insights for clinic management
             </p>
-          </div>
-          <div class="d-flex gap-2">
-            <div class="dropdown">
-              <button
-                class="btn btn-outline-primary dropdown-toggle"
-                type="button"
-                data-bs-toggle="dropdown"
-              >
-                <i class="bi bi-download me-2"></i>
-                Export Reports
-              </button>
-              <ul class="dropdown-menu">
-                <li>
-                  <button
-                    class="dropdown-item"
-                    @click="exportReport('summary')"
+          </v-col>
+          <v-col cols="auto">
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-download"
+                  v-bind="props"
+                >
+                  Export Reports
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="exportReport('summary')">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-file-document</v-icon>
+                  </template>
+                  <v-list-item-title>Summary Report (PDF)</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="exportReport('patients')">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-file-excel</v-icon>
+                  </template>
+                  <v-list-item-title>Patient Data (CSV)</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="exportReport('appointments')">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-calendar-check</v-icon>
+                  </template>
+                  <v-list-item-title
+                    >Appointment Report (Excel)</v-list-item-title
                   >
-                    <i class="bi bi-file-earmark-text me-2"></i>
-                    Summary Report (PDF)
-                  </button>
-                </li>
-                <li>
-                  <button
-                    class="dropdown-item"
-                    @click="exportReport('patients')"
-                  >
-                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>
-                    Patient Data (CSV)
-                  </button>
-                </li>
-                <li>
-                  <button
-                    class="dropdown-item"
-                    @click="exportReport('appointments')"
-                  >
-                    <i class="bi bi-calendar-check me-2"></i>
-                    Appointment Report (Excel)
-                  </button>
-                </li>
-                <li><hr class="dropdown-divider" /></li>
-                <li>
-                  <button class="dropdown-item" @click="exportReport('full')">
-                    <i class="bi bi-file-earmark-zip me-2"></i>
-                    Complete Report Package
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <button
-              class="btn btn-primary"
+                </v-list-item>
+                <v-divider></v-divider>
+                <v-list-item @click="exportReport('full')">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-package-variant</v-icon>
+                  </template>
+                  <v-list-item-title>Complete Report Package</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+            <v-btn
+              color="primary"
               @click="refreshAllData"
-              :disabled="isRefreshing"
+              :loading="isRefreshing"
+              prepend-icon="mdi-refresh"
+              class="ml-2"
             >
-              <i class="bi bi-arrow-clockwise me-2"></i>
               Refresh Data
-            </button>
-          </div>
-        </div>
+            </v-btn>
+          </v-col>
+        </v-row>
 
         <!-- Key Metrics Cards -->
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+        <v-row class="mb-4">
+          <v-col cols="12" md="3">
+            <v-card color="primary" class="text-white">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ systemStats.users.total }}</h5>
+                  <h5 class="mb-0">{{ systemStats.users.total }}</h5>
                   <small>Total Users</small>
                 </div>
-                <i class="bi bi-people fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-account-group</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="success" class="text-white">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ systemStats.patients.total }}
-                  </h5>
+                  <h5 class="mb-0">{{ systemStats.patients.total }}</h5>
                   <small>Total Patients</small>
                 </div>
-                <i class="bi bi-person-heart fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-account-heart</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="info" class="text-white">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ systemStats.staff.total }}</h5>
+                  <h5 class="mb-0">{{ systemStats.staff.total }}</h5>
                   <small>Staff Members</small>
                 </div>
-                <i class="bi bi-person-badge fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-dark">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="x-large">mdi-account-badge</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="warning" class="text-dark">
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ systemStats.appointments.total }}
-                  </h5>
+                  <h5 class="mb-0">{{ systemStats.appointments.total }}</h5>
                   <small>Total Appointments</small>
                 </div>
-                <i class="bi bi-calendar-check fs-3"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+                <v-icon size="x-large">mdi-calendar-check</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Charts Row -->
-        <div class="row mb-4">
+        <v-row class="mb-4">
           <!-- Patient Demographics -->
-          <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-              <div
-                class="card-header d-flex justify-content-between align-items-center"
-              >
-                <h5 class="mb-0">Patient Demographics</h5>
-                <div class="dropdown">
-                  <button
-                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                  >
-                    <i class="bi bi-three-dots-vertical"></i>
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <button
-                        class="dropdown-item"
-                        @click="exportChart('demographics')"
-                      >
-                        <i class="bi bi-download me-2"></i>
-                        Export Chart
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="row text-center">
-                  <div class="col-6">
-                    <div class="border-end">
-                      <h4 class="text-primary mb-1">
-                        {{ patientStats.genderDistribution.Male || 0 }}
-                      </h4>
-                      <small class="text-muted">Male Patients</small>
-                    </div>
-                  </div>
-                  <div class="col-6">
+          <v-col cols="12" lg="6" class="mb-4">
+            <v-card height="100%">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span>Patient Demographics</span>
+                <v-menu>
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      icon="mdi-dots-vertical"
+                      variant="text"
+                      v-bind="props"
+                    ></v-btn>
+                  </template>
+                  <v-list>
+                    <v-list-item @click="exportChart('demographics')">
+                      <template v-slot:prepend>
+                        <v-icon>mdi-download</v-icon>
+                      </template>
+                      <v-list-item-title>Export Chart</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+              </v-card-title>
+              <v-card-text>
+                <v-row class="text-center">
+                  <v-col cols="6">
+                    <v-divider vertical class="me-4"></v-divider>
+                    <h4 class="text-primary mb-1">
+                      {{ patientStats.genderDistribution.Male || 0 }}
+                    </h4>
+                    <small class="text-muted">Male Patients</small>
+                  </v-col>
+                  <v-col cols="6">
                     <h4 class="text-info mb-1">
                       {{ patientStats.genderDistribution.Female || 0 }}
                     </h4>
                     <small class="text-muted">Female Patients</small>
-                  </div>
-                </div>
+                  </v-col>
+                </v-row>
                 <div class="mt-3">
                   <h6>Blood Type Distribution</h6>
                   <div class="d-flex flex-wrap gap-2 mt-2">
-                    <span
+                    <v-chip
                       v-for="(
                         count, type
                       ) in patientStats.bloodTypeDistribution"
                       :key="type"
-                      class="badge bg-light text-dark"
+                      variant="outlined"
                     >
                       {{ type }}: {{ count }}
-                    </span>
+                    </v-chip>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
 
           <!-- Appointment Trends -->
-          <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-              <div
-                class="card-header d-flex justify-content-between align-items-center"
-              >
-                <h5 class="mb-0">Appointment Trends</h5>
-                <div class="dropdown">
-                  <button
-                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                  >
-                    <i class="bi bi-three-dots-vertical"></i>
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <button
-                        class="dropdown-item"
-                        @click="exportChart('appointments')"
-                      >
-                        <i class="bi bi-download me-2"></i>
-                        Export Chart
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="row text-center">
-                  <div class="col-4">
+          <v-col cols="12" lg="6" class="mb-4">
+            <v-card height="100%">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span>Appointment Trends</span>
+                <v-menu>
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      icon="mdi-dots-vertical"
+                      variant="text"
+                      v-bind="props"
+                    ></v-btn>
+                  </template>
+                  <v-list>
+                    <v-list-item @click="exportChart('appointments')">
+                      <template v-slot:prepend>
+                        <v-icon>mdi-download</v-icon>
+                      </template>
+                      <v-list-item-title>Export Chart</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+              </v-card-title>
+              <v-card-text>
+                <v-row class="text-center">
+                  <v-col cols="4">
                     <h5 class="text-success mb-1">
                       {{ appointmentStats.statusDistribution.scheduled || 0 }}
                     </h5>
                     <small class="text-muted">Scheduled</small>
-                  </div>
-                  <div class="col-4">
+                  </v-col>
+                  <v-col cols="4">
                     <h5 class="text-primary mb-1">
                       {{ appointmentStats.statusDistribution.completed || 0 }}
                     </h5>
                     <small class="text-muted">Completed</small>
-                  </div>
-                  <div class="col-4">
+                  </v-col>
+                  <v-col cols="4">
                     <h5 class="text-danger mb-1">
                       {{ appointmentStats.statusDistribution.cancelled || 0 }}
                     </h5>
                     <small class="text-muted">Cancelled</small>
-                  </div>
-                </div>
+                  </v-col>
+                </v-row>
                 <div class="mt-3">
-                  <div
-                    class="d-flex justify-content-between align-items-center mb-2"
-                  >
-                    <span>Today's Appointments</span>
-                    <span class="badge bg-primary">{{
-                      appointmentStats.todayAppointments
-                    }}</span>
-                  </div>
-                  <div
-                    class="d-flex justify-content-between align-items-center"
-                  >
-                    <span>This Month</span>
-                    <span class="badge bg-info">{{
-                      appointmentStats.monthlyAppointments
-                    }}</span>
-                  </div>
+                  <v-row class="mb-2">
+                    <v-col cols="6">
+                      <span>Today's Appointments</span>
+                    </v-col>
+                    <v-col cols="6" class="text-end">
+                      <v-chip color="primary">
+                        {{ appointmentStats.todayAppointments }}
+                      </v-chip>
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col cols="6">
+                      <span>This Month</span>
+                    </v-col>
+                    <v-col cols="6" class="text-end">
+                      <v-chip color="info">
+                        {{ appointmentStats.monthlyAppointments }}
+                      </v-chip>
+                    </v-col>
+                  </v-row>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Detailed Reports -->
-        <div class="row mb-4">
+        <v-row class="mb-4">
           <!-- Patient Statistics -->
-          <div class="col-lg-6 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <h5 class="mb-0">Patient Statistics</h5>
-              </div>
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-sm">
-                    <tbody>
-                      <tr>
-                        <td>Total Active Patients</td>
-                        <td class="text-end">
-                          <span class="badge bg-success">{{
-                            patientStats.totalPatients
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>New Patients (This Month)</td>
-                        <td class="text-end">
-                          <span class="badge bg-info">{{
-                            patientStats.recentPatients
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Patients with Appointments</td>
-                        <td class="text-end">
-                          <span class="badge bg-primary">{{
-                            patientsWithAppointments.length
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Average Age</td>
-                        <td class="text-end">
-                          <span class="badge bg-secondary"
-                            >{{ calculateAverageAge() }} years</span
-                          >
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <v-col cols="12" lg="6" class="mb-4">
+            <v-card>
+              <v-card-title>Patient Statistics</v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :headers="patientStatsHeaders"
+                  :items="patientStatsItems"
+                  hide-default-footer
+                  density="compact"
+                >
+                  <template v-slot:item.value="{ item }">
+                    <v-chip :color="item.color" variant="flat">
+                      {{ item.value }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
+          </v-col>
 
           <!-- Staff Performance -->
-          <div class="col-lg-6 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <h5 class="mb-0">Staff Performance</h5>
-              </div>
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-sm">
-                    <tbody>
-                      <tr>
-                        <td>Total Healthcare Staff</td>
-                        <td class="text-end">
-                          <span class="badge bg-primary">{{
-                            staffStats.totalStaff
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Active Nurses</td>
-                        <td class="text-end">
-                          <span class="badge bg-info">{{
-                            staffStats.roleDistribution.Nurse || 0
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Administrators</td>
-                        <td class="text-end">
-                          <span class="badge bg-warning text-dark">{{
-                            staffStats.roleDistribution.Admin || 0
-                          }}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Specializations</td>
-                        <td class="text-end">
-                          <span class="badge bg-secondary">{{
-                            Object.keys(staffStats.specializationDistribution)
-                              .length
-                          }}</span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <v-col cols="12" lg="6" class="mb-4">
+            <v-card>
+              <v-card-title>Staff Performance</v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :headers="staffStatsHeaders"
+                  :items="staffStatsItems"
+                  hide-default-footer
+                  density="compact"
+                >
+                  <template v-slot:item.value="{ item }">
+                    <v-chip :color="item.color" variant="flat">
+                      {{ item.value }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Recent Activity -->
-        <div class="row mb-4">
-          <div class="col-12">
-            <div class="card">
-              <div
-                class="card-header d-flex justify-content-between align-items-center"
-              >
-                <h5 class="mb-0">Recent System Activity</h5>
-                <button
-                  class="btn btn-sm btn-outline-primary"
-                  @click="loadAuditLogs"
-                >
-                  <i class="bi bi-eye me-2"></i>
+        <v-row class="mb-4">
+          <v-col cols="12">
+            <v-card>
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span>Recent System Activity</span>
+                <v-btn variant="outlined" @click="loadAuditLogs">
+                  <v-icon>mdi-eye</v-icon>
                   View All Logs
-                </button>
-              </div>
-              <div class="card-body">
+                </v-btn>
+              </v-card-title>
+              <v-card-text>
                 <div
                   v-if="recentAuditLogs.length === 0"
                   class="text-center p-4"
                 >
-                  <i class="bi bi-activity fs-1 text-muted mb-3"></i>
+                  <v-icon size="x-large" class="text-muted mb-3"
+                    >mdi-activity</v-icon
+                  >
                   <h5 class="text-muted">No recent activity</h5>
                   <p class="text-muted">
                     System activity logs will appear here
@@ -404,9 +321,7 @@
                       :class="getLogLevelClass(log.action)"
                     ></div>
                     <div class="timeline-content">
-                      <div
-                        class="d-flex justify-content-between align-items-start"
-                      >
+                      <div class="d-flex justify-space-between align-start">
                         <div>
                           <h6 class="mb-1">
                             {{ formatLogAction(log.action) }}
@@ -428,81 +343,83 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Export Options -->
-        <div class="row">
-          <div class="col-12">
-            <div class="card">
-              <div class="card-header">
-                <h5 class="mb-0">Report Generation</h5>
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-4 mb-3">
-                    <div class="card border-primary">
-                      <div class="card-body text-center">
-                        <i
-                          class="bi bi-file-earmark-medical fs-1 text-primary mb-3"
-                        ></i>
-                        <h6 class="card-title">Patient Report</h6>
-                        <p class="card-text small">
+        <v-row>
+          <v-col cols="12">
+            <v-card>
+              <v-card-title>Report Generation</v-card-title>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12" md="4" class="mb-3">
+                    <v-card variant="outlined" class="text-center">
+                      <v-card-text>
+                        <v-icon size="x-large" color="primary" class="mb-3"
+                          >mdi-file-medical</v-icon
+                        >
+                        <h6 class="mb-2">Patient Report</h6>
+                        <p class="text-caption mb-3">
                           Comprehensive patient data and demographics
                         </p>
-                        <button
-                          class="btn btn-sm btn-primary"
+                        <v-btn
+                          color="primary"
                           @click="exportReport('patients')"
                         >
                           Generate Report
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-4 mb-3">
-                    <div class="card border-info">
-                      <div class="card-body text-center">
-                        <i class="bi bi-calendar-check fs-1 text-info mb-3"></i>
-                        <h6 class="card-title">Appointment Report</h6>
-                        <p class="card-text small">
+                        </v-btn>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="12" md="4" class="mb-3">
+                    <v-card variant="outlined" class="text-center">
+                      <v-card-text>
+                        <v-icon size="x-large" color="info" class="mb-3"
+                          >mdi-calendar-check</v-icon
+                        >
+                        <h6 class="mb-2">Appointment Report</h6>
+                        <p class="text-caption mb-3">
                           Appointment statistics and scheduling data
                         </p>
-                        <button
-                          class="btn btn-sm btn-info"
+                        <v-btn
+                          color="info"
                           @click="exportReport('appointments')"
                         >
                           Generate Report
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-4 mb-3">
-                    <div class="card border-success">
-                      <div class="card-body text-center">
-                        <i class="bi bi-graph-up fs-1 text-success mb-3"></i>
-                        <h6 class="card-title">Analytics Report</h6>
-                        <p class="card-text small">
+                        </v-btn>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="12" md="4" class="mb-3">
+                    <v-card variant="outlined" class="text-center">
+                      <v-card-text>
+                        <v-icon size="x-large" color="success" class="mb-3"
+                          >mdi-chart-line</v-icon
+                        >
+                        <h6 class="mb-2">Analytics Report</h6>
+                        <p class="text-caption mb-3">
                           System usage and performance metrics
                         </p>
-                        <button
-                          class="btn btn-sm btn-success"
+                        <v-btn
+                          color="success"
                           @click="exportReport('analytics')"
                         >
                           Generate Report
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+                        </v-btn>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
@@ -547,6 +464,63 @@ const calculateAverageAge = () => {
   // This is a simplified calculation
   return 32; // Placeholder
 };
+
+const patientStatsHeaders = [
+  { title: "Metric", key: "metric", width: "60%" },
+  { title: "Value", key: "value", width: "40%" },
+];
+
+const patientStatsItems = computed(() => [
+  {
+    metric: "Total Active Patients",
+    value: patientStats.value.totalPatients,
+    color: "success",
+  },
+  {
+    metric: "New Patients (This Month)",
+    value: patientStats.value.recentPatients,
+    color: "info",
+  },
+  {
+    metric: "Patients with Appointments",
+    value: patientsWithAppointments.value.length,
+    color: "primary",
+  },
+  {
+    metric: "Average Age",
+    value: `${calculateAverageAge()} years`,
+    color: "secondary",
+  },
+]);
+
+const staffStatsHeaders = [
+  { title: "Metric", key: "metric", width: "60%" },
+  { title: "Value", key: "value", width: "40%" },
+];
+
+const staffStatsItems = computed(() => [
+  {
+    metric: "Total Healthcare Staff",
+    value: staffStats.value.totalStaff,
+    color: "primary",
+  },
+  {
+    metric: "Active Nurses",
+    value: staffStats.value.roleDistribution?.Nurse || 0,
+    color: "info",
+  },
+  {
+    metric: "Administrators",
+    value: staffStats.value.roleDistribution?.Admin || 0,
+    color: "warning",
+  },
+  {
+    metric: "Specializations",
+    value: Object.keys(staffStats.value.specializationDistribution || {})
+      .length,
+    color: "secondary",
+  },
+]);
 
 // Methods
 const refreshAllData = async () => {

@@ -1,14 +1,14 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useStore } from 'vuex';
+import { usePatientsStore } from '../../stores/patients';
 import { useRouter } from 'vue-router';
 import { formatDate, formatTimeTo12Hour, formatDateTime } from '../../utils/dateUtils';
 import { addNotification } from '../../utils/notificationUtils';
 
-const store = useStore();
+const patientsStore = usePatientsStore();
 const router = useRouter();
 
-const patients = computed(() => store.state.patients);
+const patients = computed(() => patientsStore.patients);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const selectedPatient = ref(null);
@@ -76,15 +76,12 @@ const mockMedicalRecords = [
   }
 ];
 
-onMounted(() => {
+onMounted(async () => {
   // Load patient data if not already loaded
   if (patients.value.length === 0) {
-    const savedPatients = localStorage.getItem('patientRecords');
-    if (savedPatients) {
-      store.commit('setPatients', JSON.parse(savedPatients));
-    }
+    await patientsStore.loadPatients();
   }
-  
+
   // Load medical records from localStorage or use mock data
   const savedRecords = localStorage.getItem('medicalRecords');
   if (savedRecords) {
@@ -95,7 +92,7 @@ onMounted(() => {
     // Save to localStorage
     localStorage.setItem('medicalRecords', JSON.stringify(mockMedicalRecords));
   }
-  
+
   isLoading.value = false;
 });
 
@@ -295,7 +292,7 @@ const saveRecord = () => {
       };
       
       // Create notification for editing record
-      addNotification(store, {
+      addNotification(patientsStore, {
         title: 'Medical Record Updated',
         message: `Medical record for ${getPatientName(newRecord.value.patientId)} has been updated.`,
         type: 'info',
@@ -317,7 +314,7 @@ const saveRecord = () => {
     medicalRecords.value.push(record);
     
     // Create notification for new record
-    addNotification(store, {
+    addNotification(patientsStore, {
       title: 'New Medical Record',
       message: `A new medical record for ${getPatientName(record.patientId)} has been added.`,
       type: 'success',
@@ -376,7 +373,7 @@ const deleteMedicalRecord = (id) => {
   
   if (recordToDelete) {
     // Create notification for deletion
-    addNotification(store, {
+    addNotification(patientsStore, {
       title: 'Medical Record Deleted',
       message: `Medical record for ${getPatientName(recordToDelete.patientId)} related to "${recordToDelete.condition}" has been deleted.`,
       type: 'warning',
@@ -403,233 +400,200 @@ const cancelAdd = () => {
 </script>
 
 <template>
-  <div class="medical-records">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>Medical Records (Nurse/Clinic Staff View)</h2>
-      <div>
-        <button class="btn btn-primary me-2">
-          <i class="bi bi-printer me-1"></i> Print Records
-        </button>
-        <button class="btn btn-success">
-          <i class="bi bi-calendar-plus me-1"></i> Schedule Follow-up
-        </button>
-      </div>
-    </div>
-    
-    <div class="row">
+  <v-container fluid class="medical-records">
+    <v-row class="mb-4" align="center">
+      <v-col cols="12" md="8">
+        <h2>Medical Records (Nurse/Clinic Staff View)</h2>
+      </v-col>
+      <v-col cols="12" md="4" class="text-right">
+        <v-btn color="primary" prepend-icon="mdi-printer" class="me-2">
+          Print Records
+        </v-btn>
+        <v-btn color="success" prepend-icon="mdi-calendar-plus">
+          Schedule Follow-up
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <v-row>
       <!-- Patient selection sidebar -->
-      <div class="col-md-4 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Patients</h5>
-            <button class="btn btn-sm btn-success" @click="router.push('/patients/new')">
-              <i class="bi bi-plus-circle me-1"></i> Add Patient
-            </button>
-          </div>
-          <div class="card-body p-0">
-            <div class="p-3">
-              <div class="input-group mb-3">
-                <span class="input-group-text">
-                  <i class="bi bi-search"></i>
-                </span>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Search patients..."
-                  v-model="searchQuery"
-                >
-              </div>
-            </div>
+      <v-col cols="12" md="4" class="mb-4">
+        <v-card>
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span>Patients</span>
+            <v-btn size="small" color="success" prepend-icon="mdi-plus-circle" :to="'/patients/new'">
+              Add Patient
+            </v-btn>
+          </v-card-title>
+          <v-card-text class="pa-0">
+            <v-text-field
+              v-model="searchQuery"
+              label="Search patients..."
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              density="compact"
+              class="ma-3"
+            ></v-text-field>
             <div v-if="isLoading" class="text-center my-3">
-              <div class="spinner-border text-primary spinner-border-sm" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
+              <v-progress-circular indeterminate color="primary" size="24"></v-progress-circular>
             </div>
-            <div v-else-if="filteredPatients.length === 0" class="px-3 py-2">
+            <v-alert v-else-if="filteredPatients.length === 0" type="info" class="ma-3">
               No patients found.
-            </div>
-            <ul v-else class="list-group list-group-flush patient-list">
-              <li 
-                v-for="patient in filteredPatients" 
+            </v-alert>
+            <v-list v-else class="patient-list">
+              <v-list-item
+                v-for="patient in filteredPatients"
                 :key="patient.id"
-                class="list-group-item list-group-item-action d-flex align-items-center"
-                :class="{ 'active': selectedPatient && selectedPatient.id === patient.id }"
+                :active="selectedPatient && selectedPatient.id === patient.id"
                 @click="selectPatient(patient)"
               >
-                <div>
-                  <div class="fw-bold">{{ patient.firstName }} {{ patient.lastName }}</div>
-                  <small>
+                <v-list-item-content>
+                  <v-list-item-title class="font-weight-bold">{{ patient.firstName }} {{ patient.lastName }}</v-list-item-title>
+                  <v-list-item-subtitle>
                     <span v-if="patient.dob">Date of Birth: {{ formatDate(patient.dob) }}</span>
                     <span v-if="patient.gender">, {{ patient.gender }}</span>
-                  </small>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      
+                  </v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
       <!-- Medical records display -->
-      <div class="col-md-8">
-        <div v-if="!selectedPatient" class="alert alert-info">
+      <v-col cols="12" md="8">
+        <v-alert v-if="!selectedPatient" type="info">
           Please select a patient to view their medical records.
-        </div>
-        
+        </v-alert>
+
         <div v-else>
-          <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h5 class="mb-0">{{ selectedPatient.firstName }} {{ selectedPatient.lastName }}'s Medical Records</h5>
+          <v-card class="mb-4">
+            <v-card-title class="d-flex justify-space-between align-center">
+              <span>{{ selectedPatient.firstName }} {{ selectedPatient.lastName }}'s Medical Records</span>
               <div>
-                <button @click="addMedicalRecord" class="btn btn-sm btn-success me-2">
-                  <i class="bi bi-plus-circle me-1"></i> Add Record
-                </button>
-                <button @click="viewPatient(selectedPatient.id)" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-person me-1"></i> View Patient
-                </button>
+                <v-btn size="small" color="success" prepend-icon="mdi-plus-circle" @click="addMedicalRecord" class="me-2">
+                  Add Record
+                </v-btn>
+                <v-btn size="small" variant="outlined" color="primary" prepend-icon="mdi-account" @click="viewPatient(selectedPatient.id)">
+                  View Patient
+                </v-btn>
               </div>
-            </div>
-            <div class="card-body">
-              <div v-if="patientRecords.length === 0" class="alert alert-info">
+            </v-card-title>
+            <v-card-text>
+              <v-alert v-if="patientRecords.length === 0" type="info">
                 No medical records found for this patient.
-              </div>
+              </v-alert>
               <div v-else>
-                <div v-for="record in patientRecords" :key="record.id" class="medical-record mb-4">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <h5 class="mb-2">{{ record.condition }}</h5>
-                    <span class="text-muted small">{{ formatDateWithTime(record) }}</span>
-                  </div>
-                  <div class="diagnosis mb-2">
-                    <strong>Diagnosis:</strong> {{ record.diagnosis }}
-                  </div>
-                  <div class="treatment mb-2">
-                    <strong>Treatment Plan:</strong> {{ record.treatmentPlan }}
-                  </div>
-                  <div class="d-flex justify-content-between align-items-center mt-2">
-                    <div class="physician small highlight-note">
-                      <strong>Physician Notes:</strong> {{ record.physicianName }}
+                <v-card
+                  v-for="record in patientRecords"
+                  :key="record.id"
+                  class="medical-record mb-4"
+                  variant="outlined"
+                >
+                  <v-card-text>
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <h5>{{ record.condition }}</h5>
+                      <span class="text-caption">{{ formatDateWithTime(record) }}</span>
                     </div>
-                    <div class="record-actions">
-                      <button @click="editMedicalRecord(record)" class="btn btn-sm btn-outline-primary me-2">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      <button @click="deleteMedicalRecord(record.id)" class="btn btn-sm btn-outline-danger">
-                        <i class="bi bi-trash"></i>
-                      </button>
+                    <div class="mb-2">
+                      <strong>Diagnosis:</strong> {{ record.diagnosis }}
                     </div>
-                  </div>
-                  <hr class="my-3" />
-                </div>
+                    <div class="mb-2">
+                      <strong>Treatment Plan:</strong> {{ record.treatmentPlan }}
+                    </div>
+                    <div class="d-flex justify-space-between align-center mt-2">
+                      <div class="text-caption highlight-note">
+                        <strong>Physician Notes:</strong> {{ record.physicianName }}
+                      </div>
+                      <div class="record-actions">
+                        <v-btn size="small" variant="outlined" color="primary" @click="editMedicalRecord(record)" class="me-2">
+                          <v-icon>mdi-pencil</v-icon>
+                        </v-btn>
+                        <v-btn size="small" variant="outlined" color="error" @click="deleteMedicalRecord(record.id)">
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                      </div>
+                    </div>
+                  </v-card-text>
+                </v-card>
               </div>
-            </div>
-          </div>
+            </v-card-text>
+          </v-card>
         </div>
-      </div>
-    </div>
-    
+      </v-col>
+    </v-row>
+
     <!-- Add Medical Record Modal -->
-    <div class="modal fade" :class="{ 'd-block show': showAddRecordModal }" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              {{ isEditing ? 'Edit' : 'Add' }} Medical Record for {{ selectedPatient?.firstName }} {{ selectedPatient?.lastName }}
-            </h5>
-            <button type="button" class="btn-close" @click="cancelAdd"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveRecord">
-              <div class="mb-3">
-                <label class="form-label">Date</label>
-                <input 
-                  type="date" 
-                  class="form-control"
-                  v-model="newRecord.recordDate"
-                  :class="{ 'is-invalid': formErrors.recordDate }"
-                >
-                <div v-if="formErrors.recordDate" class="invalid-feedback">
-                  {{ formErrors.recordDate }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Time <small class="text-muted">(Optional - current time used if blank)</small></label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newRecord.recordTime"
-                  :class="{ 'is-invalid': formErrors.recordTime }"
-                  placeholder="Format: 1:30 PM or 13:30"
-                >
-                <div v-if="formErrors.recordTime" class="invalid-feedback">
-                  {{ formErrors.recordTime }}
-                </div>
-                <small class="form-text text-muted">
-                  Enter time in 12-hour format (1:30 PM) or 24-hour format (13:30). If left blank, the current time will be automatically used.
-                </small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Condition/Reason</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newRecord.condition"
-                  :class="{ 'is-invalid': formErrors.condition }"
-                  placeholder="e.g., Hypertension, Annual Check-up, etc."
-                >
-                <div v-if="formErrors.condition" class="invalid-feedback">
-                  {{ formErrors.condition }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Diagnosis</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newRecord.diagnosis"
-                  :class="{ 'is-invalid': formErrors.diagnosis }"
-                >
-                <div v-if="formErrors.diagnosis" class="invalid-feedback">
-                  {{ formErrors.diagnosis }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Treatment Plan</label>
-                <textarea 
-                  class="form-control"
-                  v-model="newRecord.treatmentPlan"
-                  rows="3"
-                ></textarea>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Physician Notes</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newRecord.physicianName"
-                  :class="{ 'is-invalid': formErrors.physicianName }"
-                >
-                <div v-if="formErrors.physicianName" class="invalid-feedback">
-                  {{ formErrors.physicianName }}
-                </div>
-              </div>
-              
-              <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-secondary me-2" @click="cancelAdd">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Record</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Modal backdrop -->
-    <div v-if="showAddRecordModal" class="modal-backdrop fade show"></div>
-  </div>
+    <v-dialog v-model="showAddRecordModal" max-width="800px">
+      <v-card>
+        <v-card-title>
+          {{ isEditing ? 'Edit' : 'Add' }} Medical Record for {{ selectedPatient?.firstName }} {{ selectedPatient?.lastName }}
+        </v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="saveRecord">
+            <v-text-field
+              v-model="newRecord.recordDate"
+              label="Date"
+              type="date"
+              variant="outlined"
+              :error-messages="formErrors.recordDate"
+              class="mb-3"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="newRecord.recordTime"
+              label="Time (Optional - current time used if blank)"
+              variant="outlined"
+              :error-messages="formErrors.recordTime"
+              placeholder="Format: 1:30 PM or 13:30"
+              class="mb-3"
+            ></v-text-field>
+            <p class="text-caption mb-3">
+              Enter time in 12-hour format (1:30 PM) or 24-hour format (13:30). If left blank, the current time will be automatically used.
+            </p>
+
+            <v-text-field
+              v-model="newRecord.condition"
+              label="Condition/Reason"
+              variant="outlined"
+              :error-messages="formErrors.condition"
+              placeholder="e.g., Hypertension, Annual Check-up, etc."
+              class="mb-3"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="newRecord.diagnosis"
+              label="Diagnosis"
+              variant="outlined"
+              :error-messages="formErrors.diagnosis"
+              class="mb-3"
+            ></v-text-field>
+
+            <v-textarea
+              v-model="newRecord.treatmentPlan"
+              label="Treatment Plan"
+              variant="outlined"
+              rows="3"
+              class="mb-3"
+            ></v-textarea>
+
+            <v-text-field
+              v-model="newRecord.physicianName"
+              label="Physician Notes"
+              variant="outlined"
+              :error-messages="formErrors.physicianName"
+              class="mb-3"
+            ></v-text-field>
+
+            <v-card-actions class="justify-end">
+              <v-btn variant="outlined" @click="cancelAdd">Cancel</v-btn>
+              <v-btn color="primary" type="submit">Save Record</v-btn>
+            </v-card-actions>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <style scoped>
@@ -651,24 +615,5 @@ const cancelAdd = () => {
 
 .highlight-note {
   color: #6c757d;
-}
-
-/* Modal styles */
-.modal.show {
-  display: block;
-}
-
-.notification-badge {
-  margin-left: 5px;
-  font-size: 0.7rem;
-  padding: 0.2rem 0.4rem;
-}
-
-.notification-badge-collapsed {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  font-size: 0.7rem;
-  padding: 0.2rem 0.4rem;
 }
 </style>

@@ -1,148 +1,216 @@
-<template>
-  <div class="patient-medical-records">
-    <div class="header">
-      <h1>Medical Records for Patient {{ patientId }}</h1>
-      <button @click="goBack" class="btn btn-secondary">Back to Patient</button>
-    </div>
+t<template>
+  <v-container class="patient-medical-records">
+    <v-row>
+      <v-col cols="12">
+        <v-row align="center" justify="space-between" class="mb-4">
+          <v-col cols="auto">
+            <h1>Medical Records for Patient {{ patientId }}</h1>
+          </v-col>
+          <v-col cols="auto">
+            <v-btn variant="outlined" @click="goBack">Back to Patient</v-btn>
+          </v-col>
+        </v-row>
 
-    <div class="records-section">
-      <div class="section-header">
-        <h2>Medical Records</h2>
-        <button @click="showAddRecordModal = true" class="btn btn-primary">
-          Add New Record
-        </button>
-      </div>
+        <v-card class="mb-4">
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span>Medical Records</span>
+            <v-btn
+              color="primary"
+              @click="showAddRecordModal = true"
+            >
+              Add New Record
+            </v-btn>
+          </v-card-title>
+          <v-card-text>
+            <v-row v-if="loading" justify="center" class="my-5">
+              <v-col cols="auto" class="text-center">
+                <v-progress-circular
+                  indeterminate
+                  color="primary"
+                ></v-progress-circular>
+                <p class="mt-2">Loading records...</p>
+              </v-col>
+            </v-row>
 
-      <div v-if="loading" class="loading">Loading records...</div>
+            <v-alert
+              v-else-if="records.length === 0"
+              type="info"
+              class="text-center"
+            >
+              No medical records found for this patient.
+            </v-alert>
 
-      <div v-else-if="records.length === 0" class="no-records">
-        No medical records found for this patient.
-      </div>
-
-      <div v-else class="records-list">
-        <div v-for="record in records" :key="record.id" class="record-card">
-          <div class="record-header">
-            <h3>{{ record.title }}</h3>
-            <span class="record-date">{{ formatDate(record.createdAt) }}</span>
-          </div>
-          <div class="record-content">
-            <p>{{ record.description }}</p>
-            <div class="record-meta">
-              <span>By: {{ record.createdBy }}</span>
-              <span>Type: {{ record.type }}</span>
+            <div v-else>
+              <v-row>
+                <v-col
+                  v-for="record in records"
+                  :key="record.id"
+                  cols="12"
+                  md="6"
+                  lg="4"
+                  class="mb-4"
+                >
+                  <v-card>
+                    <v-card-title
+                      class="d-flex justify-space-between align-center"
+                    >
+                      <span>{{ record.title }}</span>
+                      <span class="text-caption text-medium-emphasis">{{
+                        formatDate(record.createdAt)
+                      }}</span>
+                    </v-card-title>
+                    <v-card-text>
+                      <p>{{ record.description }}</p>
+                      <div
+                        class="d-flex justify-space-between text-caption text-medium-emphasis"
+                      >
+                        <span>By: {{ record.createdBy }}</span>
+                        <span>Type: {{ record.type }}</span>
+                      </div>
+                    </v-card-text>
+                    <v-card-actions>
+                      <v-btn
+                        size="small"
+                        color="info"
+                        variant="outlined"
+                        @click="viewRecord(record)"
+                      >
+                        View Details
+                      </v-btn>
+                      <v-btn
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        @click="editRecord(record)"
+                      >
+                        Edit
+                      </v-btn>
+                      <v-btn
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        @click="deleteRecord(record)"
+                      >
+                        Delete
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-col>
+              </v-row>
             </div>
-          </div>
-          <div class="record-actions">
-            <button @click="viewRecord(record)" class="btn btn-sm btn-info">
-              View Details
-            </button>
-            <button @click="editRecord(record)" class="btn btn-sm btn-warning">
-              Edit
-            </button>
-            <button @click="deleteRecord(record)" class="btn btn-sm btn-danger">
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          </v-card-text>
+        </v-card>
 
-    <!-- Add/Edit Record Modal -->
-    <div v-if="showAddRecordModal || showEditRecordModal" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>{{ showEditRecordModal ? "Edit Record" : "Add New Record" }}</h3>
-          <button @click="closeModal" class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="saveRecord">
-            <div class="form-group">
-              <label for="title">Title</label>
-              <input
-                id="title"
-                v-model="recordForm.title"
-                type="text"
-                required
-                class="form-control"
-              />
-            </div>
-            <div class="form-group">
-              <label for="type">Type</label>
-              <select
-                id="type"
-                v-model="recordForm.type"
-                required
-                class="form-control"
-              >
-                <option value="">Select Type</option>
-                <option value="diagnosis">Diagnosis</option>
-                <option value="treatment">Treatment</option>
-                <option value="prescription">Prescription</option>
-                <option value="lab_result">Lab Result</option>
-                <option value="note">Note</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="description">Description</label>
-              <textarea
-                id="description"
-                v-model="recordForm.description"
-                required
-                class="form-control"
-                rows="4"
-              ></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                {{ showEditRecordModal ? "Update" : "Save" }}
-              </button>
-              <button
-                type="button"
+        <!-- Add/Edit Record Dialog -->
+        <v-dialog v-model="dialogModel" max-width="600px">
+          <v-card>
+            <v-card-title>
+              {{ showEditRecordModal ? "Edit Record" : "Add New Record" }}
+              <v-spacer></v-spacer>
+              <v-btn
+                icon="mdi-close"
+                variant="text"
                 @click="closeModal"
-                class="btn btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+              ></v-btn>
+            </v-card-title>
+            <v-card-text>
+              <v-form @submit.prevent="saveRecord">
+                <v-select
+                  v-model="recordForm.appointmentId"
+                  :items="appointments"
+                  item-title="(item) => `${formatDate(item.dateTime)} - ${item.status}`"
+                  item-value="id"
+                  label="Appointment"
+                  required
+                  class="mb-3"
+                ></v-select>
 
-    <!-- View Record Modal -->
-    <div v-if="showViewRecordModal" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>{{ selectedRecord?.title }}</h3>
-          <button @click="closeModal" class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="record-details">
-            <p><strong>Type:</strong> {{ selectedRecord?.type }}</p>
-            <p>
-              <strong>Description:</strong> {{ selectedRecord?.description }}
-            </p>
-            <p><strong>Created By:</strong> {{ selectedRecord?.createdBy }}</p>
-            <p>
-              <strong>Created At:</strong>
-              {{ formatDate(selectedRecord?.createdAt) }}
-            </p>
-            <p>
-              <strong>Last Updated:</strong>
-              {{ formatDate(selectedRecord?.updatedAt) }}
-            </p>
-          </div>
-          <div class="form-actions">
-            <button @click="closeModal" class="btn btn-secondary">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+                <v-text-field
+                  v-model="recordForm.title"
+                  label="Title"
+                  required
+                  class="mb-3"
+                ></v-text-field>
+
+                <v-select
+                  v-model="recordForm.type"
+                  :items="[
+                    { text: 'Diagnosis', value: 'diagnosis' },
+                    { text: 'Treatment', value: 'treatment' },
+                    { text: 'Prescription', value: 'prescription' },
+                    { text: 'Lab Result', value: 'lab_result' },
+                    { text: 'Note', value: 'note' },
+                  ]"
+                  label="Type"
+                  required
+                  class="mb-3"
+                ></v-select>
+
+                <v-textarea
+                  v-model="recordForm.description"
+                  label="Description"
+                  required
+                  rows="4"
+                  class="mb-3"
+                ></v-textarea>
+
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn variant="text" @click="closeModal">Cancel</v-btn>
+                  <v-btn color="primary" type="submit" :loading="saving">
+                    {{ showEditRecordModal ? "Update" : "Save" }}
+                  </v-btn>
+                </v-card-actions>
+              </v-form>
+            </v-card-text>
+          </v-card>
+        </v-dialog>
+
+        <!-- View Record Dialog -->
+        <v-dialog v-model="showViewRecordModal" max-width="600px">
+          <v-card>
+            <v-card-title>
+              {{ selectedRecord?.title }}
+              <v-spacer></v-spacer>
+              <v-btn
+                icon="mdi-close"
+                variant="text"
+                @click="closeModal"
+              ></v-btn>
+            </v-card-title>
+            <v-card-text>
+              <div class="record-details">
+                <p><strong>Type:</strong> {{ selectedRecord?.type }}</p>
+                <p>
+                  <strong>Description:</strong>
+                  {{ selectedRecord?.description }}
+                </p>
+                <p>
+                  <strong>Created By:</strong> {{ selectedRecord?.createdBy }}
+                </p>
+                <p>
+                  <strong>Created At:</strong>
+                  {{ formatDate(selectedRecord?.createdAt) }}
+                </p>
+                <p>
+                  <strong>Last Updated:</strong>
+                  {{ formatDate(selectedRecord?.updatedAt) }}
+                </p>
+              </div>
+              <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn variant="text" @click="closeModal">Close</v-btn>
+              </v-card-actions>
+            </v-card-text>
+          </v-card>
+        </v-dialog>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { medicalRecordService } from "@/services/medicalRecordService";
 import appointmentService from "@/services/appointmentService";
@@ -164,6 +232,15 @@ export default {
     const showEditRecordModal = ref(false);
     const showViewRecordModal = ref(false);
     const selectedRecord = ref(null);
+
+    const dialogModel = computed({
+      get: () => showAddRecordModal.value || showEditRecordModal.value,
+      set: (value) => {
+        if (!value) {
+          closeModal();
+        }
+      },
+    });
 
     const recordForm = ref({
       appointmentId: null,
@@ -201,12 +278,17 @@ export default {
       }
     };
 
+    const saving = ref(false);
+
     const saveRecord = async () => {
+      saving.value = true;
       try {
         const recordData = {
           appointmentId: recordForm.value.appointmentId,
           enteredBy: authStore.user?.id,
           notes: recordForm.value.description,
+          diagnosisId: recordForm.value.diagnosisId,
+          treatmentId: recordForm.value.treatmentId,
         };
 
         if (showEditRecordModal.value) {
@@ -224,6 +306,8 @@ export default {
       } catch (error) {
         console.error("Error saving record:", error);
         // Handle error
+      } finally {
+        saving.value = false;
       }
     };
 
@@ -297,6 +381,8 @@ export default {
       showViewRecordModal,
       selectedRecord,
       recordForm,
+      dialogModel,
+      saving,
       fetchRecords,
       saveRecord,
       editRecord,
@@ -389,64 +475,7 @@ export default {
   gap: 10px;
 }
 
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
 
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: #545b62;
-}
-
-.btn-info {
-  background-color: #17a2b8;
-  color: white;
-}
-
-.btn-info:hover {
-  background-color: #138496;
-}
-
-.btn-warning {
-  background-color: #ffc107;
-  color: #212529;
-}
-
-.btn-warning:hover {
-  background-color: #e0a800;
-}
-
-.btn-danger {
-  background-color: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover {
-  background-color: #c82333;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
 
 .modal-overlay {
   position: fixed;

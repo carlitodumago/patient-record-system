@@ -1,246 +1,177 @@
 <template>
-  <div class="container-fluid mt-3">
-    <h1 class="mb-2">Admin Dashboard</h1>
-    <p class="text-muted">System overview and management</p>
+  <v-container fluid class="mt-3">
+    <v-row>
+      <v-col cols="12">
+        <h1 class="mb-2">Admin Dashboard</h1>
+        <p class="text-muted">System overview and management</p>
+      </v-col>
+    </v-row>
 
-    <div class="row mt-4">
-      <div class="col-md-3 mb-4">
-        <div class="card bg-primary text-white">
-          <div
-            class="card-body d-flex justify-content-between align-items-center"
-          >
+    <v-row class="mt-4">
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="primary" dark>
+          <v-card-text class="d-flex justify-space-between align-center">
             <div>
-              <h5 class="card-title">150</h5>
-              <p class="card-text">Total Records</p>
+              <div class="text-h5">150</div>
+              <div class="text-body-2">Total Records</div>
             </div>
-            <i class="bi bi-file-earmark-text display-4"></i>
-          </div>
-        </div>
-      </div>
+            <v-icon size="48" class="opacity-70">mdi-file-document</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-      <div class="col-md-3 mb-4">
-        <div class="card bg-success text-white">
-          <div
-            class="card-body d-flex justify-content-between align-items-center"
-          >
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="success" dark>
+          <v-card-text class="d-flex justify-space-between align-center">
             <div>
-              <h5 class="card-title">25</h5>
-              <p class="card-text">Total Patients</p>
+              <div class="text-h5">25</div>
+              <div class="text-body-2">Total Patients</div>
             </div>
-            <i class="bi bi-people display-4"></i>
-          </div>
-        </div>
-      </div>
+            <v-icon size="48" class="opacity-70">mdi-account-group</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-      <div class="col-md-3 mb-4">
-        <div class="card bg-info text-white">
-          <div
-            class="card-body d-flex justify-content-between align-items-center"
-          >
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="info" dark>
+          <v-card-text class="d-flex justify-space-between align-center">
             <div>
-              <h5 class="card-title">8</h5>
-              <p class="card-text">Staff Members</p>
+              <div class="text-h5">8</div>
+              <div class="text-body-2">Staff Members</div>
             </div>
-            <i class="bi bi-person-badge display-4"></i>
-          </div>
-        </div>
-      </div>
+            <v-icon size="48" class="opacity-70">mdi-account-badge</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-      <div class="col-md-3 mb-4">
-        <div class="card bg-warning text-dark">
-          <div
-            class="card-body d-flex justify-content-between align-items-center"
-          >
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="warning" dark>
+          <v-card-text class="d-flex justify-space-between align-center">
             <div>
-              <h5 class="card-title">10</h5>
-              <p class="card-text">Pending Reviews</p>
+              <div class="text-h5">10</div>
+              <div class="text-body-2">Pending Reviews</div>
             </div>
-            <i class="bi bi-clock-history display-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
+            <v-icon size="48" class="opacity-70">mdi-clock-outline</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
-    <div class="row mt-4">
-      <div class="col-md-6 mb-4">
-        <div class="card">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
-            <h5 class="mb-0">System Users</h5>
-            <button class="btn btn-sm btn-primary">
-              <i class="bi bi-plus-circle me-1"></i> Add User
-            </button>
-          </div>
-          <div class="card-body">
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Role</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>John Smith</td>
-                  <td>Admin</td>
-                  <td><span class="badge bg-success">Active</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Sarah Johnson</td>
-                  <td>Nurse</td>
-                  <td><span class="badge bg-success">Active</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Michael Brown</td>
-                  <td>Patient</td>
-                  <td><span class="badge bg-secondary">Inactive</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+    <v-row class="mt-4">
+      <v-col cols="12" md="6" class="mb-4">
+        <v-card>
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span>System Users</span>
+            <v-btn size="small" color="primary">
+              <v-icon left>mdi-plus-circle</v-icon>
+              Add User
+            </v-btn>
+          </v-card-title>
+          <v-card-text>
+            <v-data-table
+              :headers="userHeaders"
+              :items="users"
+              :items-per-page="5"
+              density="compact"
+            >
+              <template v-slot:item.status="{ item }">
+                <v-chip
+                  :color="item.status === 'Active' ? 'success' : 'secondary'"
+                  size="small"
+                >
+                  {{ item.status }}
+                </v-chip>
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn icon size="small" color="primary" class="mr-1">
+                  <v-icon>mdi-pencil</v-icon>
+                </v-btn>
+                <v-btn icon size="small" color="error">
+                  <v-icon>mdi-delete</v-icon>
+                </v-btn>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-      <div class="col-md-6 mb-4">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">System Activity</h5>
-          </div>
-          <div class="card-body">
-            <ul class="list-group">
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>New patient registered</strong>
-                  <div class="text-muted small">Jane Doe</div>
-                </div>
-                <span class="text-muted small">10 minutes ago</span>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>Medical record updated</strong>
-                  <div class="text-muted small">Patient ID: 12345</div>
-                </div>
-                <span class="text-muted small">1 hour ago</span>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>Staff login</strong>
-                  <div class="text-muted small">Dr. Williams</div>
-                </div>
-                <span class="text-muted small">2 hours ago</span>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>System backup</strong>
-                  <div class="text-muted small">Automatic backup completed</div>
-                </div>
-                <span class="text-muted small">6 hours ago</span>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>Patient record accessed</strong>
-                  <div class="text-muted small">Patient ID: 54321</div>
-                </div>
-                <span class="text-muted small">Yesterday</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
+      <v-col cols="12" md="6" class="mb-4">
+        <v-card>
+          <v-card-title>System Activity</v-card-title>
+          <v-card-text>
+            <v-list>
+              <v-list-item v-for="activity in activities" :key="activity.id">
+                <v-list-item-content>
+                  <v-list-item-title>{{ activity.title }}</v-list-item-title>
+                  <v-list-item-subtitle>{{
+                    activity.description
+                  }}</v-list-item-subtitle>
+                </v-list-item-content>
+                <v-list-item-action>
+                  <v-list-item-action-text>{{
+                    activity.time
+                  }}</v-list-item-action-text>
+                </v-list-item-action>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
-    <div class="row mt-4">
-      <div class="col-12">
-        <div class="card">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
-            <h5 class="mb-0">System Settings</h5>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <div class="card">
-                  <div class="card-body">
-                    <h6 class="card-title">User Management</h6>
-                    <p class="card-text small">
+    <v-row class="mt-4">
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>System Settings</v-card-title>
+          <v-card-text>
+            <v-row>
+              <v-col cols="12" md="4" class="mb-3">
+                <v-card variant="outlined">
+                  <v-card-text>
+                    <v-card-title class="text-h6">User Management</v-card-title>
+                    <p class="text-body-2">
                       Manage system users, roles, and permissions
                     </p>
-                    <button class="btn btn-sm btn-outline-primary">
+                    <v-btn size="small" variant="outlined" color="primary">
                       Configure
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4 mb-3">
-                <div class="card">
-                  <div class="card-body">
-                    <h6 class="card-title">Backup & Restore</h6>
-                    <p class="card-text small">
+                    </v-btn>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="12" md="4" class="mb-3">
+                <v-card variant="outlined">
+                  <v-card-text>
+                    <v-card-title class="text-h6"
+                      >Backup & Restore</v-card-title
+                    >
+                    <p class="text-body-2">
                       Configure system backup settings and restore points
                     </p>
-                    <button class="btn btn-sm btn-outline-primary">
+                    <v-btn size="small" variant="outlined" color="primary">
                       Configure
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4 mb-3">
-                <div class="card">
-                  <div class="card-body">
-                    <h6 class="card-title">System Logs</h6>
-                    <p class="card-text small">
+                    </v-btn>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="12" md="4" class="mb-3">
+                <v-card variant="outlined">
+                  <v-card-text>
+                    <v-card-title class="text-h6">System Logs</v-card-title>
+                    <p class="text-body-2">
                       View and export system activity logs
                     </p>
-                    <button class="btn btn-sm btn-outline-primary">
+                    <v-btn size="small" variant="outlined" color="primary">
                       View Logs
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+                    </v-btn>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
@@ -255,38 +186,51 @@ const notificationsStore = useNotificationsStore();
 
 // Reactive data
 const isLoading = ref(true);
-const quickActions = ref([
-  {
-    title: "Add New User",
-    description: "Create accounts for patients or staff",
-    icon: "bi-person-plus",
-    color: "primary",
-    action: () => navigateTo("/admin/users"),
-  },
-  {
-    title: "Schedule Appointment",
-    description: "Book appointments for patients",
-    icon: "bi-calendar-plus",
-    color: "success",
-    action: () => navigateTo("/admin/appointments"),
-  },
-  {
-    title: "Add Medical Record",
-    description: "Record patient health information",
-    icon: "bi-file-earmark-plus",
-    color: "info",
-    action: () => navigateTo("/admin/medical-records"),
-  },
-  {
-    title: "View Reports",
-    description: "Generate system analytics",
-    icon: "bi-graph-up",
-    color: "warning",
-    action: () => navigateTo("/admin/reports"),
-  },
+const userHeaders = ref([
+  { title: "Name", key: "name" },
+  { title: "Role", key: "role" },
+  { title: "Status", key: "status" },
+  { title: "Actions", key: "actions", sortable: false },
 ]);
 
-const systemActivity = ref([]);
+const users = ref([
+  { name: "John Smith", role: "Admin", status: "Active" },
+  { name: "Sarah Johnson", role: "Nurse", status: "Active" },
+  { name: "Michael Brown", role: "Patient", status: "Inactive" },
+]);
+
+const activities = ref([
+  {
+    id: 1,
+    title: "New patient registered",
+    description: "Jane Doe",
+    time: "10 minutes ago",
+  },
+  {
+    id: 2,
+    title: "Medical record updated",
+    description: "Patient ID: 12345",
+    time: "1 hour ago",
+  },
+  {
+    id: 3,
+    title: "Staff login",
+    description: "Dr. Williams",
+    time: "2 hours ago",
+  },
+  {
+    id: 4,
+    title: "System backup",
+    description: "Automatic backup completed",
+    time: "6 hours ago",
+  },
+  {
+    id: 5,
+    title: "Patient record accessed",
+    description: "Patient ID: 54321",
+    time: "Yesterday",
+  },
+]);
 
 onMounted(async () => {
   await loadDashboardData();

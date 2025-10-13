@@ -1,430 +1,341 @@
 <template>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
+  <v-container class="mt-3">
+    <v-row>
+      <v-col cols="12">
+        <v-row class="mb-4" align="center" justify="space-between">
+          <v-col>
             <h1 class="mb-1">Notifications</h1>
-            <p class="text-muted">
+            <p class="text--secondary">
               Stay updated with system alerts and reminders
             </p>
-          </div>
-          <div class="d-flex gap-2">
-            <button
-              class="btn btn-outline-primary"
+          </v-col>
+          <v-col cols="auto">
+            <v-btn
+              color="primary"
+              outlined
               @click="markAllAsRead"
               :disabled="unreadCount === 0"
+              class="me-2"
             >
-              <i class="bi bi-check-all me-2"></i>
+              <v-icon left>mdi-check-all</v-icon>
               Mark All Read
-            </button>
-            <button
-              class="btn btn-outline-secondary"
+            </v-btn>
+            <v-btn
+              color="secondary"
+              outlined
               @click="refreshNotifications"
               :disabled="isRefreshing"
             >
-              <i class="bi bi-arrow-clockwise me-2"></i>
+              <v-icon left>mdi-refresh</v-icon>
               Refresh
-            </button>
-          </div>
-        </div>
+            </v-btn>
+          </v-col>
+        </v-row>
 
         <!-- Notification Statistics -->
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+        <v-row class="mb-4">
+          <v-col cols="12" md="3">
+            <v-card color="primary" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ totalNotifications }}</h5>
-                  <small>Total Notifications</small>
+                  <div class="text-h5 mb-1">{{ totalNotifications }}</div>
+                  <div class="text-caption">Total Notifications</div>
                 </div>
-                <i class="bi bi-bell fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-dark">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48">mdi-bell</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="warning" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ unreadCount }}</h5>
-                  <small>Unread</small>
+                  <div class="text-h5 mb-1">{{ unreadCount }}</div>
+                  <div class="text-caption">Unread</div>
                 </div>
-                <i class="bi bi-envelope-exclamation fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48">mdi-email-alert</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="info" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
+                  <div class="text-h5 mb-1">
                     {{ notificationsByType("appointment").length }}
-                  </h5>
-                  <small>Appointments</small>
+                  </div>
+                  <div class="text-caption">Appointments</div>
                 </div>
-                <i class="bi bi-calendar-event fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="48">mdi-calendar</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="success" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
+                  <div class="text-h5 mb-1">
                     {{ notificationsByType("system").length }}
-                  </h5>
-                  <small>System</small>
+                  </div>
+                  <div class="text-caption">System</div>
                 </div>
-                <i class="bi bi-gear fs-3"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+                <v-icon size="48">mdi-cog</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Filters -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-4">
-                <select
+        <v-card class="mb-4">
+          <v-card-text>
+            <v-row align="center">
+              <v-col cols="12" md="4">
+                <v-select
                   v-model="notificationFilters.type"
                   @change="applyFilters"
-                  class="form-select"
-                >
-                  <option value="">All Types</option>
-                  <option value="appointment">Appointments</option>
-                  <option value="system">System</option>
-                  <option value="medical">Medical Records</option>
-                  <option value="info">Information</option>
-                  <option value="warning">Warnings</option>
-                  <option value="success">Success</option>
-                  <option value="danger">Alerts</option>
-                </select>
-              </div>
-              <div class="col-md-4">
-                <select
+                  :items="notificationTypes"
+                  label="All Types"
+                  clearable
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-select
                   v-model="notificationFilters.status"
                   @change="applyFilters"
-                  class="form-select"
-                >
-                  <option value="">All Status</option>
-                  <option value="read">Read</option>
-                  <option value="unread">Unread</option>
-                </select>
-              </div>
-              <div class="col-md-4">
-                <div class="input-group">
-                  <input
-                    type="text"
-                    v-model="notificationFilters.search"
-                    @input="debounceSearch"
-                    class="form-control"
-                    placeholder="Search notifications..."
-                  />
-                  <button class="btn btn-outline-secondary" type="button">
-                    <i class="bi bi-search"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                  :items="statusOptions"
+                  label="All Status"
+                  clearable
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="notificationFilters.search"
+                  @input="debounceSearch"
+                  label="Search notifications..."
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                ></v-text-field>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
 
         <!-- Notifications List -->
-        <div class="card">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
-            <h5 class="mb-0">Recent Notifications</h5>
-            <div class="d-flex gap-2">
-              <div class="dropdown">
-                <button
-                  class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                >
-                  <i class="bi bi-filter me-2"></i>
-                  Filter
-                </button>
-                <ul class="dropdown-menu">
-                  <li>
-                    <button class="dropdown-item" @click="showUnreadOnly">
-                      <i class="bi bi-envelope-exclamation me-2"></i>
-                      Unread Only
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      class="dropdown-item"
-                      @click="showByType('appointment')"
-                    >
-                      <i class="bi bi-calendar-event me-2"></i>
-                      Appointments
-                    </button>
-                  </li>
-                  <li>
-                    <button class="dropdown-item" @click="showByType('system')">
-                      <i class="bi bi-gear me-2"></i>
-                      System
-                    </button>
-                  </li>
-                  <li><hr class="dropdown-divider" /></li>
-                  <li>
-                    <button class="dropdown-item text-danger" @click="clearAll">
-                      <i class="bi bi-trash me-2"></i>
-                      Clear All
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div v-if="isLoading" class="text-center p-4">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </div>
+        <v-card>
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span>Recent Notifications</span>
+            <v-menu>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon v-bind="attrs" v-on="on">
+                  <v-icon>mdi-filter</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="showUnreadOnly">
+                  <v-list-item-icon>
+                    <v-icon>mdi-email-alert</v-icon>
+                  </v-list-item-icon>
+                  <v-list-item-content>
+                    <v-list-item-title>Unread Only</v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+                <v-list-item @click="showByType('appointment')">
+                  <v-list-item-icon>
+                    <v-icon>mdi-calendar</v-icon>
+                  </v-list-item-icon>
+                  <v-list-item-content>
+                    <v-list-item-title>Appointments</v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+                <v-list-item @click="showByType('system')">
+                  <v-list-item-icon>
+                    <v-icon>mdi-cog</v-icon>
+                  </v-list-item-icon>
+                  <v-list-item-content>
+                    <v-list-item-title>System</v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+                <v-divider></v-divider>
+                <v-list-item @click="clearAll" class="error--text">
+                  <v-list-item-icon>
+                    <v-icon color="error">mdi-delete</v-icon>
+                  </v-list-item-icon>
+                  <v-list-item-content>
+                    <v-list-item-title>Clear All</v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </v-card-title>
+
+          <v-card-text class="pa-0">
+            <v-progress-circular
+              v-if="isLoading"
+              indeterminate
+              color="primary"
+              class="d-block mx-auto my-4"
+            ></v-progress-circular>
 
             <div
               v-else-if="filteredNotifications.length === 0"
-              class="text-center p-4"
+              class="text-center pa-4"
             >
-              <i class="bi bi-bell-slash fs-1 text-muted mb-3"></i>
-              <h5 class="text-muted">No notifications found</h5>
-              <p class="text-muted">You're all caught up!</p>
+              <v-icon size="64" color="grey lighten-1" class="mb-3"
+                >mdi-bell-off</v-icon
+              >
+              <h3 class="text--secondary">No notifications found</h3>
+              <p class="text--secondary">You're all caught up!</p>
             </div>
 
-            <div v-else class="list-group list-group-flush">
-              <div
+            <v-list v-else>
+              <v-list-item
                 v-for="notification in paginatedNotifications"
                 :key="notification.id"
-                class="list-group-item list-group-item-action"
-                :class="{ 'unread-notification': !notification.read }"
                 @click="viewNotification(notification)"
+                :class="{ 'unread-notification': !notification.read }"
               >
-                <div
-                  class="d-flex w-100 justify-content-between align-items-start"
-                >
-                  <div class="d-flex align-items-start">
-                    <div class="notification-icon me-3">
-                      <i
-                        :class="getNotificationIcon(notification.type)"
-                        class="fs-5"
-                      ></i>
-                    </div>
-                    <div class="flex-grow-1">
-                      <div
-                        class="d-flex justify-content-between align-items-start"
-                      >
-                        <div>
-                          <h6 class="mb-1">{{ notification.title }}</h6>
-                          <p class="mb-1 text-muted">
-                            {{ notification.message }}
-                          </p>
-                          <small class="text-muted">
-                            {{ formatNotificationDate(notification.date) }}
-                          </small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                          <span
-                            :class="
-                              getNotificationBadgeClass(notification.type)
-                            "
-                          >
-                            {{ formatNotificationType(notification.type) }}
-                          </span>
-                          <div class="dropdown">
-                            <button
-                              class="btn btn-sm btn-outline-secondary"
-                              type="button"
-                              data-bs-toggle="dropdown"
-                              @click.stop
-                            >
-                              <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                              <li>
-                                <button
-                                  class="dropdown-item"
-                                  @click.stop="markAsRead(notification.id)"
-                                >
-                                  <i class="bi bi-check me-2"></i>
-                                  Mark as Read
-                                </button>
-                              </li>
-                              <li>
-                                <button
-                                  class="dropdown-item text-danger"
-                                  @click.stop="
-                                    deleteNotification(notification.id)
-                                  "
-                                >
-                                  <i class="bi bi-trash me-2"></i>
-                                  Delete
-                                </button>
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <v-list-item-avatar>
+                  <v-icon :color="getNotificationIconColor(notification.type)">
+                    {{ getNotificationIcon(notification.type) }}
+                  </v-icon>
+                </v-list-item-avatar>
+                <v-list-item-content>
+                  <v-list-item-title>{{
+                    notification.title
+                  }}</v-list-item-title>
+                  <v-list-item-subtitle>{{
+                    notification.message
+                  }}</v-list-item-subtitle>
+                  <div class="d-flex align-center mt-2">
+                    <v-chip
+                      :color="getNotificationChipColor(notification.type)"
+                      small
+                      class="me-2"
+                    >
+                      {{ formatNotificationType(notification.type) }}
+                    </v-chip>
+                    <span class="text-caption text--secondary">
+                      {{ formatNotificationDate(notification.date) }}
+                    </span>
                   </div>
-                </div>
-              </div>
-            </div>
+                </v-list-item-content>
+                <v-list-item-action>
+                  <v-menu>
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-btn icon v-bind="attrs" v-on="on" @click.stop>
+                        <v-icon>mdi-dots-vertical</v-icon>
+                      </v-btn>
+                    </template>
+                    <v-list>
+                      <v-list-item @click.stop="markAsRead(notification.id)">
+                        <v-list-item-icon>
+                          <v-icon>mdi-check</v-icon>
+                        </v-list-item-icon>
+                        <v-list-item-content>
+                          <v-list-item-title>Mark as Read</v-list-item-title>
+                        </v-list-item-content>
+                      </v-list-item>
+                      <v-list-item
+                        @click.stop="deleteNotification(notification.id)"
+                        class="error--text"
+                      >
+                        <v-list-item-icon>
+                          <v-icon color="error">mdi-delete</v-icon>
+                        </v-list-item-icon>
+                        <v-list-item-content>
+                          <v-list-item-title>Delete</v-list-item-title>
+                        </v-list-item-content>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </v-list-item-action>
+              </v-list-item>
+            </v-list>
 
             <!-- Pagination -->
-            <div v-if="totalPages > 1" class="card-footer">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted">
-                  Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to
-                  {{
-                    Math.min(
-                      currentPage * itemsPerPage,
-                      filteredNotifications.length
-                    )
-                  }}
-                  of {{ filteredNotifications.length }} notifications
-                </div>
-                <nav>
-                  <ul class="pagination pagination-sm mb-0">
-                    <li
-                      class="page-item"
-                      :class="{ disabled: currentPage === 1 }"
-                    >
-                      <button
-                        class="page-link"
-                        @click="currentPage = Math.max(1, currentPage - 1)"
-                      >
-                        Previous
-                      </button>
-                    </li>
-                    <li
-                      v-for="page in visiblePages"
-                      :key="page"
-                      class="page-item"
-                      :class="{ active: page === currentPage }"
-                    >
-                      <button class="page-link" @click="currentPage = page">
-                        {{ page }}
-                      </button>
-                    </li>
-                    <li
-                      class="page-item"
-                      :class="{ disabled: currentPage === totalPages }"
-                    >
-                      <button
-                        class="page-link"
-                        @click="
-                          currentPage = Math.min(totalPages, currentPage + 1)
-                        "
-                      >
-                        Next
-                      </button>
-                    </li>
-                  </ul>
-                </nav>
+            <v-card-actions v-if="totalPages > 1" class="justify-space-between">
+              <div class="text-caption text--secondary">
+                Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to
+                {{
+                  Math.min(
+                    currentPage * itemsPerPage,
+                    filteredNotifications.length
+                  )
+                }}
+                of {{ filteredNotifications.length }} notifications
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              <v-pagination
+                v-model="currentPage"
+                :length="totalPages"
+                :total-visible="5"
+              ></v-pagination>
+            </v-card-actions>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
-    <!-- Notification Detail Modal -->
-    <div
-      class="modal fade"
-      :class="{ show: showNotificationModal }"
-      :style="{ display: showNotificationModal ? 'block' : 'none' }"
-      tabindex="-1"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">{{ selectedNotification?.title }}</h5>
-            <button
-              type="button"
-              class="btn-close"
-              @click="closeNotificationModal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <div v-if="selectedNotification">
-              <div class="d-flex align-items-center mb-3">
-                <i
-                  :class="getNotificationIcon(selectedNotification.type)"
-                  class="fs-4 me-3"
-                ></i>
-                <div>
-                  <span
-                    :class="
-                      getNotificationBadgeClass(selectedNotification.type)
-                    "
-                  >
-                    {{ formatNotificationType(selectedNotification.type) }}
-                  </span>
-                  <small class="text-muted ms-2">
-                    {{ formatNotificationDate(selectedNotification.date) }}
-                  </small>
-                </div>
-              </div>
-              <p class="mb-3">{{ selectedNotification.message }}</p>
-              <div
-                v-if="selectedNotification.data"
-                class="bg-light p-3 rounded"
-              >
-                <h6>Additional Information:</h6>
-                <pre class="mb-0">{{
-                  JSON.stringify(selectedNotification.data, null, 2)
-                }}</pre>
-              </div>
+    <!-- Notification Detail Dialog -->
+    <v-dialog v-model="showNotificationModal" max-width="600">
+      <v-card>
+        <v-card-title>
+          <v-icon
+            :color="getNotificationIconColor(selectedNotification?.type)"
+            class="me-3"
+          >
+            {{ getNotificationIcon(selectedNotification?.type) }}
+          </v-icon>
+          {{ selectedNotification?.title }}
+          <v-spacer></v-spacer>
+          <v-btn icon @click="closeNotificationModal">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <div v-if="selectedNotification">
+            <v-chip
+              :color="getNotificationChipColor(selectedNotification.type)"
+              class="mb-3"
+            >
+              {{ formatNotificationType(selectedNotification.type) }}
+            </v-chip>
+            <p class="mb-3">{{ selectedNotification.message }}</p>
+            <div class="text-caption text--secondary mb-3">
+              {{ formatNotificationDate(selectedNotification.date) }}
             </div>
+            <v-card v-if="selectedNotification.data" outlined class="pa-3">
+              <div class="text-subtitle-2 mb-2">Additional Information:</div>
+              <pre class="text-body-2">{{
+                JSON.stringify(selectedNotification.data, null, 2)
+              }}</pre>
+            </v-card>
           </div>
-          <div class="modal-footer">
-            <button
-              v-if="!selectedNotification?.read"
-              type="button"
-              class="btn btn-primary"
-              @click="markAsRead(selectedNotification?.id)"
-            >
-              <i class="bi bi-check me-2"></i>
-              Mark as Read
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="closeNotificationModal"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Backdrop for modal -->
-    <div
-      v-if="showNotificationModal"
-      class="modal-backdrop fade show"
-      @click="closeNotificationModal"
-    ></div>
-  </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            v-if="!selectedNotification?.read"
+            color="primary"
+            @click="markAsRead(selectedNotification?.id)"
+          >
+            <v-icon left>mdi-check</v-icon>
+            Mark as Read
+          </v-btn>
+          <v-btn color="secondary" @click="closeNotificationModal">
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useNotificationsStore } from "@/stores/notifications";
+import { useAuthStore } from "@/stores/auth";
 
 const notificationsStore = useNotificationsStore();
+const authStore = useAuthStore();
 
 // Reactive data
 const isLoading = ref(false);
@@ -440,6 +351,22 @@ const notificationFilters = ref({
 
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
+
+// Data for selects
+const notificationTypes = [
+  { text: "Appointments", value: "appointment" },
+  { text: "System", value: "system" },
+  { text: "Medical Records", value: "medical" },
+  { text: "Information", value: "info" },
+  { text: "Warnings", value: "warning" },
+  { text: "Success", value: "success" },
+  { text: "Alerts", value: "danger" },
+];
+
+const statusOptions = [
+  { text: "Read", value: "read" },
+  { text: "Unread", value: "unread" },
+];
 
 // Computed properties
 const notifications = computed(() => notificationsStore.notifications);
@@ -491,36 +418,20 @@ const totalPages = computed(() => {
   return Math.ceil(filteredNotifications.value.length / itemsPerPage.value);
 });
 
-const visiblePages = computed(() => {
-  const pages = [];
-  const maxVisible = 5;
-  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2));
-  let end = Math.min(totalPages.value, start + maxVisible - 1);
-
-  if (end - start + 1 < maxVisible) {
-    start = Math.max(1, end - maxVisible + 1);
-  }
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-
-  return pages;
-});
-
 const notificationsByType = computed(() => {
   return (type) => notifications.value.filter((n) => n.type === type);
 });
 
 // Methods
-const loadNotifications = () => {
-  notificationsStore.loadNotifications();
+const loadNotifications = async () => {
+  if (authStore.user?.id) {
+    await notificationsStore.loadNotifications(authStore.user.id);
+  }
 };
 
 const refreshNotifications = async () => {
   isRefreshing.value = true;
   try {
-    // In a real app, this would fetch from the server
     await loadNotifications();
   } finally {
     isRefreshing.value = false;
@@ -537,7 +448,9 @@ const markAsRead = (notificationId) => {
 };
 
 const markAllAsRead = () => {
-  notificationsStore.markAllAsRead();
+  if (authStore.user?.id) {
+    notificationsStore.markAllAsRead(authStore.user.id);
+  }
 };
 
 const deleteNotification = (notificationId) => {
@@ -553,7 +466,9 @@ const deleteNotification = (notificationId) => {
 
 const clearAll = () => {
   if (confirm("Delete all notifications? This action cannot be undone.")) {
-    notificationsStore.clearAll();
+    if (authStore.user?.id) {
+      notificationsStore.clearAll(authStore.user.id);
+    }
     closeNotificationModal();
   }
 };
@@ -594,28 +509,41 @@ const debounceSearch = debounce(() => {
 // Helper functions
 const getNotificationIcon = (type) => {
   const icons = {
-    appointment: "bi bi-calendar-event text-primary",
-    system: "bi bi-gear text-secondary",
-    medical: "bi bi-file-earmark-medical text-success",
-    info: "bi bi-info-circle text-info",
-    warning: "bi bi-exclamation-triangle text-warning",
-    success: "bi bi-check-circle text-success",
-    danger: "bi bi-exclamation-circle text-danger",
+    appointment: "mdi-calendar",
+    system: "mdi-cog",
+    medical: "mdi-file-document",
+    info: "mdi-information",
+    warning: "mdi-alert",
+    success: "mdi-check-circle",
+    danger: "mdi-alert-circle",
   };
-  return icons[type] || "bi bi-bell text-muted";
+  return icons[type] || "mdi-bell";
 };
 
-const getNotificationBadgeClass = (type) => {
-  const classes = {
-    appointment: "badge bg-primary",
-    system: "badge bg-secondary",
-    medical: "badge bg-success",
-    info: "badge bg-info",
-    warning: "badge bg-warning text-dark",
-    success: "badge bg-success",
-    danger: "badge bg-danger",
+const getNotificationIconColor = (type) => {
+  const colors = {
+    appointment: "primary",
+    system: "secondary",
+    medical: "success",
+    info: "info",
+    warning: "warning",
+    success: "success",
+    danger: "error",
   };
-  return classes[type] || "badge bg-secondary";
+  return colors[type] || "grey";
+};
+
+const getNotificationChipColor = (type) => {
+  const colors = {
+    appointment: "primary",
+    system: "secondary",
+    medical: "success",
+    info: "info",
+    warning: "warning",
+    success: "success",
+    danger: "error",
+  };
+  return colors[type] || "grey";
 };
 
 const formatNotificationType = (type) => {
@@ -661,6 +589,13 @@ const debounce = (func, wait) => {
 // Lifecycle
 onMounted(() => {
   loadNotifications();
+  if (authStore.user?.id) {
+    notificationsStore.subscribeToNotifications(authStore.user.id);
+  }
+});
+
+onUnmounted(() => {
+  notificationsStore.unsubscribeFromNotifications();
 });
 </script>
 

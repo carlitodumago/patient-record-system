@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { formatDate, formatDateTime, formatTimeTo12Hour } from '../utils/dateUtils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const store = useStore();
 const router = useRouter();
@@ -12,6 +14,14 @@ const visits = ref([]);
 const records = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
+
+const headers = [
+  { title: 'Date & Time', key: 'formattedDateTime' },
+  { title: 'Type', key: 'type' },
+  { title: 'Patient Name', key: 'patientName' },
+  { title: 'Description / Condition', key: 'description' },
+  { title: 'Actions', key: 'actions' },
+];
 
 // Get patient name by ID
 const getPatientName = (patientId) => {
@@ -120,6 +130,76 @@ const historyItems = computed(() => {
     });
 });
 
+// Download PDF function
+const downloadPDF = async (item) => {
+  try {
+    // Create a new jsPDF instance
+    const pdf = new jsPDF();
+
+    // Add header
+    pdf.setFontSize(20);
+    pdf.text('Medical Record Report', 20, 30);
+
+    // Add patient information
+    pdf.setFontSize(14);
+    pdf.text(`Patient: ${item.patientName}`, 20, 50);
+    pdf.text(`Date & Time: ${item.formattedDateTime}`, 20, 60);
+    pdf.text(`Type: ${item.type}`, 20, 70);
+
+    // Add description
+    pdf.setFontSize(12);
+    pdf.text('Description:', 20, 90);
+    const descriptionLines = pdf.splitTextToSize(item.description || 'No description available', 170);
+    pdf.text(descriptionLines, 20, 100);
+
+    // Add additional details based on type
+    let yPosition = 100 + (descriptionLines.length * 5) + 10;
+
+    if (item.type === 'Visit') {
+      pdf.text(`Purpose: ${item.purpose || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Physician: ${item.physicianName || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Status: ${item.status || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      if (item.notes) {
+        pdf.text('Notes:', 20, yPosition);
+        yPosition += 10;
+        const notesLines = pdf.splitTextToSize(item.notes, 170);
+        pdf.text(notesLines, 20, yPosition);
+      }
+    } else if (item.type === 'Record') {
+      pdf.text(`Condition: ${item.condition || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Diagnosis: ${item.diagnosis || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Treatment: ${item.treatment || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      if (item.notes) {
+        pdf.text('Notes:', 20, yPosition);
+        yPosition += 10;
+        const notesLines = pdf.splitTextToSize(item.notes, 170);
+        pdf.text(notesLines, 20, yPosition);
+      }
+    }
+
+    // Add footer
+    const pageHeight = pdf.internal.pageSize.height;
+    pdf.setFontSize(10);
+    pdf.text(`Generated on: ${new Date().toLocaleString()}`, 20, pageHeight - 20);
+
+    // Save the PDF
+    const fileName = `${item.patientName.replace(/\s+/g, '_')}_${item.type}_${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(fileName);
+
+    // Show success message
+    alert('PDF downloaded successfully!');
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    alert('Error generating PDF. Please try again.');
+  }
+};
+
 onMounted(() => {
   // Load patient data if not already loaded
   if (patients.value.length === 0) {
@@ -128,82 +208,71 @@ onMounted(() => {
       store.commit('setPatients', JSON.parse(savedPatients));
     }
   }
-  
+
   // Load visits from localStorage
   const savedVisits = localStorage.getItem('medicalVisits');
   if (savedVisits) {
     visits.value = JSON.parse(savedVisits);
   }
-  
+
   // Load medical records from localStorage
   const savedRecords = localStorage.getItem('medicalRecords');
   if (savedRecords) {
     records.value = JSON.parse(savedRecords);
   }
-  
+
   isLoading.value = false;
 });
 </script>
 
 <template>
-  <div class="medical-history container-fluid mt-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>Medical History Records</h2>
-    </div>
-    
-    <div class="card">
-      <div class="card-body">
+  <v-container fluid class="mt-3">
+    <v-card>
+      <v-card-title>Medical History Records</v-card-title>
+      <v-card-text>
         <div v-if="isLoading" class="text-center">
           Loading...
         </div>
-        <div v-else-if="historyItems.length === 0" class="alert alert-info mb-0">
+        <v-alert v-else-if="historyItems.length === 0" type="info">
           No medical history records found.
-        </div>
-        <div v-else class="table-responsive">
-          <table class="table table-striped table-hover mb-0">
-            <thead>
-              <tr>
-                <th scope="col">Date & Time</th>
-                <th scope="col">Type</th>
-                <th scope="col">Patient Name</th>
-                <th scope="col">Description / Condition</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in historyItems" :key="`${item.type}-${item.id}`">
-                <td>{{ item.formattedDateTime }}</td>
-                <td>{{ item.type }}</td>
-                <td>{{ item.patientName }}</td>
-                <td>{{ item.description }}</td>
-                <td>
-                  <!-- Link to view details - adjust route as needed -->
-                  <router-link
-                    :to="item.type === 'Visit' ? `/patients/${item.patientId}?tab=visits` : `/records?record=${item.id}`"
-                    class="btn btn-sm btn-outline-primary me-1"
-                  >
-                    View
-                  </router-link>
-                   <!-- Download Button (Placeholder) -->
-                   <button class="btn btn-sm btn-outline-secondary me-1">
-                       <i class="bi bi-download"></i>
-                   </button>
-                   <!-- Edit Button (Placeholder) -->
-                  <button class="btn btn-sm btn-outline-primary me-1">
-                      <i class="bi bi-pencil"></i>
-                  </button>
-                  <!-- Delete Button (Placeholder) -->
-                   <button class="btn btn-sm btn-outline-danger">
-                       <i class="bi bi-trash"></i>
-                   </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+        </v-alert>
+        <v-data-table
+          v-else
+          :headers="headers"
+          :items="historyItems"
+          class="elevation-1"
+          hide-default-footer
+        >
+          <template v-slot:item.actions="{ item }">
+            <v-btn
+              size="small"
+              variant="outlined"
+              color="primary"
+              class="me-1"
+              :to="item.type === 'Visit' ? `/patients/${item.patientId}?tab=visits` : `/records?record=${item.id}`"
+            >
+              View
+            </v-btn>
+            <v-btn
+              size="small"
+              variant="outlined"
+              color="secondary"
+              class="me-1"
+              @click="downloadPDF(item)"
+            >
+              <v-icon>mdi-download</v-icon>
+            </v-btn>
+            <v-btn size="small" variant="outlined" color="primary" class="me-1">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+            <v-btn size="small" variant="outlined" color="error">
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+          </template>
+        </v-data-table>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <style scoped>

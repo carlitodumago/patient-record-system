@@ -29,6 +29,16 @@ const newVisit = ref({
 });
 const formErrors = ref({});
 
+const headers = [
+  { title: 'Patient', key: 'patient' },
+  { title: 'Date & Time', key: 'dateTime' },
+  { title: 'Purpose', key: 'purpose' },
+  { title: 'Physician', key: 'physicianName' },
+  { title: 'Status', key: 'status' },
+  { title: 'Notes', key: 'notes' },
+  { title: 'Actions', key: 'actions', sortable: false }
+];
+
 // Mock visit data for demonstration
 const mockVisits = [
   {
@@ -443,330 +453,277 @@ const markAsCompleted = (id) => {
 </script>
 
 <template>
-  <div class="medical-appointments container-fluid mt-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>Medical Appointments</h2>
-      <div>
-        <button @click="createCompletedVisit" class="btn btn-primary me-2">
-          <i class="bi bi-plus-circle me-2"></i> New Visit
-        </button>
-        <button @click="scheduleVisit" class="btn btn-success">
-          <i class="bi bi-calendar-plus me-2"></i> Schedule Visit
-        </button>
-      </div>
-    </div>
-    
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <div class="card search-card">
-          <div class="card-body p-2">
-            <div class="input-group">
-              <span class="input-group-text">
-                <i class="bi bi-search"></i>
-              </span>
-              <input
-                type="text"
-                class="form-control search-input"
-                placeholder="Search by patient name, purpose, or physician..."
-                v-model="searchQuery"
-              >
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4 offset-md-2">
-        <div class="card filter-card ms-auto">
-          <div class="card-body">
-            <select v-model="selectedFilter" class="form-select">
-              <option value="all">All Visits</option>
-              <option value="upcoming">Upcoming Visits</option>
-              <option value="completed">Completed Visits</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div v-if="isLoading" class="text-center my-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-2">Loading visit records...</p>
-    </div>
-    
-    <div v-else-if="filteredVisits.length === 0" class="alert alert-info">
+  <v-container fluid>
+    <v-card class="mb-4">
+      <v-card-title>Medical Appointments</v-card-title>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn @click="createCompletedVisit" color="primary" class="me-2">
+          <v-icon>mdi-plus-circle</v-icon>
+          New Visit
+        </v-btn>
+        <v-btn @click="scheduleVisit" color="success">
+          <v-icon>mdi-calendar-plus</v-icon>
+          Schedule Visit
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+
+    <v-row class="mb-4">
+      <v-col cols="12" md="6">
+        <v-card>
+          <v-card-text>
+            <v-text-field
+              v-model="searchQuery"
+              label="Search by patient name, purpose, or physician..."
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              density="compact"
+            ></v-text-field>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="4" offset-md="2">
+        <v-card>
+          <v-card-text>
+            <v-select
+              v-model="selectedFilter"
+              :items="[
+                { title: 'All Visits', value: 'all' },
+                { title: 'Upcoming Visits', value: 'upcoming' },
+                { title: 'Completed Visits', value: 'completed' }
+              ]"
+              label="Filter"
+              variant="outlined"
+              density="compact"
+            ></v-select>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-progress-circular v-if="isLoading" indeterminate color="primary" class="d-block mx-auto my-5"></v-progress-circular>
+
+    <v-alert v-else-if="filteredVisits.length === 0" type="info">
       No medical visits match your search criteria.
-    </div>
-    
-    <div v-else class="table-responsive">
-      <table class="table table-hover">
-        <thead class="table-light">
-          <tr>
-            <th>Patient</th>
-            <th>Date & Time</th>
-            <th>Purpose</th>
-            <th>Physician</th>
-            <th>Status</th>
-            <th>Notes</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="visit in filteredVisits" :key="visit.id" :class="{ 'upcoming-visit': visit.status === 'upcoming' }">
-            <td>{{ getPatientName(visit.patientId) }}</td>
-            <td>
-              <div>{{ formatDateMMDDYYYY(visit.visitDate) }}</div>
-              <small class="text-muted">{{ getVisitTime(visit) }}</small>
-            </td>
-            <td>{{ visit.purpose }}</td>
-            <td>{{ visit.physicianName }}</td>
-            <td>
-              <span 
-                :class="['badge', visit.status === 'upcoming' ? 'bg-primary' : 'bg-success']"
-              >
-                {{ visit.status === 'upcoming' ? 'Upcoming' : 'Completed' }}
-              </span>
-            </td>
-            <td>
-              <span class="text-truncate d-inline-block" style="max-width: 200px;" :title="visit.notes">
-                {{ visit.notes }}
-              </span>
-            </td>
-            <td>
-              <div class="btn-group">
-                <button @click="viewVisit(visit.id)" class="btn btn-sm btn-outline-primary" title="View Details">
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button @click="editVisit(visit.id)" class="btn btn-sm btn-outline-secondary" title="Edit Visit">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button @click="deleteVisit(visit.id)" class="btn btn-sm btn-outline-danger" title="Delete Visit">
-                  <i class="bi bi-trash"></i>
-                </button>
-                <button 
-                  v-if="visit.status === 'upcoming'" 
-                  @click="markAsCompleted(visit.id)" 
-                  class="btn btn-sm btn-outline-success"
-                  title="Mark as Completed"
-                >
-                  <i class="bi bi-check-circle"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    
-    <!-- Schedule Visit Modal -->
-    <div class="modal fade" :class="{ 'd-block show': showScheduleModal }" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">{{ newVisit.status === 'upcoming' ? 'Schedule New Visit' : 'Add Completed Visit' }}</h5>
-            <button type="button" class="btn-close" @click="cancelSchedule"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveVisit">
-              <div class="mb-3">
-                <label class="form-label">Patient</label>
-                <select 
-                  class="form-select" 
-                  v-model="newVisit.patientId"
-                  :class="{ 'is-invalid': formErrors.patientId }"
-                >
-                  <option value="">Select Patient</option>
-                  <option v-for="patient in patients" :key="patient.id" :value="patient.id">
-                    {{ patient.firstName }} {{ patient.lastName }}
-                  </option>
-                </select>
-                <div v-if="formErrors.patientId" class="invalid-feedback">
-                  {{ formErrors.patientId }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Visit Date</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newVisit.visitDate"
-                  :class="{ 'is-invalid': formErrors.visitDate }"
-                  placeholder="MM/DD/YYYY"
-                >
-                <div v-if="formErrors.visitDate" class="invalid-feedback">
-                  {{ formErrors.visitDate }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Visit Time <small class="text-muted">(Optional - current time used if blank)</small></label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newVisit.visitTime"
-                  :class="{ 'is-invalid': formErrors.visitTime }"
-                  placeholder="Format: 1:30 PM or 13:30"
-                >
-                <div v-if="formErrors.visitTime" class="invalid-feedback">
-                  {{ formErrors.visitTime }}
-                </div>
-                <small class="form-text text-muted">
-                  Enter time in 12-hour format (1:30 PM) or 24-hour format (13:30). If left blank, the current time will be automatically used.
-                </small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Purpose</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newVisit.purpose"
-                  :class="{ 'is-invalid': formErrors.purpose }"
-                >
-                <div v-if="formErrors.purpose" class="invalid-feedback">
-                  {{ formErrors.purpose }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Physician</label>
-                <input 
-                  type="text" 
-                  class="form-control"
-                  v-model="newVisit.physicianName"
-                  :class="{ 'is-invalid': formErrors.physicianName }"
-                >
-                <div v-if="formErrors.physicianName" class="invalid-feedback">
-                  {{ formErrors.physicianName }}
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Notes</label>
-                <textarea 
-                  class="form-control"
-                  v-model="newVisit.notes"
-                  rows="3"
-                ></textarea>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="cancelSchedule">Cancel</button>
-            <button type="button" class="btn btn-primary" @click="saveVisit">
-              {{ newVisit.status === 'upcoming' ? 'Schedule Visit' : 'Save Visit' }}
-            </button>
-          </div>
+    </v-alert>
+
+    <v-data-table
+      v-else
+      :headers="headers"
+      :items="filteredVisits"
+      :items-per-page="10"
+      class="elevation-1"
+    >
+      <template v-slot:item.patient="{ item }">
+        {{ getPatientName(item.patientId) }}
+      </template>
+      <template v-slot:item.dateTime="{ item }">
+        <div>
+          <div>{{ formatDateMMDDYYYY(item.visitDate) }}</div>
+          <small class="text-caption">{{ getVisitTime(item) }}</small>
         </div>
-      </div>
-    </div>
-    <div v-if="showScheduleModal" class="modal-backdrop fade show"></div>
+      </template>
+      <template v-slot:item.status="{ item }">
+        <v-chip
+          :color="item.status === 'upcoming' ? 'primary' : 'success'"
+          size="small"
+        >
+          {{ item.status === 'upcoming' ? 'Upcoming' : 'Completed' }}
+        </v-chip>
+      </template>
+      <template v-slot:item.notes="{ item }">
+        <span class="text-truncate" style="max-width: 200px;" :title="item.notes">
+          {{ item.notes }}
+        </span>
+      </template>
+      <template v-slot:item.actions="{ item }">
+        <v-btn-group>
+          <v-btn @click="viewVisit(item.id)" variant="outlined" color="primary" size="small" title="View Details">
+            <v-icon>mdi-eye</v-icon>
+          </v-btn>
+          <v-btn @click="editVisit(item.id)" variant="outlined" color="secondary" size="small" title="Edit Visit">
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn @click="deleteVisit(item.id)" variant="outlined" color="error" size="small" title="Delete Visit">
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
+          <v-btn
+            v-if="item.status === 'upcoming'"
+            @click="markAsCompleted(item.id)"
+            variant="outlined"
+            color="success"
+            size="small"
+            title="Mark as Completed"
+          >
+            <v-icon>mdi-check-circle</v-icon>
+          </v-btn>
+        </v-btn-group>
+      </template>
+    </v-data-table>
+
+    <!-- Schedule Visit Modal -->
+    <v-dialog v-model="showScheduleModal" max-width="600px">
+      <v-card>
+        <v-card-title>
+          {{ newVisit.status === 'upcoming' ? 'Schedule New Visit' : 'Add Completed Visit' }}
+        </v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="saveVisit">
+            <v-select
+              v-model="newVisit.patientId"
+              :items="patients.map(p => ({ title: `${p.firstName} ${p.lastName}`, value: p.id }))"
+              label="Patient"
+              :error-messages="formErrors.patientId"
+              required
+            ></v-select>
+
+            <v-text-field
+              v-model="newVisit.visitDate"
+              label="Visit Date"
+              placeholder="MM/DD/YYYY"
+              :error-messages="formErrors.visitDate"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="newVisit.visitTime"
+              label="Visit Time (Optional - current time used if blank)"
+              placeholder="Format: 1:30 PM or 13:30"
+              :error-messages="formErrors.visitTime"
+              hint="Enter time in 12-hour format (1:30 PM) or 24-hour format (13:30). If left blank, the current time will be automatically used."
+            ></v-text-field>
+
+            <v-text-field
+              v-model="newVisit.purpose"
+              label="Purpose"
+              :error-messages="formErrors.purpose"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="newVisit.physicianName"
+              label="Physician"
+              :error-messages="formErrors.physicianName"
+              required
+            ></v-text-field>
+
+            <v-textarea
+              v-model="newVisit.notes"
+              label="Notes"
+              rows="3"
+            ></v-textarea>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn @click="cancelSchedule" variant="outlined">Cancel</v-btn>
+          <v-btn @click="saveVisit" color="primary">
+            {{ newVisit.status === 'upcoming' ? 'Schedule Visit' : 'Save Visit' }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- View Visit Modal -->
-    <div class="modal fade" :class="{ 'd-block show': showViewModal }" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-          <div class="modal-header" :class="{'bg-primary text-white': selectedVisit && selectedVisit.status === 'upcoming', 'bg-success text-white': selectedVisit && selectedVisit.status === 'completed'}">
-            <h5 class="modal-title">
-              <i class="bi bi-calendar-check me-2"></i>
-              {{ selectedVisit ? (selectedVisit.status === 'upcoming' ? 'Upcoming Visit' : 'Completed Visit') : 'Visit Details' }}
-            </h5>
-            <button type="button" class="btn-close" @click="closeViewModal"></button>
+    <v-dialog v-model="showViewModal" max-width="800px">
+      <v-card>
+        <v-card-title
+          :class="selectedVisit && selectedVisit.status === 'upcoming' ? 'bg-primary text-white' : 'bg-success text-white'"
+        >
+          <v-icon class="me-2">mdi-calendar-check</v-icon>
+          {{ selectedVisit ? (selectedVisit.status === 'upcoming' ? 'Upcoming Visit' : 'Completed Visit') : 'Visit Details' }}
+        </v-card-title>
+        <v-card-text>
+          <div v-if="selectedVisit" class="visit-details">
+            <v-row class="mb-4">
+              <v-col cols="12" md="6">
+                <v-card height="100%">
+                  <v-card-title class="bg-light">Basic Information</v-card-title>
+                  <v-card-text>
+                    <div class="mb-2">
+                      <strong class="text-caption">Patient:</strong>
+                      <div class="text-h6">{{ getPatientName(selectedVisit.patientId) }}</div>
+                    </div>
+                    <div class="mb-2">
+                      <strong class="text-caption">Date & Time:</strong>
+                      <div>
+                        {{ formatDateMMDDYYYY(selectedVisit.visitDate) }}
+                        <v-chip class="ms-2" variant="outlined">{{ getVisitTime(selectedVisit) }}</v-chip>
+                      </div>
+                    </div>
+                    <div class="mb-2">
+                      <strong class="text-caption">Status:</strong>
+                      <div>
+                        <v-chip
+                          :color="selectedVisit.status === 'upcoming' ? 'primary' : 'success'"
+                          size="small"
+                        >
+                          {{ selectedVisit.status === 'upcoming' ? 'Upcoming' : 'Completed' }}
+                        </v-chip>
+                      </div>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-card height="100%">
+                  <v-card-title class="bg-light">Visit Details</v-card-title>
+                  <v-card-text>
+                    <div class="mb-2">
+                      <strong class="text-caption">Purpose:</strong>
+                      <div class="text-h6">{{ selectedVisit.purpose }}</div>
+                    </div>
+                    <div class="mb-2">
+                      <strong class="text-caption">Physician:</strong>
+                      <div>{{ selectedVisit.physicianName }}</div>
+                    </div>
+                    <div class="mb-2">
+                      <strong class="text-caption">Created On:</strong>
+                      <div>{{ selectedVisit.timestamp ? formatDateTime(selectedVisit.timestamp) : 'Not Available' }}</div>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <v-card>
+              <v-card-title class="bg-light">Notes</v-card-title>
+              <v-card-text>
+                <p class="text-body-1 mb-0">{{ selectedVisit.notes || 'No notes available for this visit.' }}</p>
+              </v-card-text>
+            </v-card>
           </div>
-          <div class="modal-body">
-            <div v-if="selectedVisit" class="visit-details">
-              <div class="row mb-4">
-                <div class="col-md-6">
-                  <div class="card h-100">
-                    <div class="card-header bg-light">
-                      <h6 class="mb-0">Basic Information</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-2">
-                        <strong class="text-muted">Patient:</strong>
-                        <div class="fs-5">{{ getPatientName(selectedVisit.patientId) }}</div>
-                      </div>
-                      <div class="mb-2">
-                        <strong class="text-muted">Date & Time:</strong>
-                        <div>
-                          {{ formatDateMMDDYYYY(selectedVisit.visitDate) }}
-                          <span class="ms-2 badge bg-light text-dark">{{ getVisitTime(selectedVisit) }}</span>
-                        </div>
-                      </div>
-                      <div class="mb-2">
-                        <strong class="text-muted">Status:</strong>
-                        <div>
-                          <span 
-                            :class="['badge', selectedVisit.status === 'upcoming' ? 'bg-primary' : 'bg-success']"
-                          >
-                            {{ selectedVisit.status === 'upcoming' ? 'Upcoming' : 'Completed' }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="card h-100">
-                    <div class="card-header bg-light">
-                      <h6 class="mb-0">Visit Details</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-2">
-                        <strong class="text-muted">Purpose:</strong>
-                        <div class="fs-5">{{ selectedVisit.purpose }}</div>
-                      </div>
-                      <div class="mb-2">
-                        <strong class="text-muted">Physician:</strong>
-                        <div>{{ selectedVisit.physicianName }}</div>
-                      </div>
-                      <div class="mb-2">
-                        <strong class="text-muted">Created On:</strong>
-                        <div>{{ selectedVisit.timestamp ? formatDateTime(selectedVisit.timestamp) : 'Not Available' }}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="card mb-0">
-                <div class="card-header bg-light">
-                  <h6 class="mb-0">Notes</h6>
-                </div>
-                <div class="card-body">
-                  <p class="notes-text mb-0">{{ selectedVisit.notes || 'No notes available for this visit.' }}</p>
-                </div>
-              </div>
+        </v-card-text>
+        <v-card-actions>
+          <div class="d-flex justify-space-between w-100">
+            <div>
+              <v-btn
+                v-if="selectedVisit && selectedVisit.status === 'upcoming'"
+                @click="markAsCompleted(selectedVisit.id); closeViewModal();"
+                color="success"
+                class="me-2"
+              >
+                <v-icon>mdi-check-circle</v-icon>
+                Mark as Completed
+              </v-btn>
+            </div>
+            <div>
+              <v-btn @click="closeViewModal" variant="outlined" class="me-2">Close</v-btn>
+              <v-btn @click="editVisit(selectedVisit.id); closeViewModal();" variant="outlined" color="primary" class="me-2">
+                <v-icon>mdi-pencil</v-icon>
+                Edit
+              </v-btn>
+              <v-btn @click="navigateToPatient" color="primary">
+                <v-icon>mdi-account</v-icon>
+                View Patient
+              </v-btn>
             </div>
           </div>
-          <div class="modal-footer">
-            <div class="d-flex justify-content-between w-100">
-              <div>
-                <button 
-                  v-if="selectedVisit && selectedVisit.status === 'upcoming'" 
-                  @click="markAsCompleted(selectedVisit.id); closeViewModal();" 
-                  class="btn btn-success me-2"
-                >
-                  <i class="bi bi-check-circle me-1"></i> Mark as Completed
-                </button>
-              </div>
-              <div>
-                <button type="button" class="btn btn-outline-secondary me-2" @click="closeViewModal">Close</button>
-                <button type="button" class="btn btn-outline-primary me-2" @click="editVisit(selectedVisit.id); closeViewModal();">
-                  <i class="bi bi-pencil me-1"></i> Edit
-                </button>
-                <button type="button" class="btn btn-primary" @click="navigateToPatient">
-                  <i class="bi bi-person me-1"></i> View Patient
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div v-if="showViewModal" class="modal-backdrop fade show"></div>
-  </div>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <style scoped>

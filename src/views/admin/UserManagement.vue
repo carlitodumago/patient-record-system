@@ -1,451 +1,363 @@
 <template>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <div class="col-12">
+  <v-container class="mt-3">
+    <v-row>
+      <v-col cols="12">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h1 class="mb-1">User Management</h1>
             <p class="text-muted">Create and manage system users</p>
           </div>
-          <button class="btn btn-primary" @click="showCreateUserModal = true">
-            <i class="bi bi-plus-circle me-2"></i>
+          <v-btn color="primary" @click="showCreateUserModal = true">
+            <v-icon left>mdi-plus-circle</v-icon>
             Create New User
-          </button>
+          </v-btn>
         </div>
 
         <!-- User Statistics Cards -->
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+        <v-row class="mb-4">
+          <v-col cols="12" md="3">
+            <v-card color="primary" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ systemStats.users.total }}</h5>
+                  <h5 class="mb-0">{{ systemStats.users.total }}</h5>
                   <small>Total Users</small>
                 </div>
-                <i class="bi bi-people-fill fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="large">mdi-account-group</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="success" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ systemStats.patients.total }}
-                  </h5>
+                  <h5 class="mb-0">{{ systemStats.patients.total }}</h5>
                   <small>Total Patients</small>
                 </div>
-                <i class="bi bi-person-heart fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="large">mdi-account-heart</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="info" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">{{ systemStats.staff.total }}</h5>
+                  <h5 class="mb-0">{{ systemStats.staff.total }}</h5>
                   <small>Staff Members</small>
                 </div>
-                <i class="bi bi-person-badge fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-dark">
-              <div
-                class="card-body d-flex justify-content-between align-items-center"
-              >
+                <v-icon size="large">mdi-account-badge</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-card color="warning" dark>
+              <v-card-text class="d-flex justify-space-between align-center">
                 <div>
-                  <h5 class="card-title mb-0">
-                    {{ systemStats.users.recent }}
-                  </h5>
+                  <h5 class="mb-0">{{ systemStats.users.recent }}</h5>
                   <small>New This Month</small>
                 </div>
-                <i class="bi bi-graph-up fs-3"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+                <v-icon size="large">mdi-chart-line</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
 
         <!-- Users Table -->
-        <div class="card">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
+        <v-card>
+          <v-card-title class="d-flex justify-space-between align-center">
             <h5 class="mb-0">All Users</h5>
             <div class="d-flex gap-2">
-              <select
+              <v-select
                 v-model="userFilters.role"
                 @change="loadUsers"
-                class="form-select form-select-sm"
-                style="width: auto"
+                :items="roleOptions"
+                item-text="text"
+                item-value="value"
+                dense
+                outlined
+                style="width: 150px"
+                label="All Roles"
+              ></v-select>
+              <v-text-field
+                v-model="userFilters.search"
+                @input="debounceSearch"
+                dense
+                outlined
+                placeholder="Search users..."
+                style="width: 250px"
+                prepend-inner-icon="mdi-magnify"
+              ></v-text-field>
+            </div>
+          </v-card-title>
+          <v-data-table
+            :headers="headers"
+            :items="users"
+            :loading="isLoading"
+            item-key="user_id"
+            class="elevation-1"
+          >
+            <template v-slot:no-data>
+              <v-alert type="info" class="ma-4">
+                <v-icon left>mdi-account-group</v-icon>
+                No users found. Create your first user to get started.
+              </v-alert>
+            </template>
+
+            <template v-slot:item.name="{ item }">
+              <div class="d-flex align-center">
+                <v-avatar size="32" color="primary" class="mr-2">
+                  <span class="white--text">{{ getInitials(item) }}</span>
+                </v-avatar>
+                <div>
+                  <div class="font-weight-medium">{{ getFullName(item) }}</div>
+                  <div class="text-caption text-medium-emphasis">
+                    {{ getUserType(item) }}
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-slot:item.username="{ item }">
+              <v-chip variant="outlined" size="small">{{
+                item.username
+              }}</v-chip>
+            </template>
+
+            <template v-slot:item.role="{ item }">
+              <v-chip
+                :color="getRoleChipColor(item.roles?.role_name)"
+                size="small"
+                variant="flat"
               >
-                <option value="">All Roles</option>
-                <option value="1">Admin</option>
-                <option value="2">Nurse</option>
-                <option value="3">Staff</option>
-                <option value="4">Patient</option>
-              </select>
-              <div class="input-group input-group-sm" style="width: 250px">
-                <input
-                  type="text"
-                  v-model="userFilters.search"
-                  @input="debounceSearch"
-                  class="form-control"
-                  placeholder="Search users..."
-                />
-                <button class="btn btn-outline-secondary" type="button">
-                  <i class="bi bi-search"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div v-if="isLoading" class="text-center p-4">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </div>
+                {{ item.roles?.role_name || "Unknown" }}
+              </v-chip>
+            </template>
 
-            <div v-else-if="users.length === 0" class="text-center p-4">
-              <i class="bi bi-people fs-1 text-muted mb-3"></i>
-              <h5 class="text-muted">No users found</h5>
-              <p class="text-muted">Create your first user to get started</p>
-            </div>
+            <template v-slot:item.status="{ item }">
+              <v-chip
+                :color="item.is_active ? 'success' : 'grey'"
+                size="small"
+                variant="flat"
+              >
+                {{ item.is_active ? "Active" : "Inactive" }}
+              </v-chip>
+            </template>
 
-            <div v-else class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="user in users" :key="user.user_id">
-                    <td>
-                      <div class="d-flex align-items-center">
-                        <div class="avatar-sm me-3">
-                          <div
-                            class="avatar-title bg-primary-subtle text-primary rounded-circle"
-                          >
-                            {{ getInitials(user) }}
-                          </div>
-                        </div>
-                        <div>
-                          <h6 class="mb-0">{{ getFullName(user) }}</h6>
-                          <small class="text-muted">{{
-                            getUserType(user)
-                          }}</small>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <code class="bg-light px-2 py-1 rounded">{{
-                        user.username
-                      }}</code>
-                    </td>
-                    <td>{{ user.email }}</td>
-                    <td>
-                      <span :class="getRoleBadgeClass(user.roles?.role_name)">
-                        {{ user.roles?.role_name || "Unknown" }}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        :class="
-                          user.is_active
-                            ? 'badge bg-success'
-                            : 'badge bg-secondary'
-                        "
-                      >
-                        {{ user.is_active ? "Active" : "Inactive" }}
-                      </span>
-                    </td>
-                    <td>
-                      <small class="text-muted">
-                        {{ formatDate(user.created_at) }}
-                      </small>
-                    </td>
-                    <td>
-                      <div class="dropdown">
-                        <button
-                          class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                          type="button"
-                          data-bs-toggle="dropdown"
-                        >
-                          Actions
-                        </button>
-                        <ul class="dropdown-menu">
-                          <li>
-                            <button
-                              class="dropdown-item"
-                              @click="editUser(user)"
-                            >
-                              <i class="bi bi-pencil me-2"></i>Edit
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              class="dropdown-item"
-                              @click="resetPassword(user)"
-                            >
-                              <i class="bi bi-key me-2"></i>Reset Password
-                            </button>
-                          </li>
-                          <li><hr class="dropdown-divider" /></li>
-                          <li>
-                            <button
-                              class="dropdown-item text-danger"
-                              @click="toggleUserStatus(user)"
-                            >
-                              <i
-                                :class="
-                                  user.is_active
-                                    ? 'bi bi-pause-circle'
-                                    : 'bi bi-play-circle'
-                                "
-                                class="me-2"
-                              ></i>
-                              {{ user.is_active ? "Deactivate" : "Activate" }}
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <template v-slot:item.created_at="{ item }">
+              <span class="text-caption">{{
+                formatDate(item.created_at)
+              }}</span>
+            </template>
+
+            <template v-slot:item.actions="{ item }">
+              <v-menu>
+                <template v-slot:activator="{ props }">
+                  <v-btn icon variant="text" v-bind="props">
+                    <v-icon>mdi-dots-vertical</v-icon>
+                  </v-btn>
+                </template>
+                <v-list>
+                  <v-list-item @click="editUser(item)">
+                    <template v-slot:prepend>
+                      <v-icon>mdi-pencil</v-icon>
+                    </template>
+                    <v-list-item-title>Edit</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item @click="resetPassword(item)">
+                    <template v-slot:prepend>
+                      <v-icon>mdi-key</v-icon>
+                    </template>
+                    <v-list-item-title>Reset Password</v-list-item-title>
+                  </v-list-item>
+                  <v-divider></v-divider>
+                  <v-list-item
+                    @click="toggleUserStatus(item)"
+                    :class="item.is_active ? 'text-error' : 'text-success'"
+                  >
+                    <template v-slot:prepend>
+                      <v-icon>{{
+                        item.is_active ? "mdi-pause-circle" : "mdi-play-circle"
+                      }}</v-icon>
+                    </template>
+                    <v-list-item-title>{{
+                      item.is_active ? "Deactivate" : "Activate"
+                    }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </template>
+          </v-data-table>
+        </v-card>
+      </v-col>
+    </v-row>
 
     <!-- Create User Modal -->
-    <div
-      class="modal fade"
-      :class="{ show: showCreateUserModal }"
-      :style="{ display: showCreateUserModal ? 'block' : 'none' }"
-      tabindex="-1"
-    >
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Create New User</h5>
-            <button
-              type="button"
-              class="btn-close"
-              @click="closeCreateUserModal"
-            ></button>
-          </div>
-          <form @submit.prevent="createUser">
-            <div class="modal-body">
-              <!-- User Role Selection -->
-              <div class="row mb-3">
-                <div class="col-12">
-                  <label class="form-label">User Role</label>
-                  <select v-model="newUser.roleId" class="form-select" required>
-                    <option value="">Select Role</option>
-                    <option value="4">Patient</option>
-                    <option value="3">Staff</option>
-                    <option value="2">Nurse</option>
-                    <option value="1">Administrator</option>
-                  </select>
-                </div>
-              </div>
+    <v-dialog v-model="showCreateUserModal" max-width="800px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Create New User</span>
+          <v-spacer></v-spacer>
+          <v-btn icon @click="closeCreateUserModal">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="createUser">
+            <!-- User Role Selection -->
+            <v-row class="mb-3">
+              <v-col cols="12">
+                <v-select
+                  v-model="newUser.roleId"
+                  :items="roleItems"
+                  item-text="text"
+                  item-value="value"
+                  label="User Role"
+                  required
+                ></v-select>
+              </v-col>
+            </v-row>
 
-              <!-- Basic Information -->
-              <div class="row mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">First Name</label>
-                  <input
-                    type="text"
-                    v-model="newUser.firstName"
-                    class="form-control"
-                    required
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Surname</label>
-                  <input
-                    type="text"
-                    v-model="newUser.surname"
-                    class="form-control"
-                    required
-                  />
-                </div>
-              </div>
+            <!-- Basic Information -->
+            <v-row class="mb-3">
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newUser.firstName"
+                  label="First Name"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newUser.surname"
+                  label="Surname"
+                  required
+                ></v-text-field>
+              </v-col>
+            </v-row>
 
-              <div class="row mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">Suffix (Optional)</label>
-                  <select v-model="newUser.suffix" class="form-select">
-                    <option value="">None</option>
-                    <option value="Jr">Jr</option>
-                    <option value="Sr">Sr</option>
-                    <option value="II">II</option>
-                    <option value="III">III</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Email Address</label>
-                  <input
-                    type="email"
-                    v-model="newUser.email"
-                    class="form-control"
-                    required
-                  />
-                </div>
-              </div>
+            <v-row class="mb-3">
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="newUser.suffix"
+                  :items="suffixItems"
+                  item-text="text"
+                  item-value="value"
+                  label="Suffix (Optional)"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newUser.email"
+                  label="Email Address"
+                  type="email"
+                  required
+                ></v-text-field>
+              </v-col>
+            </v-row>
 
-              <!-- Contact Information -->
-              <div class="row mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">Contact Number</label>
-                  <input
-                    type="tel"
-                    v-model="newUser.contactNumber"
-                    class="form-control"
-                    placeholder="+639123456789"
-                  />
-                </div>
-                <div class="col-md-6" v-if="newUser.roleId === '4'">
-                  <label class="form-label">Birth Date</label>
-                  <input
-                    type="date"
-                    v-model="newUser.birthDate"
-                    class="form-control"
-                  />
-                </div>
-              </div>
+            <!-- Contact Information -->
+            <v-row class="mb-3">
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newUser.contactNumber"
+                  label="Contact Number"
+                  placeholder="+639123456789"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6" v-if="newUser.roleId === '4'">
+                <v-text-field
+                  v-model="newUser.birthDate"
+                  label="Birth Date"
+                  type="date"
+                ></v-text-field>
+              </v-col>
+            </v-row>
 
-              <!-- Staff-specific fields -->
-              <div
-                v-if="['1', '2', '3'].includes(newUser.roleId)"
-                class="row mb-3"
-              >
-                <div class="col-md-6">
-                  <label class="form-label">License Number</label>
-                  <input
-                    type="text"
-                    v-model="newUser.licenseNumber"
-                    class="form-control"
-                    :required="newUser.roleId !== '3'"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Specialization</label>
-                  <select v-model="newUser.specialization" class="form-select">
-                    <option value="">Select Specialization</option>
-                    <option value="General Medicine">General Medicine</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Obstetrics">Obstetrics</option>
-                    <option value="Emergency Medicine">
-                      Emergency Medicine
-                    </option>
-                    <option value="Dental">Dental</option>
-                    <option value="Laboratory">Laboratory</option>
-                    <option value="Pharmacy">Pharmacy</option>
-                    <option value="Administration">Administration</option>
-                  </select>
-                </div>
-              </div>
+            <!-- Staff-specific fields -->
+            <v-row v-if="['1', '2', '3'].includes(newUser.roleId)" class="mb-3">
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newUser.licenseNumber"
+                  label="License Number"
+                  :required="newUser.roleId !== '3'"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="newUser.specialization"
+                  :items="specializationItems"
+                  item-text="text"
+                  item-value="value"
+                  label="Specialization"
+                ></v-select>
+              </v-col>
+            </v-row>
 
-              <!-- Patient-specific fields -->
-              <div v-if="newUser.roleId === '4'" class="row mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">Gender</label>
-                  <select v-model="newUser.gender" class="form-select" required>
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Address</label>
-                  <textarea
-                    v-model="newUser.address"
-                    class="form-control"
-                    rows="2"
-                  ></textarea>
-                </div>
-              </div>
+            <!-- Patient-specific fields -->
+            <v-row v-if="newUser.roleId === '4'" class="mb-3">
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="newUser.gender"
+                  :items="genderItems"
+                  item-text="text"
+                  item-value="value"
+                  label="Gender"
+                  required
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-textarea
+                  v-model="newUser.address"
+                  label="Address"
+                  rows="2"
+                ></v-textarea>
+              </v-col>
+            </v-row>
 
-              <!-- Preview Generated Credentials -->
-              <div
-                v-if="newUser.firstName && newUser.surname"
-                class="alert alert-info"
-              >
-                <h6>
-                  <i class="bi bi-info-circle me-2"></i>Generated Credentials
-                  Preview
-                </h6>
-                <div class="row">
-                  <div class="col-md-6">
-                    <strong>Username:</strong>
-                    <code class="ms-2">{{
-                      generatedCredentials.username
-                    }}</code>
-                  </div>
-                  <div class="col-md-6">
-                    <strong>Password:</strong>
-                    <code class="ms-2">{{
-                      generatedCredentials.password
-                    }}</code>
-                  </div>
-                </div>
-                <small class="text-muted">
-                  These credentials will be automatically sent to the user via
-                  email and SMS.
-                </small>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                @click="closeCreateUserModal"
-                :disabled="isCreating"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="btn btn-primary"
-                :disabled="isCreating || !isFormValid"
-              >
-                <span
-                  v-if="isCreating"
-                  class="spinner-border spinner-border-sm me-2"
-                ></span>
-                Create User
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- Backdrop for modal -->
-    <div
-      v-if="showCreateUserModal"
-      class="modal-backdrop fade show"
-      @click="closeCreateUserModal"
-    ></div>
-  </div>
+            <!-- Preview Generated Credentials -->
+            <v-alert
+              v-if="newUser.firstName && newUser.surname"
+              type="info"
+              class="mb-3"
+            >
+              <h6>Generated Credentials Preview</h6>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <strong>Username:</strong>
+                  <code>{{ generatedCredentials.username }}</code>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <strong>Password:</strong>
+                  <code>{{ generatedCredentials.password }}</code>
+                </v-col>
+              </v-row>
+              <small>
+                These credentials will be automatically sent to the user via
+                email and SMS.
+              </small>
+            </v-alert>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            variant="text"
+            @click="closeCreateUserModal"
+            :disabled="isCreating"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="createUser"
+            :disabled="isCreating || !isFormValid"
+            :loading="isCreating"
+          >
+            Create User
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <script setup>
@@ -463,6 +375,63 @@ const userFilters = ref({
   search: "",
   role: "",
 });
+
+// Role options for v-select
+const roleOptions = ref([
+  { text: "All Roles", value: "" },
+  { text: "Administrator", value: "1" },
+  { text: "Nurse/Staff", value: "2" },
+  { text: "Patient", value: "3" },
+]);
+
+// Data table headers
+const headers = ref([
+  { title: "Name", key: "name", sortable: false },
+  { title: "Username", key: "username" },
+  { title: "Email", key: "email" },
+  { title: "Role", key: "role", sortable: false },
+  { title: "Status", key: "status" },
+  { title: "Created", key: "created_at" },
+  { title: "Actions", key: "actions", sortable: false },
+]);
+
+// Role items for create user form
+const roleItems = ref([
+  { text: "Administrator", value: "1" },
+  { text: "Nurse", value: "2" },
+  { text: "Staff", value: "3" },
+  { text: "Patient", value: "4" },
+]);
+
+// Suffix items
+const suffixItems = ref([
+  { text: "None", value: "" },
+  { text: "Jr", value: "Jr" },
+  { text: "Sr", value: "Sr" },
+  { text: "II", value: "II" },
+  { text: "III", value: "III" },
+]);
+
+// Specialization items
+const specializationItems = ref([
+  { text: "Select Specialization", value: "" },
+  { text: "General Medicine", value: "General Medicine" },
+  { text: "Pediatrics", value: "Pediatrics" },
+  { text: "Obstetrics", value: "Obstetrics" },
+  { text: "Emergency Medicine", value: "Emergency Medicine" },
+  { text: "Dental", value: "Dental" },
+  { text: "Laboratory", value: "Laboratory" },
+  { text: "Pharmacy", value: "Pharmacy" },
+  { text: "Administration", value: "Administration" },
+]);
+
+// Gender items
+const genderItems = ref([
+  { text: "Select Gender", value: "" },
+  { text: "Male", value: "Male" },
+  { text: "Female", value: "Female" },
+  { text: "Other", value: "Other" },
+]);
 
 // New user form data
 const newUser = ref({
@@ -649,14 +618,14 @@ const getUserType = (user) => {
   return "User";
 };
 
-const getRoleBadgeClass = (roleName) => {
-  const classes = {
-    admin: "badge bg-danger",
-    nurse: "badge bg-primary",
-    staff: "badge bg-info",
-    patient: "badge bg-success",
+const getRoleChipColor = (roleName) => {
+  const colors = {
+    administrator: "error",
+    nurse: "primary",
+    staff: "info",
+    patient: "success",
   };
-  return classes[roleName] || "badge bg-secondary";
+  return colors[roleName?.toLowerCase()] || "grey";
 };
 
 const formatDate = (dateString) => {

@@ -1,78 +1,218 @@
 <template>
-  <div class="container-fluid mt-3">
-    <h1 class="mb-2">WELCOME!</h1>
-    <p class="text-muted">You have 150 records: 10 pending reviews.</p>
-    
-    <div class="row mt-4">
-      <div class="col-md-4 mb-4">
-        <div class="card text-white">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title">150</h5>
-              <p class="card-text">Total Records</p>
-            </div>
-            <i class="bi bi-file-earmark-text display-4"></i>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-4 mb-4">
-        <div class="card text-white">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title">25</h5>
-              <p class="card-text">Patient Types</p>
-            </div>
-            <i class="bi bi-people display-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
+  <v-container fluid class="mt-3">
+    <h1 class="mb-2">Admin Dashboard</h1>
+    <p class="text-body-2">System overview and management</p>
 
-    <div class="row mt-4">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Recent Records</h5>
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th scope="col">Record ID</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Patient Name</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>PR-001</td>
-                  <td>Visit</td>
-                  <td>John Doe</td>
-                  <td>03/06/2025 10:30</td>
-                  <td><span class="badge bg-success">Verified</span></td>
-                </tr>
-                <tr>
-                  <td>PR-002</td>
-                  <td>History</td>
-                  <td>Jane Smith</td>
-                  <td>03/05/2025 14:00</td>
-                  <td><span class="badge bg-warning text-dark">Pending</span></td>
-                </tr>
-                <!-- Add more rows as needed -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Overview Stats -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="primary" theme="dark">
+          <v-card-text class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-h5">{{ stats.totalRecords }}</div>
+              <div class="text-body-2">Total Records</div>
+            </div>
+            <v-icon size="48" class="opacity-75">mdi-file-document-outline</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-  </div>
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="success" theme="dark">
+          <v-card-text class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-h5">{{ stats.activePatients }}</div>
+              <div class="text-body-2">Active Patients</div>
+            </div>
+            <v-icon size="48" class="opacity-75">mdi-account-group</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="warning" theme="dark">
+          <v-card-text class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-h5">{{ stats.pendingReviews }}</div>
+              <div class="text-body-2">Pending Reviews</div>
+            </div>
+            <v-icon size="48" class="opacity-75">mdi-clock-outline</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="3" class="mb-4">
+        <v-card color="info" theme="dark">
+          <v-card-text class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-h5">{{ stats.todayAppointments }}</div>
+              <div class="text-body-2">Today's Appointments</div>
+            </div>
+            <v-icon size="48" class="opacity-75">mdi-calendar-check</v-icon>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Recent Records and Recent Activities -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="8" class="mb-4">
+        <v-card>
+          <v-card-title>Recent Records</v-card-title>
+          <v-card-text>
+            <v-data-table
+              :headers="headers"
+              :items="records"
+              hide-default-footer
+              class="elevation-1"
+            >
+              <template v-slot:item.status="{ item }">
+                <v-chip :color="item.status === 'Verified' ? 'success' : 'warning'" dark>
+                  {{ item.status }}
+                </v-chip>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="4" class="mb-4">
+        <v-card>
+          <v-card-title>Recent Activities</v-card-title>
+          <v-card-text>
+            <v-timeline density="compact">
+              <v-timeline-item
+                v-for="activity in recentActivities"
+                :key="activity.id"
+                :dot-color="activity.color"
+                size="small"
+              >
+                <div class="text-caption">{{ activity.time }}</div>
+                <div class="text-body-2">{{ activity.description }}</div>
+              </v-timeline-item>
+            </v-timeline>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Quick Actions -->
+    <v-row class="mt-4">
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>Quick Actions</v-card-title>
+          <v-card-text>
+            <v-row>
+              <v-col cols="12" sm="6" md="3" class="mb-2">
+                <v-btn
+                  color="primary"
+                  prepend-icon="mdi-account-plus"
+                  block
+                  :to="'/admin/users/new'"
+                >
+                  Add User
+                </v-btn>
+              </v-col>
+              <v-col cols="12" sm="6" md="3" class="mb-2">
+                <v-btn
+                  color="success"
+                  prepend-icon="mdi-account-group"
+                  block
+                  :to="'/patients/new'"
+                >
+                  Add Patient
+                </v-btn>
+              </v-col>
+              <v-col cols="12" sm="6" md="3" class="mb-2">
+                <v-btn
+                  color="info"
+                  prepend-icon="mdi-calendar-plus"
+                  block
+                  :to="'/appointments/new'"
+                >
+                  Schedule Appointment
+                </v-btn>
+              </v-col>
+              <v-col cols="12" sm="6" md="3" class="mb-2">
+                <v-btn
+                  color="warning"
+                  prepend-icon="mdi-file-chart"
+                  block
+                  :to="'/reports'"
+                >
+                  View Reports
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
 export default {
   name: 'DashboardView',
+  data() {
+    return {
+      stats: {
+        totalRecords: 150,
+        activePatients: 25,
+        pendingReviews: 10,
+        todayAppointments: 8
+      },
+      headers: [
+        { title: 'Record ID', key: 'id' },
+        { title: 'Type', key: 'type' },
+        { title: 'Patient Name', key: 'patientName' },
+        { title: 'Date', key: 'date' },
+        { title: 'Status', key: 'status' },
+      ],
+      records: [
+        {
+          id: 'PR-001',
+          type: 'Visit',
+          patientName: 'John Doe',
+          date: '03/06/2025 10:30',
+          status: 'Verified',
+        },
+        {
+          id: 'PR-002',
+          type: 'History',
+          patientName: 'Jane Smith',
+          date: '03/05/2025 14:00',
+          status: 'Pending',
+        },
+      ],
+      recentActivities: [
+        {
+          id: 1,
+          time: '2 hours ago',
+          description: 'New patient John Doe registered',
+          color: 'success'
+        },
+        {
+          id: 2,
+          time: '4 hours ago',
+          description: 'Medical record updated for Jane Smith',
+          color: 'info'
+        },
+        {
+          id: 3,
+          time: '6 hours ago',
+          description: 'Appointment scheduled for Michael Johnson',
+          color: 'primary'
+        },
+        {
+          id: 4,
+          time: '1 day ago',
+          description: 'User account created for Dr. Martinez',
+          color: 'warning'
+        }
+      ]
+    }
+  },
 }
 </script>
 

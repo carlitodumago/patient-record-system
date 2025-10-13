@@ -32,12 +32,70 @@ export const notificationService = {
     return data;
   },
 
+  async markAllAsRead(userId) {
+    const { error } = await supabase
+      .from("Notification")
+      .update({ Read: true })
+      .eq("UserID", userId)
+      .eq("Read", false);
+    if (error) throw error;
+  },
+
   async deleteNotification(notificationId) {
     const { error } = await supabase
       .from("Notification")
       .delete()
       .eq("NotificationID", notificationId);
     if (error) throw error;
+  },
+
+  async clearAllNotifications(userId) {
+    const { error } = await supabase
+      .from("Notification")
+      .delete()
+      .eq("UserID", userId);
+    if (error) throw error;
+  },
+
+  // Subscribe to real-time notifications
+  subscribeToNotifications(userId, callback) {
+    return supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Notification",
+          filter: `UserID=eq.${userId}`,
+        },
+        (payload) => {
+          callback(payload.new);
+        }
+      )
+      .subscribe();
+  },
+
+  // Create auto reminder for upcoming appointments
+  async createAppointmentReminder(appointment, hoursBefore = 24) {
+    const reminderTime = new Date(appointment.DateTime);
+    reminderTime.setHours(reminderTime.getHours() - hoursBefore);
+
+    const now = new Date();
+    if (reminderTime <= now) return; // Don't create past reminders
+
+    const reminderData = {
+      UserID: appointment.PatientID, // Assuming PatientID is UserID
+      Title: `Upcoming Appointment Reminder`,
+      Message: `You have an appointment scheduled for ${new Date(
+        appointment.DateTime
+      ).toLocaleString()}. Reason: ${appointment.Reason || "N/A"}`,
+      Type: "appointment",
+      Read: false,
+      CreatedAt: new Date().toISOString(),
+    };
+
+    return await this.createNotification(reminderData);
   },
 
   // Send email notification (placeholder for Gmail integration)
