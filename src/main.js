@@ -1,7 +1,4 @@
 import "./assets/main.css";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./assets/css/styles.css";
 import axios from "axios";
@@ -9,7 +6,14 @@ import router from "./router";
 
 import { createApp } from "vue";
 import App from "./App.vue";
+import { createPinia } from "pinia";
 import { createStore } from "vuex";
+
+// Vuetify
+import 'vuetify/styles';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
 
 // Import utilities
 import { updateAutoLogout } from "./utils/autoLogout";
@@ -26,7 +30,16 @@ import { userService } from "./services/api";
 // Apply animation CSS on app initialization
 import { generateAnimationCSS } from "./utils/animationUtils";
 
-// Create Vuex store
+// Create Pinia store
+const pinia = createPinia();
+
+// Create Vuetify instance
+const vuetify = createVuetify({
+  components,
+  directives,
+});
+
+// Create Vuex store (keeping for now, will migrate to Pinia later)
 const store = createStore({
   state() {
     return {
@@ -219,8 +232,10 @@ window.addEventListener("unhandledrejection", (event) => {
   console.error("Unhandled promise rejection:", event.reason);
 });
 
+app.use(pinia);
 app.use(store);
 app.use(router);
+app.use(vuetify);
 
 // Execute after app is mounted
 try {

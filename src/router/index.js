@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 const routes = [
   {
@@ -10,46 +11,7 @@ const routes = [
     name: 'Login',
     component: () => import('../views/Login.vue')
   },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('../views/Register.vue')
-  },
-  {
-    path: '/register-patient',
-    name: 'RegisterPatient',
-    component: () => import('../views/Register.vue')
-  },
-  {
-    path: '/patients',
-    name: 'PatientList',
-    component: () => import('../views/PatientList.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/patients/new',
-    name: 'AddPatient',
-    component: () => import('../views/PatientForm.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/patients/:id',
-    name: 'PatientDetails',
-    component: () => import('../views/PatientDetails.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/patients/:id/edit',
-    name: 'EditPatient',
-    component: () => import('../views/PatientForm.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/visits',
-    name: 'MedicalVisits',
-    component: () => import('../views/MedicalVisits.vue'),
-    meta: { requiresAuth: true }
-  },
+
   {
     path: '/records',
     name: 'MedicalRecords',
@@ -64,39 +26,9 @@ const routes = [
       } else if (role === 'nurse') {
         return import('../views/nurse/MedicalRecords.vue');
       } else {
-        return import('../views/patient/MedicalRecords.vue');
+        return import('../views/patient/MyMedicalRecords.vue');
       }
     },
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/history',
-    name: 'MedicalHistory',
-    component: () => import('../views/MedicalHistory.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/notifications',
-    name: 'Notifications',
-    component: () => import('../views/Notifications.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/calendar',
-    name: 'Calendar',
-    component: () => import('../views/CalendarView.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/profile',
-    name: 'UserProfile',
-    component: () => import('../views/UserProfile.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: () => import('../views/Settings.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -106,7 +38,7 @@ const routes = [
       // Dynamically import the correct component based on user role
       const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { role: 'patient' };
       const role = user.role || 'patient';
-      
+
       // Map role to component path
       if (role === 'admin') {
         return import('../views/admin/DashboardView.vue');
@@ -118,6 +50,100 @@ const routes = [
     },
     meta: { requiresAuth: true }
   },
+  {
+    path: '/admin/account-creation',
+    name: 'AccountCreation',
+    component: () => import('../views/admin/AccountCreation.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+
+  {
+    path: '/admin/manage-patients',
+    name: 'ManagePatients',
+    component: () => import('../views/admin/ManagePatients.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/appointments',
+    name: 'AdminAppointments',
+    component: () => import('../views/admin/Appointments.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/medical-records',
+    name: 'AdminMedicalRecords',
+    component: () => import('../views/admin/MedicalRecords.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/notifications',
+    name: 'AdminNotifications',
+    component: () => import('../views/admin/Notifications.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/reports',
+    name: 'AdminReports',
+    component: () => import('../views/admin/Reports.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/nurse/patient-management',
+    name: 'NursePatientManagement',
+    component: () => import('../views/nurse/PatientManagement.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/nurse/medical-records',
+    name: 'NurseMedicalRecords',
+    component: () => import('../views/nurse/MedicalRecords.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/nurse/appointment-requests',
+    name: 'NurseAppointmentRequests',
+    component: () => import('../views/nurse/AppointmentRequests.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/nurse/treatment-diagnosis',
+    name: 'NurseTreatmentDiagnosis',
+    component: () => import('../views/nurse/TreatmentDiagnosis.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/nurse/consultation-notes',
+    name: 'NurseConsultationNotes',
+    component: () => import('../views/nurse/ConsultationNotes.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/nurse/notifications',
+    name: 'NurseNotifications',
+    component: () => import('../views/nurse/Notifications.vue'),
+    meta: { requiresAuth: true, role: 'nurse' }
+  },
+  {
+    path: '/patient/medical-records',
+    name: 'PatientMedicalRecords',
+    component: () => import('../views/patient/MyMedicalRecords.vue'),
+    meta: { requiresAuth: true, role: 'patient' }
+  },
+  {
+    path: '/patient/appointments',
+    name: 'PatientAppointments',
+    component: () => import('../views/patient/MyAppointments.vue'),
+    meta: { requiresAuth: true, role: 'patient' }
+  },
+
+  {
+    path: '/patient/notifications',
+    name: 'PatientNotifications',
+    component: () => import('../views/patient/Notifications.vue'),
+    meta: { requiresAuth: true, role: 'patient' }
+  },
+
+
   // 404 Not Found route - should be the last route
   {
     path: '/:pathMatch(.*)*',
@@ -132,12 +158,17 @@ const router = createRouter({
 })
 
 // Navigation guard for auth protected routes
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   try {
-    const storedUser = localStorage.getItem('user');
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    const isAuthenticated = user !== null;
-    const role = user?.role;
+    const authStore = useAuthStore()
+
+    // Check auth state if not already checked
+    if (!authStore.isAuthenticated) {
+      await authStore.checkAuth()
+    }
+
+    const isAuthenticated = authStore.isAuthenticated
+    const role = authStore.user?.role
 
   // Define patient-only routes
   const patientOnlyRoutes = [
@@ -156,7 +187,7 @@ router.beforeEach((to, from, next) => {
     // Redirect patient from /patients to /dashboard
     if (to.path === '/patients') {
       next('/dashboard');
-    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login' && to.path !== '/register') {
+    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login') {
       // Prevent patient from accessing non-patient routes
       next('/dashboard');
     } else {

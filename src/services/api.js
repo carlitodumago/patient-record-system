@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -15,12 +16,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers['x-auth-token'] = token;
     }
-    
+
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.role) {
       config.headers['x-user-role'] = user.role;
     }
-    
+
     return config;
   },
   error => {
@@ -28,35 +29,83 @@ api.interceptors.request.use(
   }
 );
 
-// Auth services
+// Auth services - now using Supabase
 export const authService = {
   login: async (credentials) => {
     try {
-      const response = await api.post('/users/login', credentials);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data));
-      }
-      return response.data;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password
+      });
+
+      if (error) throw error;
+
+      // Get user profile from users table
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const userData = {
+        ...userProfile,
+        token: data.session.access_token
+      };
+
+      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      return userData;
     } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
+      throw error.message || { message: 'Login failed' };
     }
   },
-  
+
   register: async (userData) => {
     try {
-      const response = await api.post('/users/register', userData);
-      return response.data;
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password
+      });
+
+      if (error) throw error;
+
+      // Create user profile in users table
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .insert([{
+          id: data.user.id,
+          email: userData.email,
+          username: userData.username,
+          full_name: userData.fullName,
+          role: userData.role || 'patient',
+          phone: userData.phone,
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      return profile;
     } catch (error) {
-      throw error.response?.data || { message: 'Registration failed' };
+      throw error.message || { message: 'Registration failed' };
     }
   },
-  
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+
+  logout: async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
   },
-  
+
   getCurrentUser: () => {
     try {
       return JSON.parse(localStorage.getItem('user'));
@@ -66,62 +115,96 @@ export const authService = {
   }
 };
 
-// Patient services
+// Patient services - now using Supabase
 export const patientService = {
   getAllPatients: async () => {
     try {
-      const response = await api.get('/patients');
-      return response.data;
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch patients' };
+      throw error.message || { message: 'Failed to fetch patients' };
     }
   },
-  
+
   getPatientById: async (id) => {
     try {
-      const response = await api.get(`/patients/${id}`);
-      return response.data;
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch patient' };
+      throw error.message || { message: 'Failed to fetch patient' };
     }
   },
-  
+
   createPatient: async (patientData) => {
     try {
-      const response = await api.post('/patients', patientData);
-      return response.data;
+      const { data, error } = await supabase
+        .from('patients')
+        .insert([patientData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to create patient' };
+      throw error.message || { message: 'Failed to create patient' };
     }
   },
-  
+
   updatePatient: async (id, patientData) => {
     try {
-      const response = await api.put(`/patients/${id}`, patientData);
-      return response.data;
+      const { data, error } = await supabase
+        .from('patients')
+        .update(patientData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to update patient' };
+      throw error.message || { message: 'Failed to update patient' };
     }
   },
-  
+
   deletePatient: async (id) => {
     try {
-      const response = await api.delete(`/patients/${id}`);
-      return response.data;
+      const { error } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { message: 'Patient deleted successfully' };
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to delete patient' };
+      throw error.message || { message: 'Failed to delete patient' };
     }
   }
 };
 
-// User services
+// User services - now using Supabase
 export const userService = {
   getAllUsers: async () => {
     try {
-      const response = await api.get('/users');
-      return response.data;
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch users' };
+      throw error.message || { message: 'Failed to fetch users' };
     }
   }
 };

@@ -1,51 +1,51 @@
-// Authentication middleware
-// In a real application, this would verify JWT tokens
+import supabase from '../config/supabase.js';
 
-const auth = (req, res, next) => {
-  // Get token from header
-  const token = req.header('x-auth-token');
+export const authenticateToken = async (req, res, next) => {
+  const token = req.headers['x-auth-token'];
 
-  // Check if no token
   if (!token) {
-    return res.status(401).json({ message: 'No token, authorization denied' });
+    return res.status(401).json({ message: 'Access token required' });
   }
 
   try {
-    // In a real app, you would verify the JWT token here
-    // For this mock version, we'll just check if the token exists
-    if (token === 'mock-jwt-token') {
-      // In a real app, the decoded user info would be added to the request
-      req.user = { id: 'mock-user-id' };
-      next();
-    } else {
-      res.status(401).json({ message: 'Token is not valid' });
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({ message: 'Invalid token' });
     }
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(500).json({ message: 'Authentication error' });
   }
 };
 
-// Role-based authorization middleware
-const authorize = (roles = []) => {
-  // roles param can be a single role string (e.g., 'admin') 
-  // or an array of roles (e.g., ['admin', 'nurse'])
-  if (typeof roles === 'string') {
-    roles = [roles];
-  }
+export const authorizeRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      const { data: userData } = await supabase
+        .from('Users')
+        .select('RoleID')
+        .eq('UserID', req.user.id)
+        .single();
 
-  return (req, res, next) => {
-    // In a real app, the user's role would be extracted from the JWT token
-    // For this mock version, we'll just check a hardcoded role
-    const userRole = req.header('x-user-role') || 'patient';
+      const { data: roleData } = await supabase
+        .from('Role')
+        .select('RoleName')
+        .eq('RoleID', userData.RoleID)
+        .single();
 
-    if (roles.length && !roles.includes(userRole)) {
-      // User's role is not authorized
-      return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+      if (!allowedRoles.includes(roleData.RoleName)) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      req.userRole = roleData.RoleName;
+      next();
+    } catch (error) {
+      console.error('Authorization error:', error);
+      res.status(500).json({ message: 'Authorization error' });
     }
-
-    // Authentication and authorization successful
-    next();
   };
 };
-
-export { auth, authorize };

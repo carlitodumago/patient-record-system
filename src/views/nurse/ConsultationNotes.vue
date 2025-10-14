@@ -4,18 +4,18 @@
       <v-col cols="12">
         <v-card>
           <v-card-title class="text-h5">
-            <v-icon left>mdi-clipboard-text</v-icon>
-            Medical Records Management
+            <v-icon left>mdi-note-text</v-icon>
+            Consultation Notes
             <v-spacer></v-spacer>
             <v-btn color="primary" @click="showAddDialog = true">
               <v-icon left>mdi-plus</v-icon>
-              Add Record
+              Add Consultation Note
             </v-btn>
           </v-card-title>
           <v-card-text>
             <v-text-field
               v-model="search"
-              label="Search records..."
+              label="Search notes..."
               prepend-inner-icon="mdi-magnify"
               single-line
               hide-details
@@ -24,7 +24,7 @@
 
             <v-data-table
               :headers="headers"
-              :items="medicalRecords"
+              :items="consultationNotes"
               :search="search"
               :loading="loading"
               class="elevation-1"
@@ -32,23 +32,17 @@
               <template v-slot:item.patientName="{ item }">
                 {{ item.patientName }}
               </template>
-              <template v-slot:item.diagnosis="{ item }">
-                {{ item.diagnosis?.description || 'N/A' }}
-              </template>
-              <template v-slot:item.treatment="{ item }">
-                {{ item.treatment?.description || 'N/A' }}
-              </template>
               <template v-slot:item.createdAt="{ item }">
                 {{ formatDate(item.createdAt) }}
               </template>
               <template v-slot:item.actions="{ item }">
-                <v-btn icon small @click="viewRecord(item)">
+                <v-btn icon small @click="viewNote(item)">
                   <v-icon>mdi-eye</v-icon>
                 </v-btn>
-                <v-btn icon small @click="editRecord(item)">
+                <v-btn icon small @click="editNote(item)">
                   <v-icon>mdi-pencil</v-icon>
                 </v-btn>
-                <v-btn icon small color="error" @click="deleteRecord(item)">
+                <v-btn icon small color="error" @click="deleteNote(item)">
                   <v-icon>mdi-delete</v-icon>
                 </v-btn>
               </template>
@@ -58,18 +52,18 @@
       </v-col>
     </v-row>
 
-    <!-- Add/Edit Medical Record Dialog -->
+    <!-- Add/Edit Consultation Note Dialog -->
     <v-dialog v-model="showAddDialog" max-width="800px">
       <v-card>
         <v-card-title>
-          {{ editingRecord ? 'Edit Medical Record' : 'Add New Medical Record' }}
+          {{ editingNote ? 'Edit Consultation Note' : 'Add New Consultation Note' }}
         </v-card-title>
         <v-card-text>
           <v-form ref="form" v-model="valid">
             <v-row>
               <v-col cols="12">
                 <v-select
-                  v-model="recordForm.patientId"
+                  v-model="noteForm.patientId"
                   :items="patients"
                   item-text="fullName"
                   item-value="id"
@@ -78,34 +72,34 @@
                   :rules="[v => !!v || 'Patient is required']"
                 ></v-select>
               </v-col>
-              <v-col cols="12" md="6">
-                <v-select
-                  v-model="recordForm.diagnosisId"
-                  :items="diagnoses"
-                  item-text="description"
-                  item-value="id"
-                  label="Diagnosis"
+              <v-col cols="12">
+                <v-text-field
+                  v-model="noteForm.title"
+                  label="Consultation Title"
                   required
-                  :rules="[v => !!v || 'Diagnosis is required']"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-select
-                  v-model="recordForm.treatmentId"
-                  :items="treatments"
-                  item-text="description"
-                  item-value="id"
-                  label="Treatment"
-                  required
-                  :rules="[v => !!v || 'Treatment is required']"
-                ></v-select>
+                  :rules="[v => !!v || 'Title is required']"
+                ></v-text-field>
               </v-col>
               <v-col cols="12">
                 <v-textarea
-                  v-model="recordForm.note"
-                  label="Notes"
-                  rows="3"
+                  v-model="noteForm.content"
+                  label="Consultation Notes"
+                  rows="6"
+                  required
+                  :rules="[v => !!v || 'Content is required']"
                 ></v-textarea>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="noteForm.vitalSigns"
+                  label="Vital Signs"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="noteForm.symptoms"
+                  label="Symptoms"
+                ></v-text-field>
               </v-col>
             </v-row>
           </v-form>
@@ -113,36 +107,40 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn @click="closeDialog">Cancel</v-btn>
-          <v-btn color="primary" @click="saveRecord" :loading="saving" :disabled="!valid">
-            {{ editingRecord ? 'Update' : 'Save' }}
+          <v-btn color="primary" @click="saveNote" :loading="saving" :disabled="!valid">
+            {{ editingNote ? 'Update' : 'Save' }}
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- View Medical Record Dialog -->
+    <!-- View Consultation Note Dialog -->
     <v-dialog v-model="showViewDialog" max-width="800px">
-      <v-card v-if="selectedRecord">
-        <v-card-title>Medical Record Details</v-card-title>
+      <v-card v-if="selectedNote">
+        <v-card-title>Consultation Note Details</v-card-title>
         <v-card-text>
           <v-row>
             <v-col cols="12">
-              <strong>Patient:</strong> {{ selectedRecord.patientName }}
+              <strong>Patient:</strong> {{ selectedNote.patientName }}
             </v-col>
             <v-col cols="12">
-              <strong>Diagnosis:</strong> {{ selectedRecord.diagnosis?.description || 'N/A' }}
+              <strong>Title:</strong> {{ selectedNote.title }}
             </v-col>
             <v-col cols="12">
-              <strong>Treatment:</strong> {{ selectedRecord.treatment?.description || 'N/A' }}
+              <strong>Content:</strong>
+              <div class="mt-2 p-3 bg-grey-lighten-4 rounded">{{ selectedNote.content }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <strong>Vital Signs:</strong> {{ selectedNote.vitalSigns || 'N/A' }}
+            </v-col>
+            <v-col cols="12" md="6">
+              <strong>Symptoms:</strong> {{ selectedNote.symptoms || 'N/A' }}
             </v-col>
             <v-col cols="12">
-              <strong>Notes:</strong> {{ selectedRecord.note || 'No notes' }}
+              <strong>Created:</strong> {{ formatDate(selectedNote.createdAt) }}
             </v-col>
             <v-col cols="12">
-              <strong>Created:</strong> {{ formatDate(selectedRecord.createdAt) }}
-            </v-col>
-            <v-col cols="12">
-              <strong>Entered By:</strong> {{ selectedRecord.enteredByName || 'N/A' }}
+              <strong>Created By:</strong> {{ selectedNote.createdByName || 'N/A' }}
             </v-col>
           </v-row>
         </v-card-text>
@@ -158,7 +156,7 @@
       <v-card>
         <v-card-title>Confirm Delete</v-card-title>
         <v-card-text>
-          Are you sure you want to delete this medical record? This action cannot be undone.
+          Are you sure you want to delete this consultation note? This action cannot be undone.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -185,34 +183,33 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 
-const medicalRecords = ref([])
+const consultationNotes = ref([])
 const patients = ref([])
-const diagnoses = ref([])
-const treatments = ref([])
 const loading = ref(false)
 const search = ref('')
 const showAddDialog = ref(false)
 const showViewDialog = ref(false)
 const showDeleteDialog = ref(false)
-const editingRecord = ref(null)
-const selectedRecord = ref(null)
+const editingNote = ref(null)
+const selectedNote = ref(null)
 const saving = ref(false)
 const deleting = ref(false)
 const valid = ref(false)
 
 const headers = [
   { text: 'Patient', value: 'patientName' },
-  { text: 'Diagnosis', value: 'diagnosis' },
-  { text: 'Treatment', value: 'treatment' },
+  { text: 'Title', value: 'title' },
+  { text: 'Content Preview', value: 'contentPreview' },
   { text: 'Created', value: 'createdAt' },
   { text: 'Actions', value: 'actions', sortable: false }
 ]
 
-const recordForm = ref({
+const noteForm = ref({
   patientId: '',
-  diagnosisId: '',
-  treatmentId: '',
-  note: ''
+  title: '',
+  content: '',
+  vitalSigns: '',
+  symptoms: ''
 })
 
 const snackbar = ref({
@@ -221,22 +218,16 @@ const snackbar = ref({
   color: 'success'
 })
 
-const loadMedicalRecords = async () => {
+const loadConsultationNotes = async () => {
   loading.value = true
   try {
     const { data, error } = await supabase
-      .from('medical_records')
+      .from('consultation_notes')
       .select(`
         *,
         patients (
           firstName,
           lastName
-        ),
-        diagnoses (
-          description
-        ),
-        treatments (
-          description
         ),
         staff (
           firstName,
@@ -247,16 +238,17 @@ const loadMedicalRecords = async () => {
 
     if (error) throw error
 
-    medicalRecords.value = data.map(item => ({
+    consultationNotes.value = data.map(item => ({
       ...item,
       patientName: `${item.patients?.firstName || ''} ${item.patients?.lastName || ''}`.trim(),
-      enteredByName: `${item.staff?.firstName || ''} ${item.staff?.lastName || ''}`.trim()
+      createdByName: `${item.staff?.firstName || ''} ${item.staff?.lastName || ''}`.trim(),
+      contentPreview: item.content?.length > 50 ? item.content.substring(0, 50) + '...' : item.content
     }))
   } catch (error) {
-    console.error('Load medical records error:', error)
+    console.error('Load consultation notes error:', error)
     snackbar.value = {
       show: true,
-      message: 'Failed to load medical records',
+      message: 'Failed to load consultation notes',
       color: 'error'
     }
   } finally {
@@ -264,70 +256,67 @@ const loadMedicalRecords = async () => {
   }
 }
 
-const loadReferenceData = async () => {
+const loadPatients = async () => {
   try {
-    const [patientsResult, diagnosesResult, treatmentsResult] = await Promise.all([
-      supabase.from('patients').select('id, firstName, lastName'),
-      supabase.from('diagnoses').select('id, description'),
-      supabase.from('treatments').select('id, description')
-    ])
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id, firstName, lastName')
 
-    patients.value = patientsResult.data?.map(p => ({
-      ...p,
-      fullName: `${p.firstName} ${p.lastName}`
-    })) || []
+    if (error) throw error
 
-    diagnoses.value = diagnosesResult.data || []
-    treatments.value = treatmentsResult.data || []
+    patients.value = data.map(patient => ({
+      ...patient,
+      fullName: `${patient.firstName} ${patient.lastName}`
+    }))
   } catch (error) {
-    console.error('Load reference data error:', error)
+    console.error('Load patients error:', error)
   }
 }
 
-const saveRecord = async () => {
+const saveNote = async () => {
   if (!valid.value) return
 
   saving.value = true
   try {
-    const recordData = {
-      ...recordForm.value,
-      enteredBy: 1 // TODO: Get from current user
+    const noteData = {
+      ...noteForm.value,
+      createdBy: 1 // TODO: Get from current user
     }
 
-    if (editingRecord.value) {
+    if (editingNote.value) {
       const { error } = await supabase
-        .from('medical_records')
-        .update(recordData)
-        .eq('id', editingRecord.value.id)
+        .from('consultation_notes')
+        .update(noteData)
+        .eq('id', editingNote.value.id)
 
       if (error) throw error
 
       snackbar.value = {
         show: true,
-        message: 'Medical record updated successfully',
+        message: 'Consultation note updated successfully',
         color: 'success'
       }
     } else {
       const { error } = await supabase
-        .from('medical_records')
-        .insert([recordData])
+        .from('consultation_notes')
+        .insert([noteData])
 
       if (error) throw error
 
       snackbar.value = {
         show: true,
-        message: 'Medical record added successfully',
+        message: 'Consultation note added successfully',
         color: 'success'
       }
     }
 
     closeDialog()
-    loadMedicalRecords()
+    loadConsultationNotes()
   } catch (error) {
-    console.error('Save record error:', error)
+    console.error('Save note error:', error)
     snackbar.value = {
       show: true,
-      message: error.message || 'Failed to save medical record',
+      message: error.message || 'Failed to save consultation note',
       color: 'error'
     }
   } finally {
@@ -335,24 +324,25 @@ const saveRecord = async () => {
   }
 }
 
-const viewRecord = (record) => {
-  selectedRecord.value = record
+const viewNote = (note) => {
+  selectedNote.value = note
   showViewDialog.value = true
 }
 
-const editRecord = (record) => {
-  editingRecord.value = record
-  recordForm.value = {
-    patientId: record.patientId,
-    diagnosisId: record.diagnosisId,
-    treatmentId: record.treatmentId,
-    note: record.note
+const editNote = (note) => {
+  editingNote.value = note
+  noteForm.value = {
+    patientId: note.patientId,
+    title: note.title,
+    content: note.content,
+    vitalSigns: note.vitalSigns,
+    symptoms: note.symptoms
   }
   showAddDialog.value = true
 }
 
-const deleteRecord = (record) => {
-  selectedRecord.value = record
+const deleteNote = (note) => {
+  selectedNote.value = note
   showDeleteDialog.value = true
 }
 
@@ -360,25 +350,25 @@ const confirmDelete = async () => {
   deleting.value = true
   try {
     const { error } = await supabase
-      .from('medical_records')
+      .from('consultation_notes')
       .delete()
-      .eq('id', selectedRecord.value.id)
+      .eq('id', selectedNote.value.id)
 
     if (error) throw error
 
     snackbar.value = {
       show: true,
-      message: 'Medical record deleted successfully',
+      message: 'Consultation note deleted successfully',
       color: 'success'
     }
 
     showDeleteDialog.value = false
-    loadMedicalRecords()
+    loadConsultationNotes()
   } catch (error) {
-    console.error('Delete record error:', error)
+    console.error('Delete note error:', error)
     snackbar.value = {
       show: true,
-      message: error.message || 'Failed to delete medical record',
+      message: error.message || 'Failed to delete consultation note',
       color: 'error'
     }
   } finally {
@@ -388,12 +378,13 @@ const confirmDelete = async () => {
 
 const closeDialog = () => {
   showAddDialog.value = false
-  editingRecord.value = null
-  recordForm.value = {
+  editingNote.value = null
+  noteForm.value = {
     patientId: '',
-    diagnosisId: '',
-    treatmentId: '',
-    note: ''
+    title: '',
+    content: '',
+    vitalSigns: '',
+    symptoms: ''
   }
 }
 
@@ -402,13 +393,17 @@ const formatDate = (date) => {
 }
 
 onMounted(() => {
-  loadMedicalRecords()
-  loadReferenceData()
+  loadConsultationNotes()
+  loadPatients()
 })
 </script>
 
 <style scoped>
 .v-card {
   margin-top: 20px;
+}
+
+.bg-grey-lighten-4 {
+  background-color: #f5f5f5 !important;
 }
 </style>

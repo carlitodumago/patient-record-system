@@ -218,7 +218,7 @@ const fillDemoAccount = (username, password) => {
         <div v-if="isLoginMode" class="auth-form login-form" key="login">
           <div class="auth-header">
             <div class="logo-container">
-              <i class="bi bi-hospital"></i>
+              <img src="/src/assets/logo.svg" alt="Hospital Logo" class="hospital-logo" />
             </div>
             <h1>Patient Record System</h1>
             <p class="subtitle">Sign in to your account</p>
@@ -575,6 +575,7 @@ const fillDemoAccount = (username, password) => {
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 5px;
+  text-align: center;
   background: linear-gradient(45deg, #0d6efd, #0dcaf0);
   -webkit-background-clip: text;
   background-clip: text;
@@ -943,6 +944,14 @@ select:focus {
   .create-account-title {
     font-size: 24px;
   }
+}
+
+/* Hospital logo styling */
+.hospital-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 /* If there's a line-clamp property anywhere, add it here with standard property */

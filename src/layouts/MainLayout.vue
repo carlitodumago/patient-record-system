@@ -55,7 +55,10 @@ const navigateToProfile = () => {
     />
     
     <!-- Main content -->
-    <div class="main-content">
+    <div :class="['main-content', {
+      'sidebar-visible': isSidebarVisible && !isSidebarCollapsed,
+      'sidebar-collapsed': isSidebarVisible && isSidebarCollapsed
+    }]">
       <!-- Top navbar with animation -->
       <nav class="navbar navbar-expand-lg navbar-light animate-fade-in-down">
         <div class="container-fluid d-flex justify-content-between align-items-center">
@@ -116,14 +119,25 @@ const navigateToProfile = () => {
   width: 100%;
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .main-content {
-  min-height: calc(100vh - 56px); /* Subtract footer height */
+  min-height: 100vh;
   background: var(--background-color);
-  transition: all 0.3s ease;
+  transition: margin-left 0.3s ease;
   flex: 1;
+  margin-left: 0;
+  width: 100%;
+}
+
+/* Adjust main content when sidebar is visible */
+.main-content.sidebar-visible {
+  margin-left: 240px;
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 70px;
 }
 
 main {

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import supabase from './config/supabase.js';
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -25,10 +26,20 @@ if (process.env.NODE_ENV === 'production') {
 // Import routes
 import patientRoutes from './routes/patients.js';
 import userRoutes from './routes/users.js';
+import appointmentRoutes from './routes/appointments.js';
+import medicalRecordRoutes from './routes/medicalRecords.js';
+import staffRoutes from './routes/staff.js';
+import notificationRoutes from './routes/notifications.js';
+import reportRoutes from './routes/reports.js';
 
 // Use routes
 app.use('/api/patients', patientRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

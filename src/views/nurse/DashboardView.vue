@@ -1,240 +1,224 @@
 <template>
-  <div class="container-fluid mt-3">
-    <h1 class="mb-2">Nurse Dashboard</h1>
-    <p class="text-muted">Patient management and clinical overview</p>
-    
-    <div class="row mt-4">
-      <div class="col-md-4 mb-4">
-        <div class="card bg-primary text-white">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title">150</h5>
-              <p class="card-text">Total Records</p>
+  <v-container fluid>
+    <v-row>
+      <v-col cols="12">
+        <h1 class="text-h4 mb-4">Nurse Dashboard</h1>
+      </v-col>
+    </v-row>
+
+    <!-- Statistics Cards -->
+    <v-row>
+      <v-col cols="12" md="3">
+        <v-card class="stat-card">
+          <v-card-text>
+            <div class="stat-number">{{ stats.totalPatients }}</div>
+            <div class="stat-label">Total Patients</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="3">
+        <v-card class="stat-card">
+          <v-card-text>
+            <div class="stat-number">{{ stats.pendingAppointments }}</div>
+            <div class="stat-label">Pending Appointments</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="3">
+        <v-card class="stat-card">
+          <v-card-text>
+            <div class="stat-number">{{ stats.todayAppointments }}</div>
+            <div class="stat-label">Today's Appointments</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="3">
+        <v-card class="stat-card">
+          <v-card-text>
+            <div class="stat-number">{{ stats.unreadNotifications }}</div>
+            <div class="stat-label">Unread Notifications</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Quick Actions -->
+    <v-row class="mt-6">
+      <v-col cols="12" md="6">
+        <v-card>
+          <v-card-title>Quick Actions</v-card-title>
+          <v-card-text>
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-btn color="primary" block @click="$router.push('/nurse/patient-management')">
+                  <v-icon left>mdi-account-multiple</v-icon>
+                  Manage Patients
+                </v-btn>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-btn color="secondary" block @click="$router.push('/nurse/appointment-requests')">
+                  <v-icon left>mdi-calendar-check</v-icon>
+                  Appointment Requests
+                </v-btn>
+              </v-col>
+              <v-col cols="12" md="6" class="mt-2">
+                <v-btn color="success" block @click="$router.push('/nurse/medical-records')">
+                  <v-icon left>mdi-clipboard-text</v-icon>
+                  Medical Records
+                </v-btn>
+              </v-col>
+              <v-col cols="12" md="6" class="mt-2">
+                <v-btn color="info" block @click="$router.push('/nurse/notifications')">
+                  <v-icon left>mdi-bell</v-icon>
+                  Notifications
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card>
+          <v-card-title>Today's Appointments</v-card-title>
+          <v-card-text>
+            <v-timeline dense v-if="todayAppointments.length > 0">
+              <v-timeline-item
+                v-for="(appointment, index) in todayAppointments"
+                :key="index"
+                small
+              >
+                <template v-slot:opposite>
+                  <span class="text-caption">{{ formatTime(appointment.dateTime) }}</span>
+                </template>
+                <div class="text-caption">
+                  <strong>{{ appointment.patientName }}</strong><br>
+                  {{ appointment.reason }}
+                </div>
+              </v-timeline-item>
+            </v-timeline>
+            <div v-else class="text-center text-muted">
+              No appointments scheduled for today
             </div>
-            <i class="bi bi-file-earmark-text display-4"></i>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-4 mb-4">
-        <div class="card bg-success text-white">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title">25</h5>
-              <p class="card-text">Active Patients</p>
-            </div>
-            <i class="bi bi-people display-4"></i>
-          </div>
-        </div>
-      </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
-      <div class="col-md-4 mb-4">
-        <div class="card bg-warning text-dark">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title">10</h5>
-              <p class="card-text">Today's Appointments</p>
-            </div>
-            <i class="bi bi-calendar-check display-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row mt-4">
-      <div class="col-md-6 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Recent Patients</h5>
-            <button class="btn btn-sm btn-primary">
-              <i class="bi bi-plus-circle me-1"></i> Add Patient
-            </button>
-          </div>
-          <div class="card-body">
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Last Visit</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>John Doe</td>
-                  <td>03/06/2025</td>
-                  <td><span class="badge bg-success">Active</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Jane Smith</td>
-                  <td>03/05/2025</td>
-                  <td><span class="badge bg-success">Active</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Michael Johnson</td>
-                  <td>02/28/2025</td>
-                  <td><span class="badge bg-warning text-dark">Follow-up</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6 mb-4">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">Today's Schedule</h5>
-          </div>
-          <div class="card-body">
-            <ul class="list-group">
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>9:00 AM</strong>
-                  <div>John Doe - Annual Physical</div>
+    <!-- Recent Activity -->
+    <v-row class="mt-6">
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>Recent Activity</v-card-title>
+          <v-card-text>
+            <v-timeline dense>
+              <v-timeline-item
+                v-for="(activity, index) in recentActivities"
+                :key="index"
+                small
+              >
+                <template v-slot:opposite>
+                  <span class="text-caption">{{ formatDate(activity.date) }}</span>
+                </template>
+                <div class="text-caption">
+                  {{ activity.description }}
                 </div>
-                <span class="badge bg-primary rounded-pill">Confirmed</span>
-              </li>
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>10:30 AM</strong>
-                  <div>Jane Smith - Follow-up</div>
-                </div>
-                <span class="badge bg-primary rounded-pill">Confirmed</span>
-              </li>
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>11:00 AM</strong>
-                  <div>Michael Johnson - Blood Test</div>
-                </div>
-                <span class="badge bg-warning text-dark rounded-pill">Pending</span>
-              </li>
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>2:00 PM</strong>
-                  <div>Sarah Williams - Consultation</div>
-                </div>
-                <span class="badge bg-primary rounded-pill">Confirmed</span>
-              </li>
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>3:30 PM</strong>
-                  <div>Robert Brown - Vaccination</div>
-                </div>
-                <span class="badge bg-primary rounded-pill">Confirmed</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row mt-4">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Recent Medical Records</h5>
-            <a href="/records" class="btn btn-sm btn-outline-primary">View All Records</a>
-          </div>
-          <div class="card-body">
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th scope="col">Record ID</th>
-                  <th scope="col">Patient</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>PR-001</td>
-                  <td>John Doe</td>
-                  <td>Visit</td>
-                  <td>03/06/2025 10:30</td>
-                  <td><span class="badge bg-success">Verified</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>PR-002</td>
-                  <td>Jane Smith</td>
-                  <td>History</td>
-                  <td>03/05/2025 14:00</td>
-                  <td><span class="badge bg-warning text-dark">Pending</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>PR-003</td>
-                  <td>Michael Johnson</td>
-                  <td>Lab Results</td>
-                  <td>03/04/2025 09:15</td>
-                  <td><span class="badge bg-info text-dark">New</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+              </v-timeline-item>
+            </v-timeline>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue'
+import { supabase } from '@/services/supabase'
 
-const store = useStore();
-const router = useRouter();
+const stats = ref({
+  totalPatients: 0,
+  pendingAppointments: 0,
+  todayAppointments: 0,
+  unreadNotifications: 0
+})
 
-// You can add reactive data and methods here
+const todayAppointments = ref([])
+const recentActivities = ref([
+  { date: new Date(), description: 'Medical record updated' },
+  { date: new Date(Date.now() - 3600000), description: 'Appointment approved' },
+  { date: new Date(Date.now() - 7200000), description: 'Patient consultation completed' },
+  { date: new Date(Date.now() - 10800000), description: 'New appointment request received' }
+])
+
+const loadStats = async () => {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const [patientsResult, appointmentsResult, todayAppointmentsResult, notificationsResult] = await Promise.all([
+      supabase.from('patients').select('id', { count: 'exact', head: true }),
+      supabase.from('appointments').select('id, status', { count: 'exact' }),
+      supabase.from('appointments').select('*, patients(firstName, lastName)').gte('dateTime', today.toISOString()).lt('dateTime', tomorrow.toISOString()),
+      supabase.from('notifications').select('id, read', { count: 'exact' })
+    ])
+
+    stats.value.totalPatients = patientsResult.count || 0
+    stats.value.pendingAppointments = appointmentsResult.data?.filter(app => app.status === 'pending').length || 0
+    stats.value.todayAppointments = todayAppointmentsResult.data?.length || 0
+    stats.value.unreadNotifications = notificationsResult.data?.filter(notif => !notif.read).length || 0
+
+    todayAppointments.value = todayAppointmentsResult.data?.map(app => ({
+      ...app,
+      patientName: `${app.patients?.firstName || ''} ${app.patients?.lastName || ''}`.trim()
+    })) || []
+  } catch (error) {
+    console.error('Load stats error:', error)
+  }
+}
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleString()
+}
+
+const formatTime = (dateTime) => {
+  return new Date(dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
 
 onMounted(() => {
-  // Initialize dashboard data
-});
+  loadStats()
+})
 </script>
 
 <style scoped>
-.card {
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+.stat-card {
+  text-align: center;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.card:hover {
-  transform: translateY(-5px);
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #1976d2;
 }
 
-.bg-primary, .bg-success, .bg-warning, .bg-info {
-  border: none;
+.stat-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 8px;
 }
 
-.bi {
-  opacity: 0.7;
+.v-card {
+  margin-top: 20px;
+}
+
+.text-muted {
+  color: #666;
+  font-style: italic;
 }
 </style>

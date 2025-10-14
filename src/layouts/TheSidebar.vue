@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
-import { useStore } from 'vuex';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useRouter } from 'vue-router';
 
 const props = defineProps({
@@ -16,27 +17,20 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-sidebar', 'close-sidebar']);
 
-const store = useStore();
+const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 const router = useRouter();
 
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
 
 // Get unread notification count
-const unreadNotificationCount = computed(() => {
-  return store.state.notifications.filter(n => !n.read).length;
-});
+const unreadNotificationCount = computed(() => notificationStore.unreadCount);
 
-const userRole = ref(null);
-onMounted(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  userRole.value = user?.role || null;
-});
+const userRole = computed(() => authStore.user?.role);
 
-const logout = () => {
-  localStorage.removeItem('user');
-  store.commit('setAuthenticated', false);
-  store.commit('setUser', null);
+const logout = async () => {
+  await authStore.logout();
   router.push('/login');
 };
 
@@ -70,67 +64,90 @@ const closeSidebar = () => {
           <!-- Admin menu -->
           <template v-if="userRole === 'admin'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
-                <i class="bi bi-person-badge me-2"></i>
-                <span v-if="!isSidebarCollapsed">Admin Dashboard</span>
-                <i v-if="!isSidebarCollapsed" class="bi bi-grid-fill ms-auto"></i>
+              <router-link class="nav-link text-white" to="/admin/dashboard" @click="closeSidebar">
+                <i class="bi bi-house-door me-2"></i>
+                <span v-if="!isSidebarCollapsed">Dashboard</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/admin/manage-patients" @click="closeSidebar">
+                <i class="bi bi-person-lines-fill me-2"></i>
+                <span v-if="!isSidebarCollapsed">Manage Patients</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/admin/appointments" @click="closeSidebar">
+                <i class="bi bi-calendar-event me-2"></i>
+                <span v-if="!isSidebarCollapsed">Appointments</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/admin/medical-records" @click="closeSidebar">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white notification-link" to="/admin/notifications" @click="closeSidebar">
+                <i class="bi bi-bell me-2"></i>
+                <span v-if="!isSidebarCollapsed">Notifications</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/admin/reports" @click="closeSidebar">
+                <i class="bi bi-bar-chart me-2"></i>
+                <span v-if="!isSidebarCollapsed">Reports & Analytics</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/admin/account-creation" @click="closeSidebar">
+                <i class="bi bi-person-plus me-2"></i>
+                <span v-if="!isSidebarCollapsed">Account Creation</span>
               </router-link>
             </li>
           </template>
           <!-- Nurse/Clinic Staff menu -->
           <template v-else-if="userRole === 'nurse'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
-                <i class="bi bi-briefcase-medical me-2"></i>
+              <router-link class="nav-link text-white" to="/nurse/dashboard" @click="closeSidebar">
+                <i class="bi bi-house-door me-2"></i>
                 <span v-if="!isSidebarCollapsed">Dashboard</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/patients" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/nurse/patient-management" @click="closeSidebar">
                 <i class="bi bi-people me-2"></i>
-                <span v-if="!isSidebarCollapsed">Patient List</span>
+                <span v-if="!isSidebarCollapsed">Patient Management</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/nurse/medical-records" @click="closeSidebar">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
-                <i class="bi bi-calendar-check me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical Visits</span>
+              <router-link class="nav-link text-white" to="/nurse/appointment-requests" @click="closeSidebar">
+                <i class="bi bi-calendar-event me-2"></i>
+                <span v-if="!isSidebarCollapsed">Appointment Requests</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/history" @click="closeSidebar">
-                <i class="bi bi-clock-history me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical History</span>
+              <router-link class="nav-link text-white" to="/nurse/treatment-diagnosis" @click="closeSidebar">
+                <i class="bi bi-activity me-2"></i>
+                <span v-if="!isSidebarCollapsed">Treatment & Diagnosis</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/nurse/consultation-notes" @click="closeSidebar">
+                <i class="bi bi-journal-text me-2"></i>
+                <span v-if="!isSidebarCollapsed">Consultation Notes</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white notification-link" to="/nurse/notifications" @click="closeSidebar">
                 <i class="bi bi-bell me-2"></i>
                 <span v-if="!isSidebarCollapsed">Notifications</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
-                <i class="bi bi-calendar me-2"></i>
-                <span v-if="!isSidebarCollapsed">Calendar</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/settings" @click="closeSidebar">
-                <i class="bi bi-gear me-2"></i>
-                <span v-if="!isSidebarCollapsed">Settings</span>
               </router-link>
             </li>
           </template>
@@ -138,27 +155,25 @@ const closeSidebar = () => {
           <!-- Patient menu -->
           <template v-else-if="userRole === 'patient'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/patient/dashboard" @click="closeSidebar">
+                <i class="bi bi-house-door me-2"></i>
+                <span v-if="!isSidebarCollapsed">Dashboard</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link text-white" to="/patient/medical-records" @click="closeSidebar">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
+              <router-link class="nav-link text-white" to="/patient/appointments" @click="closeSidebar">
                 <i class="bi bi-calendar-check me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical Appointment</span>
-                
+                <span v-if="!isSidebarCollapsed">Appointments</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/history" @click="closeSidebar">
-                <i class="bi bi-clock-history me-2"></i>
-                <span v-if="!isSidebarCollapsed">Medical History</span>
-                
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
+              <router-link class="nav-link text-white notification-link" to="/patient/notifications" @click="closeSidebar">
                 <i class="bi bi-bell me-2"></i>
                 <span v-if="!isSidebarCollapsed">
                   Notifications
@@ -166,24 +181,10 @@ const closeSidebar = () => {
                     {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
                   </span>
                 </span>
-                
+
                 <span v-else-if="unreadNotificationCount > 0" class="badge bg-danger notification-badge-collapsed">
                   {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
                 </span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
-                <i class="bi bi-calendar me-2"></i>
-                <span v-if="!isSidebarCollapsed">Calendar</span>
-                
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link text-white" to="/settings" @click="closeSidebar">
-                <i class="bi bi-gear me-2"></i>
-                <span v-if="!isSidebarCollapsed">Settings</span>
-                
               </router-link>
             </li>
           </template>
