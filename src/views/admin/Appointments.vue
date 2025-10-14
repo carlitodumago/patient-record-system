@@ -19,6 +19,18 @@
             <v-tabs-items v-model="tab">
               <v-tab-item>
                 <div class="calendar-container">
+                  <v-card class="mb-4">
+                    <v-card-actions>
+                      <v-spacer></v-spacer>
+                      <v-btn
+                        color="primary"
+                        @click="showCreateAppointmentDialog = true"
+                      >
+                        <v-icon left>mdi-plus</v-icon>
+                        New Appointment
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
                   <FullCalendar
                     ref="calendarRef"
                     :options="calendarOptions"
@@ -35,23 +47,19 @@
                   class="elevation-1"
                 >
                   <template v-slot:item.status="{ item }">
-                    <v-chip
-                      :color="getStatusColor(item.status)"
-                      dark
-                      small
-                    >
-                      {{ item.status }}
+                    <v-chip :color="getStatusColor(item.Status)" dark small>
+                      {{ item.Status }}
                     </v-chip>
                   </template>
                   <template v-slot:item.dateTime="{ item }">
-                    {{ formatDateTime(item.dateTime) }}
+                    {{ formatDateTime(item.DateTime) }}
                   </template>
                   <template v-slot:item.actions="{ item }">
                     <v-btn icon small @click="viewAppointment(item)">
                       <v-icon>mdi-eye</v-icon>
                     </v-btn>
                     <v-btn
-                      v-if="item.status === 'pending'"
+                      v-if="item.Status === 'pending'"
                       icon
                       small
                       color="success"
@@ -60,7 +68,7 @@
                       <v-icon>mdi-check</v-icon>
                     </v-btn>
                     <v-btn
-                      v-if="item.status === 'approved'"
+                      v-if="item.Status === 'approved'"
                       icon
                       small
                       color="primary"
@@ -68,7 +76,12 @@
                     >
                       <v-icon>mdi-check-circle</v-icon>
                     </v-btn>
-                    <v-btn icon small color="error" @click="updateStatus(item, 'cancelled')">
+                    <v-btn
+                      icon
+                      small
+                      color="error"
+                      @click="updateStatus(item, 'cancelled')"
+                    >
                       <v-icon>mdi-close</v-icon>
                     </v-btn>
                   </template>
@@ -78,7 +91,9 @@
               <v-tab-item>
                 <v-data-table
                   :headers="headers"
-                  :items="appointments.filter(app => app.status === 'pending')"
+                  :items="
+                    appointments.filter((app) => app.Status === 'pending')
+                  "
                   :loading="loading"
                   class="elevation-1"
                 >
@@ -86,13 +101,23 @@
                     <v-chip color="warning" dark small>Pending</v-chip>
                   </template>
                   <template v-slot:item.dateTime="{ item }">
-                    {{ formatDateTime(item.dateTime) }}
+                    {{ formatDateTime(item.DateTime) }}
                   </template>
                   <template v-slot:item.actions="{ item }">
-                    <v-btn icon small color="success" @click="updateStatus(item, 'approved')">
+                    <v-btn
+                      icon
+                      small
+                      color="success"
+                      @click="updateStatus(item, 'approved')"
+                    >
                       <v-icon>mdi-check</v-icon>
                     </v-btn>
-                    <v-btn icon small color="error" @click="updateStatus(item, 'cancelled')">
+                    <v-btn
+                      icon
+                      small
+                      color="error"
+                      @click="updateStatus(item, 'cancelled')"
+                    >
                       <v-icon>mdi-close</v-icon>
                     </v-btn>
                   </template>
@@ -102,7 +127,9 @@
               <v-tab-item>
                 <v-data-table
                   :headers="headers"
-                  :items="appointments.filter(app => app.status === 'approved')"
+                  :items="
+                    appointments.filter((app) => app.Status === 'approved')
+                  "
                   :loading="loading"
                   class="elevation-1"
                 >
@@ -110,13 +137,23 @@
                     <v-chip color="success" dark small>Approved</v-chip>
                   </template>
                   <template v-slot:item.dateTime="{ item }">
-                    {{ formatDateTime(item.dateTime) }}
+                    {{ formatDateTime(item.DateTime) }}
                   </template>
                   <template v-slot:item.actions="{ item }">
-                    <v-btn icon small color="primary" @click="updateStatus(item, 'completed')">
+                    <v-btn
+                      icon
+                      small
+                      color="primary"
+                      @click="updateStatus(item, 'completed')"
+                    >
                       <v-icon>mdi-check-circle</v-icon>
                     </v-btn>
-                    <v-btn icon small color="error" @click="updateStatus(item, 'cancelled')">
+                    <v-btn
+                      icon
+                      small
+                      color="error"
+                      @click="updateStatus(item, 'cancelled')"
+                    >
                       <v-icon>mdi-close</v-icon>
                     </v-btn>
                   </template>
@@ -126,7 +163,9 @@
               <v-tab-item>
                 <v-data-table
                   :headers="headers"
-                  :items="appointments.filter(app => app.status === 'completed')"
+                  :items="
+                    appointments.filter((app) => app.Status === 'completed')
+                  "
                   :loading="loading"
                   class="elevation-1"
                 >
@@ -134,7 +173,7 @@
                     <v-chip color="primary" dark small>Completed</v-chip>
                   </template>
                   <template v-slot:item.dateTime="{ item }">
-                    {{ formatDateTime(item.dateTime) }}
+                    {{ formatDateTime(item.DateTime) }}
                   </template>
                   <template v-slot:item.actions="{ item }">
                     <v-btn icon small @click="viewAppointment(item)">
@@ -159,19 +198,26 @@
               <strong>Patient:</strong> {{ selectedAppointment.patientName }}
             </v-col>
             <v-col cols="12">
-              <strong>Date & Time:</strong> {{ formatDateTime(selectedAppointment.dateTime) }}
+              <strong>Date & Time:</strong>
+              {{ formatDateTime(selectedAppointment.DateTime) }}
             </v-col>
             <v-col cols="12">
-              <strong>Reason:</strong> {{ selectedAppointment.reason }}
+              <strong>Reason:</strong> {{ selectedAppointment.Reason }}
             </v-col>
             <v-col cols="12">
               <strong>Status:</strong>
-              <v-chip :color="getStatusColor(selectedAppointment.status)" dark small class="ml-2">
-                {{ selectedAppointment.status }}
+              <v-chip
+                :color="getStatusColor(selectedAppointment.Status)"
+                dark
+                small
+                class="ml-2"
+              >
+                {{ selectedAppointment.Status }}
               </v-chip>
             </v-col>
             <v-col cols="12">
-              <strong>Created:</strong> {{ formatDateTime(selectedAppointment.createdAt) }}
+              <strong>Created:</strong>
+              {{ formatDateTime(selectedAppointment.createdAt) }}
             </v-col>
           </v-row>
         </v-card-text>
@@ -194,164 +240,262 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { supabase } from '@/services/supabase'
-import FullCalendar from '@fullcalendar/vue3'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
+import { ref, onMounted, computed } from "vue";
+import { supabase } from "@/services/supabase";
+import FullCalendar from "@fullcalendar/vue3";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 
-const appointments = ref([])
-const loading = ref(false)
-const tab = ref(0)
-const showDetailsDialog = ref(false)
-const selectedAppointment = ref(null)
+const appointments = ref([]);
+const loading = ref(false);
+const tab = ref(0);
+const showDetailsDialog = ref(false);
+const showCreateAppointmentDialog = ref(false);
+const selectedAppointment = ref(null);
 
 const headers = [
-  { text: 'Patient', value: 'patientName' },
-  { text: 'Date & Time', value: 'dateTime' },
-  { text: 'Reason', value: 'reason' },
-  { text: 'Status', value: 'status' },
-  { text: 'Actions', value: 'actions', sortable: false }
-]
+  { text: "Patient", value: "patientName" },
+  { text: "Date & Time", value: "dateTime" },
+  { text: "Reason", value: "reason" },
+  { text: "Status", value: "status" },
+  { text: "Actions", value: "actions", sortable: false },
+];
 
 const filteredAppointments = computed(() => {
-  return appointments.value
-})
+  return appointments.value;
+});
 
 const snackbar = ref({
   show: false,
-  message: '',
-  color: 'success'
-})
+  message: "",
+  color: "success",
+});
 
 const loadAppointments = async () => {
-  loading.value = true
+  loading.value = true;
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("Appointment")
+      .select(
+        `
         *,
-        patients (
-          firstName,
-          lastName
+        Patients (
+          FirstName,
+          Surname
         )
-      `)
-      .order('dateTime', { ascending: false })
+      `
+      )
+      .order("DateTime", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
-    appointments.value = data.map(item => ({
+    appointments.value = data.map((item) => ({
       ...item,
-      patientName: `${item.patients?.firstName || ''} ${item.patients?.lastName || ''}`.trim()
-    }))
+      patientName: `${item.Patients?.FirstName || ""} ${
+        item.Patients?.Surname || ""
+      }`.trim(),
+    }));
   } catch (error) {
-    console.error('Load appointments error:', error)
+    console.error("Load appointments error:", error);
     snackbar.value = {
       show: true,
-      message: 'Failed to load appointments',
-      color: 'error'
-    }
+      message: "Failed to load appointments",
+      color: "error",
+    };
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const updateStatus = async (appointment, newStatus) => {
   try {
     const { error } = await supabase
-      .from('appointments')
-      .update({ status: newStatus })
-      .eq('id', appointment.id)
+      .from("Appointment")
+      .update({ Status: newStatus })
+      .eq("AppointmentID", appointment.AppointmentID);
 
-    if (error) throw error
+    if (error) throw error;
 
     snackbar.value = {
       show: true,
       message: `Appointment ${newStatus} successfully`,
-      color: 'success'
-    }
+      color: "success",
+    };
 
-    loadAppointments()
+    loadAppointments();
   } catch (error) {
-    console.error('Update status error:', error)
+    console.error("Update status error:", error);
     snackbar.value = {
       show: true,
-      message: 'Failed to update appointment status',
-      color: 'error'
-    }
+      message: "Failed to update appointment status",
+      color: "error",
+    };
   }
-}
+};
 
 const viewAppointment = (appointment) => {
-  selectedAppointment.value = appointment
-  showDetailsDialog.value = true
-}
+  selectedAppointment.value = appointment;
+  showDetailsDialog.value = true;
+};
 
 const getStatusColor = (status) => {
   switch (status) {
-    case 'pending': return 'warning'
-    case 'approved': return 'success'
-    case 'completed': return 'primary'
-    case 'cancelled': return 'error'
-    default: return 'grey'
+    case "pending":
+      return "warning";
+    case "approved":
+      return "success";
+    case "completed":
+      return "primary";
+    case "cancelled":
+      return "error";
+    default:
+      return "grey";
   }
-}
+};
 
 const formatDateTime = (dateTime) => {
-  return new Date(dateTime).toLocaleString()
-}
+  return new Date(dateTime).toLocaleString();
+};
 
 // Calendar configuration
-const calendarRef = ref(null)
+const calendarRef = ref(null);
 
 const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    left: "prev,next today",
+    center: "title",
+    right: "dayGridMonth,timeGridWeek,timeGridDay",
   },
-  initialView: 'dayGridMonth',
-  editable: false,
+  initialView: "dayGridMonth",
+  editable: true,
   selectable: true,
   selectMirror: true,
-  dayMaxEvents: true,
+  dayMaxEvents: 3,
   eventClick: handleEventClick,
-  height: 'auto'
-}))
+  select: handleDateSelect,
+  eventDrop: handleEventDrop,
+  eventResize: handleEventResize,
+  height: "auto",
+  slotMinTime: "08:00:00",
+  slotMaxTime: "18:00:00",
+  businessHours: {
+    daysOfWeek: [1, 2, 3, 4, 5], // Monday - Friday
+    startTime: "08:00",
+    endTime: "17:00",
+  },
+  expandRows: true,
+}));
 
 const calendarEvents = computed(() => {
-  return appointments.value.map(appointment => ({
-    id: appointment.id,
-    title: `${appointment.patientName} - ${appointment.reason}`,
-    start: appointment.dateTime,
-    backgroundColor: getEventColor(appointment.status),
-    borderColor: getEventColor(appointment.status),
+  return appointments.value.map((appointment) => ({
+    id: appointment.AppointmentID,
+    title: `${appointment.patientName} - ${appointment.Reason}`,
+    start: appointment.DateTime,
+    backgroundColor: getEventColor(appointment.Status),
+    borderColor: getEventColor(appointment.Status),
     extendedProps: {
-      appointment: appointment
-    }
-  }))
-})
+      appointment: appointment,
+    },
+  }));
+});
 
 const getEventColor = (status) => {
   switch (status) {
-    case 'pending': return '#FF9800'
-    case 'approved': return '#4CAF50'
-    case 'completed': return '#2196F3'
-    case 'cancelled': return '#F44336'
-    default: return '#9E9E9E'
+    case "pending":
+      return "#FF9800";
+    case "approved":
+      return "#4CAF50";
+    case "completed":
+      return "#2196F3";
+    case "cancelled":
+      return "#F44336";
+    default:
+      return "#9E9E9E";
   }
-}
+};
 
 const handleEventClick = (info) => {
-  const appointment = info.event.extendedProps.appointment
-  viewAppointment(appointment)
-}
+  const appointment = info.event.extendedProps.appointment;
+  viewAppointment(appointment);
+};
+
+const handleDateSelect = (selectInfo) => {
+  // TODO: Open appointment creation dialog with pre-selected date/time
+  console.log("Date selected:", selectInfo.start, selectInfo.end);
+  // For now, just show an alert
+  alert(
+    `Selected time slot: ${selectInfo.start.toLocaleString()} - ${selectInfo.end.toLocaleString()}`
+  );
+};
+
+const handleEventDrop = async (dropInfo) => {
+  const appointment = dropInfo.event.extendedProps.appointment;
+  const newDateTime = dropInfo.event.start;
+
+  try {
+    const { error } = await supabase
+      .from("Appointment")
+      .update({ DateTime: newDateTime.toISOString() })
+      .eq("AppointmentID", appointment.AppointmentID);
+
+    if (error) throw error;
+
+    snackbar.value = {
+      show: true,
+      message: "Appointment rescheduled successfully",
+      color: "success",
+    };
+
+    loadAppointments();
+  } catch (error) {
+    console.error("Reschedule error:", error);
+    snackbar.value = {
+      show: true,
+      message: "Failed to reschedule appointment",
+      color: "error",
+    };
+    // Revert the drag operation
+    dropInfo.revert();
+  }
+};
+
+const handleEventResize = async (resizeInfo) => {
+  const appointment = resizeInfo.event.extendedProps.appointment;
+  const newEndDate = resizeInfo.event.end;
+
+  try {
+    // For now, we'll just update the start time since our schema doesn't have duration
+    const { error } = await supabase
+      .from("Appointment")
+      .update({ DateTime: resizeInfo.event.start.toISOString() })
+      .eq("AppointmentID", appointment.AppointmentID);
+
+    if (error) throw error;
+
+    snackbar.value = {
+      show: true,
+      message: "Appointment duration updated successfully",
+      color: "success",
+    };
+
+    loadAppointments();
+  } catch (error) {
+    console.error("Resize error:", error);
+    snackbar.value = {
+      show: true,
+      message: "Failed to update appointment duration",
+      color: "error",
+    };
+    // Revert the resize operation
+    resizeInfo.revert();
+  }
+};
 
 onMounted(() => {
-  loadAppointments()
-})
+  loadAppointments();
+});
 </script>
 
 <style scoped>

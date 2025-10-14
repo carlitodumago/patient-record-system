@@ -34,6 +34,16 @@
   --color-text: var(--vt-c-text-light-1);
 
   --section-gap: 160px;
+
+  /* Enhanced Design System Variables */
+  --primary-gradient-start: #4361ee;
+  --primary-gradient-end: #3f37c9;
+  --secondary-gradient-start: #4cc9f0;
+  --secondary-gradient-end: #4895ef;
+  --accent-color: #f72585;
+  --background-color: #f8f9fa;
+  --light-color: #f8f9fa;
+  --text-color: #212529;
 }
 
 @media (prefers-color-scheme: dark) {

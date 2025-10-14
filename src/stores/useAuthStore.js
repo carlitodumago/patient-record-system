@@ -1,114 +1,201 @@
-import { defineStore } from 'pinia'
-import { supabase } from '@/services/supabase'
-import { ref, computed } from 'vue'
+import { defineStore } from "pinia";
+import { supabase } from "@/services/supabase";
+import { ref, computed } from "vue";
+import { auditService } from "@/services/auditService";
 
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref(null)
-  const isAuthenticated = ref(false)
-  const loading = ref(false)
+export const useAuthStore = defineStore("auth", () => {
+  const user = ref(null);
+  const isAuthenticated = ref(false);
+  const loading = ref(false);
 
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isDoctor = computed(() => user.value?.role === 'doctor')
-  const isNurse = computed(() => user.value?.role === 'nurse')
-  const isReceptionist = computed(() => user.value?.role === 'receptionist')
+  const isAdmin = computed(() => user.value?.role === "admin");
+  const isNurse = computed(() => user.value?.role === "nurse");
 
-  const login = async (email, password) => {
-    loading.value = true
+  const login = async (identifier, password) => {
+    loading.value = true;
     try {
+      let email = identifier;
+
+      // Check if input is username or email
+      const isEmail = identifier.includes("@");
+
+      if (!isEmail) {
+        // Input is username, look up the email
+        const { data: userData, error: userError } = await supabase
+          .from("Users")
+          .select("Email, UserID")
+          .eq("Username", identifier)
+          .single();
+
+        if (userError || !userData) {
+          throw new Error("Invalid username or password");
+        }
+
+        email = userData.Email;
+      }
+
+      // Now login with email
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
-      })
+        password,
+      });
 
-      if (error) throw error
+      if (error) throw error;
 
-      // Get user profile from users table
+      // Get user profile from Users table with role information
       const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .single()
+        .from("Users")
+        .select(
+          `
+          *,
+          Role:RoleID(RoleName)
+        `
+        )
+        .eq("Email", email)
+        .single();
 
-      if (profileError) throw profileError
+      if (profileError) throw profileError;
 
-      user.value = profile
-      isAuthenticated.value = true
+      // Add role name for easier access
+      const userWithRole = {
+        ...profile,
+        role: profile.Role?.RoleName || "patient",
+      };
 
-      return { success: true }
+      user.value = userWithRole;
+      isAuthenticated.value = true;
+
+      // Log successful login
+      await auditService.logLoginSuccess(data.user.id);
+
+      return { success: true };
     } catch (error) {
-      console.error('Login error:', error)
-      return { success: false, error: error.message }
+      console.error("Login error:", error);
+
+      // Log failed login attempt
+      await auditService.logLoginFailed(identifier, error.message);
+
+      return { success: false, error: error.message };
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut()
-      user.value = null
-      isAuthenticated.value = false
+      const currentUserId = user.value?.UserID;
+
+      await supabase.auth.signOut();
+      user.value = null;
+      isAuthenticated.value = false;
+
+      // Log logout event
+      if (currentUserId) {
+        await auditService.logLogout(currentUserId);
+      }
+
       // User data is now managed by Supabase session
       // No need for localStorage removal
-      return { success: true }
+      return { success: true };
     } catch (error) {
-      console.error('Logout error:', error)
-      return { success: false, error: error.message }
+      console.error("Logout error:", error);
+      return { success: false, error: error.message };
     }
-  }
+  };
 
   const checkAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (session?.user) {
         const { data: profile, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
+          .from("Users")
+          .select(
+            `
+            *,
+            Role:RoleID(RoleName)
+          `
+          )
+          .eq("Email", session.user.email)
+          .single();
 
-      if (!error && profile) {
-        user.value = profile
-        isAuthenticated.value = true
-      }
+        if (!error && profile) {
+          // Add role name for easier access
+          const userWithRole = {
+            ...profile,
+            role: profile.Role?.RoleName || "patient",
+          };
+          user.value = userWithRole;
+          isAuthenticated.value = true;
+        }
       }
     } catch (error) {
-      console.error('Check auth error:', error)
+      console.error("Check auth error:", error);
     }
-  }
+  };
 
   const updateProfile = async (updates) => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from("Users")
         .update(updates)
-        .eq('id', user.value.id)
-        .select()
-        .single()
+        .eq("Email", user.value.Email)
+        .select(
+          `
+          *,
+          Role:RoleID(RoleName)
+        `
+        )
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
-      user.value = { ...user.value, ...data }
+      // Add role name for easier access
+      const updatedUser = {
+        ...data,
+        role: data.Role?.RoleName || user.value.role,
+      };
 
-      return { success: true, data }
+      user.value = { ...user.value, ...updatedUser };
+
+      return { success: true, data: updatedUser };
     } catch (error) {
-      console.error('Update profile error:', error)
-      return { success: false, error: error.message }
+      console.error("Update profile error:", error);
+      return { success: false, error: error.message };
     }
-  }
+  };
+
+  const changePassword = async (newPassword) => {
+    try {
+      // Update password in Supabase Auth
+      const { error: authError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (authError) throw authError;
+
+      // Log password change
+      await auditService.logPasswordChange(user.value.UserID);
+
+      return { success: true };
+    } catch (error) {
+      console.error("Change password error:", error);
+      return { success: false, error: error.message };
+    }
+  };
 
   return {
     user,
     isAuthenticated,
     loading,
     isAdmin,
-    isDoctor,
     isNurse,
-    isReceptionist,
     login,
     logout,
     checkAuth,
-    updateProfile
-  }
-})
+    updateProfile,
+    changePassword,
+  };
+});

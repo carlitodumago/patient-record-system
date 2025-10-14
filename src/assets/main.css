@@ -1,4 +1,7 @@
 @import './base.css';
+@import './css/admin-design-system.css';
+
+/* Ensure CSS variables are available globally */
 
 #app {
   width: 100%;

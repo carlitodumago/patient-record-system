@@ -33,10 +33,10 @@
                 {{ item.patientName }}
               </template>
               <template v-slot:item.diagnosis="{ item }">
-                {{ item.diagnosis?.description || 'N/A' }}
+                {{ item.Diagnosis?.Description || "N/A" }}
               </template>
               <template v-slot:item.treatment="{ item }">
-                {{ item.treatment?.description || 'N/A' }}
+                {{ item.Treatment?.Description || "N/A" }}
               </template>
               <template v-slot:item.createdAt="{ item }">
                 {{ formatDate(item.createdAt) }}
@@ -62,7 +62,7 @@
     <v-dialog v-model="showAddDialog" max-width="800px">
       <v-card>
         <v-card-title>
-          {{ editingRecord ? 'Edit Medical Record' : 'Add New Medical Record' }}
+          {{ editingRecord ? "Edit Medical Record" : "Add New Medical Record" }}
         </v-card-title>
         <v-card-text>
           <v-form ref="form" v-model="valid">
@@ -72,32 +72,32 @@
                   v-model="recordForm.patientId"
                   :items="patients"
                   item-text="fullName"
-                  item-value="id"
+                  item-value="PatientID"
                   label="Patient"
                   required
-                  :rules="[v => !!v || 'Patient is required']"
+                  :rules="[(v) => !!v || 'Patient is required']"
                 ></v-select>
               </v-col>
               <v-col cols="12" md="6">
                 <v-select
                   v-model="recordForm.diagnosisId"
                   :items="diagnoses"
-                  item-text="description"
-                  item-value="id"
+                  item-text="Description"
+                  item-value="DiagnosisID"
                   label="Diagnosis"
                   required
-                  :rules="[v => !!v || 'Diagnosis is required']"
+                  :rules="[(v) => !!v || 'Diagnosis is required']"
                 ></v-select>
               </v-col>
               <v-col cols="12" md="6">
                 <v-select
                   v-model="recordForm.treatmentId"
                   :items="treatments"
-                  item-text="description"
-                  item-value="id"
+                  item-text="Description"
+                  item-value="TreatmentID"
                   label="Treatment"
                   required
-                  :rules="[v => !!v || 'Treatment is required']"
+                  :rules="[(v) => !!v || 'Treatment is required']"
                 ></v-select>
               </v-col>
               <v-col cols="12">
@@ -113,8 +113,13 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn @click="closeDialog">Cancel</v-btn>
-          <v-btn color="primary" @click="saveRecord" :loading="saving" :disabled="!valid">
-            {{ editingRecord ? 'Update' : 'Save' }}
+          <v-btn
+            color="primary"
+            @click="saveRecord"
+            :loading="saving"
+            :disabled="!valid"
+          >
+            {{ editingRecord ? "Update" : "Save" }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -130,19 +135,23 @@
               <strong>Patient:</strong> {{ selectedRecord.patientName }}
             </v-col>
             <v-col cols="12">
-              <strong>Diagnosis:</strong> {{ selectedRecord.diagnosis?.description || 'N/A' }}
+              <strong>Diagnosis:</strong>
+              {{ selectedRecord.Diagnosis?.Description || "N/A" }}
             </v-col>
             <v-col cols="12">
-              <strong>Treatment:</strong> {{ selectedRecord.treatment?.description || 'N/A' }}
+              <strong>Treatment:</strong>
+              {{ selectedRecord.Treatment?.Description || "N/A" }}
             </v-col>
             <v-col cols="12">
-              <strong>Notes:</strong> {{ selectedRecord.note || 'No notes' }}
+              <strong>Notes:</strong> {{ selectedRecord.Notes || "No notes" }}
             </v-col>
             <v-col cols="12">
-              <strong>Created:</strong> {{ formatDate(selectedRecord.createdAt) }}
+              <strong>Created:</strong>
+              {{ formatDate(selectedRecord.createdAt) }}
             </v-col>
             <v-col cols="12">
-              <strong>Entered By:</strong> {{ selectedRecord.enteredByName || 'N/A' }}
+              <strong>Entered By:</strong>
+              {{ selectedRecord.enteredByName || "N/A" }}
             </v-col>
           </v-row>
         </v-card-text>
@@ -158,7 +167,8 @@
       <v-card>
         <v-card-title>Confirm Delete</v-card-title>
         <v-card-text>
-          Are you sure you want to delete this medical record? This action cannot be undone.
+          Are you sure you want to delete this medical record? This action
+          cannot be undone.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -182,229 +192,249 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { supabase } from '@/services/supabase'
+import { ref, onMounted } from "vue";
+import { supabase } from "@/services/supabase";
 
-const medicalRecords = ref([])
-const patients = ref([])
-const diagnoses = ref([])
-const treatments = ref([])
-const loading = ref(false)
-const search = ref('')
-const showAddDialog = ref(false)
-const showViewDialog = ref(false)
-const showDeleteDialog = ref(false)
-const editingRecord = ref(null)
-const selectedRecord = ref(null)
-const saving = ref(false)
-const deleting = ref(false)
-const valid = ref(false)
+const medicalRecords = ref([]);
+const patients = ref([]);
+const diagnoses = ref([]);
+const treatments = ref([]);
+const loading = ref(false);
+const search = ref("");
+const showAddDialog = ref(false);
+const showViewDialog = ref(false);
+const showDeleteDialog = ref(false);
+const editingRecord = ref(null);
+const selectedRecord = ref(null);
+const saving = ref(false);
+const deleting = ref(false);
+const valid = ref(false);
 
 const headers = [
-  { text: 'Patient', value: 'patientName' },
-  { text: 'Diagnosis', value: 'diagnosis' },
-  { text: 'Treatment', value: 'treatment' },
-  { text: 'Created', value: 'createdAt' },
-  { text: 'Actions', value: 'actions', sortable: false }
-]
+  { text: "Patient", value: "patientName" },
+  { text: "Diagnosis", value: "diagnosis" },
+  { text: "Treatment", value: "treatment" },
+  { text: "Created", value: "createdAt" },
+  { text: "Actions", value: "actions", sortable: false },
+];
 
 const recordForm = ref({
-  patientId: '',
-  diagnosisId: '',
-  treatmentId: '',
-  note: ''
-})
+  patientId: "",
+  diagnosisId: "",
+  treatmentId: "",
+  note: "",
+});
 
 const snackbar = ref({
   show: false,
-  message: '',
-  color: 'success'
-})
+  message: "",
+  color: "success",
+});
 
 const loadMedicalRecords = async () => {
-  loading.value = true
+  loading.value = true;
   try {
     const { data, error } = await supabase
-      .from('medical_records')
-      .select(`
+      .from("MedicalRecord")
+      .select(
+        `
         *,
-        patients (
-          firstName,
-          lastName
+        Patients (
+          FirstName,
+          Surname
         ),
-        diagnoses (
-          description
+        Diagnosis (
+          Description
         ),
-        treatments (
-          description
+        Treatment (
+          Description
         ),
-        staff (
-          firstName,
-          lastName
+        Staff (
+          FirstName,
+          Surname
         )
-      `)
-      .order('created_at', { ascending: false })
+      `
+      )
+      .order("CreatedAt", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
-    medicalRecords.value = data.map(item => ({
+    medicalRecords.value = data.map((item) => ({
       ...item,
-      patientName: `${item.patients?.firstName || ''} ${item.patients?.lastName || ''}`.trim(),
-      enteredByName: `${item.staff?.firstName || ''} ${item.staff?.lastName || ''}`.trim()
-    }))
+      patientName: `${item.Patients?.FirstName || ""} ${
+        item.Patients?.Surname || ""
+      }`.trim(),
+      enteredByName: `${item.Staff?.FirstName || ""} ${
+        item.Staff?.Surname || ""
+      }`.trim(),
+    }));
   } catch (error) {
-    console.error('Load medical records error:', error)
+    console.error("Load medical records error:", error);
     snackbar.value = {
       show: true,
-      message: 'Failed to load medical records',
-      color: 'error'
-    }
+      message: "Failed to load medical records",
+      color: "error",
+    };
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const loadReferenceData = async () => {
   try {
-    const [patientsResult, diagnosesResult, treatmentsResult] = await Promise.all([
-      supabase.from('patients').select('id, firstName, lastName'),
-      supabase.from('diagnoses').select('id, description'),
-      supabase.from('treatments').select('id, description')
-    ])
+    const [patientsResult, diagnosesResult, treatmentsResult] =
+      await Promise.all([
+        supabase.from("Patients").select("PatientID, FirstName, Surname"),
+        supabase.from("Diagnosis").select("DiagnosisID, Description"),
+        supabase.from("Treatment").select("TreatmentID, Description"),
+      ]);
 
-    patients.value = patientsResult.data?.map(p => ({
-      ...p,
-      fullName: `${p.firstName} ${p.lastName}`
-    })) || []
+    patients.value =
+      patientsResult.data?.map((p) => ({
+        ...p,
+        fullName: `${p.FirstName} ${p.Surname}`,
+      })) || [];
 
-    diagnoses.value = diagnosesResult.data || []
-    treatments.value = treatmentsResult.data || []
+    diagnoses.value = diagnosesResult.data || [];
+    treatments.value = treatmentsResult.data || [];
   } catch (error) {
-    console.error('Load reference data error:', error)
+    console.error("Load reference data error:", error);
   }
-}
+};
 
 const saveRecord = async () => {
-  if (!valid.value) return
+  if (!valid.value) return;
 
-  saving.value = true
+  saving.value = true;
   try {
     const recordData = {
       ...recordForm.value,
-      enteredBy: 1 // TODO: Get from current user
-    }
+      enteredBy: 1, // TODO: Get from current user
+    };
 
     if (editingRecord.value) {
       const { error } = await supabase
-        .from('medical_records')
-        .update(recordData)
-        .eq('id', editingRecord.value.id)
+        .from("MedicalRecord")
+        .update({
+          PatientID: recordData.patientId,
+          DiagnosisID: recordData.diagnosisId,
+          TreatmentID: recordData.treatmentId,
+          Notes: recordData.note,
+          EnteredBy: recordData.enteredBy,
+        })
+        .eq("RecordID", editingRecord.value.RecordID);
 
-      if (error) throw error
+      if (error) throw error;
 
       snackbar.value = {
         show: true,
-        message: 'Medical record updated successfully',
-        color: 'success'
-      }
+        message: "Medical record updated successfully",
+        color: "success",
+      };
     } else {
-      const { error } = await supabase
-        .from('medical_records')
-        .insert([recordData])
+      const { error } = await supabase.from("MedicalRecord").insert([
+        {
+          PatientID: recordData.patientId,
+          DiagnosisID: recordData.diagnosisId,
+          TreatmentID: recordData.treatmentId,
+          Notes: recordData.note,
+          EnteredBy: recordData.enteredBy,
+        },
+      ]);
 
-      if (error) throw error
+      if (error) throw error;
 
       snackbar.value = {
         show: true,
-        message: 'Medical record added successfully',
-        color: 'success'
-      }
+        message: "Medical record added successfully",
+        color: "success",
+      };
     }
 
-    closeDialog()
-    loadMedicalRecords()
+    closeDialog();
+    loadMedicalRecords();
   } catch (error) {
-    console.error('Save record error:', error)
+    console.error("Save record error:", error);
     snackbar.value = {
       show: true,
-      message: error.message || 'Failed to save medical record',
-      color: 'error'
-    }
+      message: error.message || "Failed to save medical record",
+      color: "error",
+    };
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
 const viewRecord = (record) => {
-  selectedRecord.value = record
-  showViewDialog.value = true
-}
+  selectedRecord.value = record;
+  showViewDialog.value = true;
+};
 
 const editRecord = (record) => {
-  editingRecord.value = record
+  editingRecord.value = record;
   recordForm.value = {
-    patientId: record.patientId,
-    diagnosisId: record.diagnosisId,
-    treatmentId: record.treatmentId,
-    note: record.note
-  }
-  showAddDialog.value = true
-}
+    patientId: record.PatientID,
+    diagnosisId: record.DiagnosisID,
+    treatmentId: record.TreatmentID,
+    note: record.Notes,
+  };
+  showAddDialog.value = true;
+};
 
 const deleteRecord = (record) => {
-  selectedRecord.value = record
-  showDeleteDialog.value = true
-}
+  selectedRecord.value = record;
+  showDeleteDialog.value = true;
+};
 
 const confirmDelete = async () => {
-  deleting.value = true
+  deleting.value = true;
   try {
     const { error } = await supabase
-      .from('medical_records')
+      .from("MedicalRecord")
       .delete()
-      .eq('id', selectedRecord.value.id)
+      .eq("RecordID", selectedRecord.value.RecordID);
 
-    if (error) throw error
+    if (error) throw error;
 
     snackbar.value = {
       show: true,
-      message: 'Medical record deleted successfully',
-      color: 'success'
-    }
+      message: "Medical record deleted successfully",
+      color: "success",
+    };
 
-    showDeleteDialog.value = false
-    loadMedicalRecords()
+    showDeleteDialog.value = false;
+    loadMedicalRecords();
   } catch (error) {
-    console.error('Delete record error:', error)
+    console.error("Delete record error:", error);
     snackbar.value = {
       show: true,
-      message: error.message || 'Failed to delete medical record',
-      color: 'error'
-    }
+      message: error.message || "Failed to delete medical record",
+      color: "error",
+    };
   } finally {
-    deleting.value = false
+    deleting.value = false;
   }
-}
+};
 
 const closeDialog = () => {
-  showAddDialog.value = false
-  editingRecord.value = null
+  showAddDialog.value = false;
+  editingRecord.value = null;
   recordForm.value = {
-    patientId: '',
-    diagnosisId: '',
-    treatmentId: '',
-    note: ''
-  }
-}
+    patientId: "",
+    diagnosisId: "",
+    treatmentId: "",
+    note: "",
+  };
+};
 
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString()
-}
+  return new Date(date).toLocaleDateString();
+};
 
 onMounted(() => {
-  loadMedicalRecords()
-  loadReferenceData()
-})
+  loadMedicalRecords();
+  loadReferenceData();
+});
 </script>
 
 <style scoped>

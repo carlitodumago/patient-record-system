@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted, reactive } from "vue";
-import { useStore } from "vuex";
 import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "../services/api";
 
-const store = useStore();
+const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -40,21 +40,29 @@ const login = async () => {
   isLoading.value = true;
 
   try {
-    // Use the auth service to login
-    const userData = await authService.login({
-      email: loginForm.identifier,
-      password: loginForm.password,
-    });
+    // Use the Pinia auth store to login
+    const result = await authStore.login(
+      loginForm.identifier,
+      loginForm.password
+    );
 
-    // User authentication is now handled by Pinia store
-    // No need to manually update Vuex store or localStorage
-    // Redirect to dashboard after successful login
-    // Check user role and redirect accordingly
-    const userRole = userData.role;
-    if (userRole === 'admin') {
-      router.push("/dashboard");
+    if (result.success) {
+      // Authentication successful - redirect based on user role
+      const userRole = authStore.user?.role;
+
+      if (userRole === "admin") {
+        // Admins go to admin dashboard
+        router.push("/dashboard");
+      } else if (userRole === "nurse") {
+        // Nurses go to nurse dashboard
+        router.push("/nurse/dashboard");
+      } else {
+        // Default to patient dashboard
+        router.push("/patient/dashboard");
+      }
     } else {
-      router.push("/dashboard");
+      // Authentication failed
+      errorMessage.value = result.error || "Invalid username or password";
     }
   } catch (error) {
     errorMessage.value = error.message || "Invalid username or password";
@@ -67,8 +75,6 @@ const login = async () => {
 const toggleLoginFormPassword = () => {
   showLoginFormPassword.value = !showLoginFormPassword.value;
 };
-
-
 </script>
 
 <template>
@@ -87,7 +93,11 @@ const toggleLoginFormPassword = () => {
         <div class="auth-form login-form">
           <div class="auth-header">
             <div class="logo-container">
-              <img src="/src/assets/logo.svg" alt="Hospital Logo" class="hospital-logo" />
+              <img
+                src="/src/assets/logo.svg"
+                alt="Hospital Logo"
+                class="hospital-logo"
+              />
             </div>
             <h1>Patient Record System</h1>
             <p class="subtitle">Sign in to your account</p>
@@ -152,8 +162,6 @@ const toggleLoginFormPassword = () => {
               </button>
             </div>
           </form>
-
-
         </div>
       </div>
     </div>
@@ -688,6 +696,4 @@ select:focus {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-
 </style>
