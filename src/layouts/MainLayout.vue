@@ -1,19 +1,19 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
+import { useAuthStore } from '../stores/useAuthStore';
 import TheSidebar from './TheSidebar.vue';
 import SidebarBackdrop from '../components/SidebarBackdrop.vue';
 
 const route = useRoute();
 const router = useRouter();
-const store = useStore();
+const authStore = useAuthStore();
 const isSidebarCollapsed = ref(false);
 const isSidebarVisible = ref(false); // Default to hidden for a menu-style approach
 
 // User authentication and profile data
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
 
 // Check if current route is login or register page
 const hideSidebar = computed(() => {
@@ -61,43 +61,43 @@ const navigateToProfile = () => {
     }]">
       <!-- Top navbar with animation -->
       <nav class="navbar navbar-expand-lg navbar-light animate-fade-in-down">
-        <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div class="container-fluid navbar-content">
           <!-- Left side: Menu button with hover animation -->
-          <div>
+          <div class="navbar-left">
             <!-- Only show menu button if not on login/register pages -->
-            <button v-if="!hideSidebar" 
-                    @click="toggleSidebarVisibility" 
+            <button v-if="!hideSidebar"
+                    @click="toggleSidebarVisibility"
                     class="btn btn-link border-0 menu-toggle-btn"
                     title="Toggle menu">
               <i class="bi bi-list fs-4"></i>
             </button>
           </div>
-          
+
           <!-- Center: App name with hover animation -->
-          <div>
+          <div class="navbar-center">
             <div class="system-title animate-fade-in">
               <i class="bi bi-hospital me-2 animate-pulse"></i>
               <span class="title-text">Patient Record System</span>
             </div>
           </div>
-          
+
           <!-- Right side: Profile picture (only for authenticated users) -->
-          <div v-if="isAuthenticated && !hideSidebar" class="d-flex align-items-center animate-fade-in-left">
-            <div @click="navigateToProfile" class="profile-picture-nav animate-fade-in">
-              <div class="d-flex align-items-center">
-                <!-- Show profile picture if exists, otherwise show default icon -->
-                <div v-if="user?.profilePicture" class="profile-img-container">
-                  <img :src="user.profilePicture" alt="Profile" class="profile-img">
+          <div class="navbar-right">
+            <div v-if="isAuthenticated && !hideSidebar" class="d-flex align-items-center animate-fade-in-left">
+              <div @click="navigateToProfile" class="profile-picture-nav animate-fade-in">
+                <div class="d-flex align-items-center">
+                  <!-- Show profile picture if exists, otherwise show default icon -->
+                  <div v-if="user?.profilePicture" class="profile-img-container">
+                    <img :src="user.profilePicture" alt="Profile" class="profile-img">
+                  </div>
+                  <div v-else class="profile-avatar">
+                    <span>{{ user?.username?.[0]?.toUpperCase() || 'U' }}</span>
+                  </div>
+                  <span class="ms-2 fw-medium">{{ user?.fullName || user?.username }}</span>
                 </div>
-                <div v-else class="profile-avatar">
-                  <span>{{ user?.username?.[0]?.toUpperCase() || 'U' }}</span>
-                </div>
-                <span class="ms-2 fw-medium">{{ user?.fullName || user?.username }}</span>
               </div>
             </div>
           </div>
-          <!-- Empty div for balance when no profile is shown -->
-          <div v-else></div>
         </div>
       </nav>
       
@@ -262,6 +262,32 @@ main {
   transform: scale(0.95);
 }
 
+/* Navbar content layout */
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.navbar-left {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.navbar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.navbar-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* System title animation enhancement */
 .system-title {
   display: flex;
@@ -276,5 +302,78 @@ main {
 .system-title:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Page transition animations */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.5s ease-in-out;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.5s ease-in-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 </style> 

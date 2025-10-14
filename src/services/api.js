@@ -11,15 +11,24 @@ const api = axios.create({
 
 // Add a request interceptor to attach auth token to requests
 api.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['x-auth-token'] = token;
+  async config => {
+    // Get current session from Supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers['x-auth-token'] = session.access_token;
     }
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.role) {
-      config.headers['x-user-role'] = user.role;
+    // Get user role from Supabase
+    if (session?.user) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userData?.role) {
+        config.headers['x-user-role'] = userData.role;
+      }
     }
 
     return config;
@@ -54,8 +63,8 @@ export const authService = {
         token: data.session.access_token
       };
 
-      localStorage.setItem('token', data.session.access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Token and user data are now managed by Pinia store
+      // No need for localStorage storage here
 
       return userData;
     } catch (error) {
@@ -106,9 +115,21 @@ export const authService = {
     }
   },
 
-  getCurrentUser: () => {
+  getCurrentUser: async () => {
     try {
-      return JSON.parse(localStorage.getItem('user'));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!error && userData) {
+          return userData;
+        }
+      }
+      return null;
     } catch (error) {
       return null;
     }

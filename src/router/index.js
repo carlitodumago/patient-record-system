@@ -4,12 +4,12 @@ import { useAuthStore } from '@/stores/useAuthStore'
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/signin'
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/Login.vue')
+    path: '/signin',
+    name: 'Signin',
+    component: () => import('../views/Signin.vue')
   },
 
   {
@@ -17,8 +17,9 @@ const routes = [
     name: 'MedicalRecords',
     component: () => {
       // Dynamically import the correct component based on user role
-      const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { role: 'patient' };
-      const role = user.role || 'patient';
+      // User role is now determined by Supabase session
+      // Default to patient if no session
+      const role = 'patient';
       
       // Map role to component path
       if (role === 'admin') {
@@ -36,8 +37,9 @@ const routes = [
     name: 'Dashboard',
     component: () => {
       // Dynamically import the correct component based on user role
-      const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { role: 'patient' };
-      const role = user.role || 'patient';
+      // User role is now determined by Supabase session
+      // Default to patient if no session
+      const role = 'patient';
 
       // Map role to component path
       if (role === 'admin') {
@@ -180,14 +182,14 @@ router.beforeEach(async (to, from, next) => {
   const nurseRoutes = ['/patients', '/visits', '/records', '/history', '/notifications', '/calendar', '/settings', '/dashboard'];
 
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    next('/login');
+    next('/signin');
   } else if (to.meta.role && to.meta.role !== role) {
-    next('/login');
+    next('/signin');
   } else if (role === 'patient') {
     // Redirect patient from /patients to /dashboard
     if (to.path === '/patients') {
       next('/dashboard');
-    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/login') {
+    } else if (!patientOnlyRoutes.includes(to.path) && to.path !== '/dashboard' && to.path !== '/signin') {
       // Prevent patient from accessing non-patient routes
       next('/dashboard');
     } else {
@@ -204,7 +206,7 @@ router.beforeEach(async (to, from, next) => {
   }
   } catch (error) {
     console.error('Navigation guard error:', error);
-    next('/login');
+    next('/signin');
   }
 });
 

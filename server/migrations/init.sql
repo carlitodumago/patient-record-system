@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS "Role" (
 
 -- Create Users table
 CREATE TABLE IF NOT EXISTS "Users" (
-  "UserID" SERIAL PRIMARY KEY,
+  "UserID" VARCHAR(255) PRIMARY KEY, -- Changed to VARCHAR for Supabase Auth UUID
   "Username" VARCHAR(100) UNIQUE NOT NULL,
   "Password" VARCHAR(255) NOT NULL, -- Plain text for prototype
   "Email" VARCHAR(255) UNIQUE NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS "Users" (
 -- Create Staff table
 CREATE TABLE IF NOT EXISTS "Staff" (
   "StaffID" SERIAL PRIMARY KEY,
-  "UserID" INTEGER REFERENCES "Users"("UserID"),
+  "UserID" VARCHAR(255) REFERENCES "Users"("UserID"),
   "FirstName" VARCHAR(100) NOT NULL,
   "Surname" VARCHAR(100) NOT NULL,
   "Suffix" VARCHAR(10),
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS "Staff" (
 -- Create Patients table
 CREATE TABLE IF NOT EXISTS "Patients" (
   "PatientID" SERIAL PRIMARY KEY,
-  "UserID" INTEGER REFERENCES "Users"("UserID"),
+  "UserID" VARCHAR(255) REFERENCES "Users"("UserID"),
   "FirstName" VARCHAR(100) NOT NULL,
   "Surname" VARCHAR(100) NOT NULL,
   "Suffix" VARCHAR(10),
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS "MedicalRecord" (
 -- Create Notification table
 CREATE TABLE IF NOT EXISTS "Notification" (
   "NotificationID" SERIAL PRIMARY KEY,
-  "UserID" INTEGER REFERENCES "Users"("UserID"),
+  "UserID" VARCHAR(255) REFERENCES "Users"("UserID"),
   "Message" TEXT NOT NULL,
   "CreatedAt" TIMESTAMP DEFAULT NOW()
 );
@@ -91,8 +91,5 @@ CREATE TABLE IF NOT EXISTS "Notification" (
 -- Insert default roles
 INSERT INTO "Role" ("RoleName") VALUES ('admin'), ('nurse'), ('patient') ON CONFLICT ("RoleName") DO NOTHING;
 
--- Insert default admin account
-INSERT INTO "Users" ("Username", "Password", "Email", "RoleID", "CreatedAt", "FirstLogin")
-SELECT 'admin', 'admin123', 'admin@baankm3clinic.ph', r."RoleID", NOW(), FALSE
-FROM "Role" r WHERE r."RoleName" = 'admin'
-ON CONFLICT ("Username") DO NOTHING;
+-- Insert default admin account (UserID will be set by script)
+-- Note: This is a placeholder. The actual admin creation is handled by create-admin.js

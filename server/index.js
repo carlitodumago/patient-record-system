@@ -32,6 +32,10 @@ import staffRoutes from './routes/staff.js';
 import notificationRoutes from './routes/notifications.js';
 import reportRoutes from './routes/reports.js';
 
+// Import services to initialize them (avoid OAuth errors)
+import './services/emailService.js';
+import './services/smsService.js';
+
 // Use routes
 app.use('/api/patients', patientRoutes);
 app.use('/api/users', userRoutes);

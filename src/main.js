@@ -154,14 +154,11 @@ const store = createStore({
     },
   },
   actions: {
-    // Add an action to load patients from localStorage on app start
+    // Patients are now loaded from Supabase via Pinia stores
+    // No need to load from localStorage
     loadPatients({ commit }) {
-      const savedPatients = localStorage.getItem("patientRecords");
-      if (savedPatients) {
-        // Standardize all patient dates to MM-DD-YYYY format
-        const patients = standardizePatientsList(JSON.parse(savedPatients));
-        commit("setPatients", patients);
-      }
+      // This action is kept for backward compatibility but does nothing
+      // Patients will be loaded via usePatientStore from Supabase
     },
     async loadUsers({ commit }) {
       try {
@@ -176,24 +173,8 @@ const store = createStore({
   },
 });
 
-// Check local storage for user login state
-const storedUser = localStorage.getItem("user");
-if (storedUser) {
-  try {
-    const userData = JSON.parse(storedUser);
-    store.commit("setAuthenticated", true);
-    store.commit("setUser", userData);
-  } catch (e) {
-    console.error("Error parsing stored user data:", e);
-    localStorage.removeItem("user");
-  }
-}
-
-// Load patients from localStorage on app start
-store.dispatch("loadPatients");
-
-// Load users from the backend on app start
-store.dispatch("loadUsers");
+// Initialize Pinia store (auth will be handled by Supabase session)
+// Patients and other data will be loaded via Pinia stores from Supabase
 
 // Create the app instance
 const app = createApp(App);

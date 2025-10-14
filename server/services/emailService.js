@@ -1,28 +1,11 @@
 import nodemailer from 'nodemailer';
-import { google } from 'googleapis';
 
-const OAuth2 = google.auth.OAuth2;
-
-// Gmail OAuth2 setup (replace with your credentials)
-const oauth2Client = new OAuth2(
-  process.env.GMAIL_CLIENT_ID || 'your-client-id',
-  process.env.GMAIL_CLIENT_SECRET || 'your-client-secret',
-  'https://developers.google.com/oauthplayground'
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GMAIL_REFRESH_TOKEN || 'your-refresh-token'
-});
-
-const transporter = nodemailer.createTransporter({
+// Simple Gmail transporter (for development/testing)
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    type: 'OAuth2',
     user: process.env.GMAIL_USER || 'your-email@gmail.com',
-    clientId: process.env.GMAIL_CLIENT_ID,
-    clientSecret: process.env.GMAIL_CLIENT_SECRET,
-    refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-    accessToken: oauth2Client.getAccessToken()
+    pass: process.env.GMAIL_APP_PASSWORD || 'your-app-password'
   }
 });
 

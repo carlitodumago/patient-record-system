@@ -38,6 +38,14 @@
 - [x] Create src/views/admin/Reports.vue (stats, exports)
 - [ ] Add password change prompt on first login
 
+## Phase 6: Migration Cleanup
+- [x] Remove localStorage dependencies from utils/autoLogout.js
+- [x] Remove localStorage dependencies from utils/notificationUtils.js
+- [x] Remove localStorage dependencies from main.js loadPatients action
+- [x] Remove localStorage dependencies from stores/useAuthStore.js
+- [x] Update Signin.vue comments for clarity
+- [x] Disable auto logout functionality as per user request
+
 ## Phase 5: Testing and Polish
 - [x] Add unit tests (Vitest) for auth, creation, sending
 - [x] Ensure mobile-responsive with Vuetify

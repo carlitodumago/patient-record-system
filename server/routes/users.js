@@ -40,7 +40,7 @@ const generatePassword = (birthDate) => {
   return `${month}-${day}-${year}`;
 };
 
-// Login route using Supabase Auth
+// Login route using Supabase Auth or database check
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -49,37 +49,68 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: username, // Assuming username is email for simplicity; adjust if needed
-      password: password
-    });
+    // First try Supabase Auth (for email login)
+    if (username.includes('@')) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: username,
+        password: password
+      });
 
-    if (error) {
+      if (!error && data) {
+        // Get user role from Users table
+        const { data: userData, error: userError } = await supabase
+          .from('Users')
+          .select('RoleID, FirstLogin')
+          .eq('UserID', data.user.id)
+          .single();
+
+        if (userError) {
+          console.error('User not found in database:', userError);
+          return res.status(401).json({ message: 'User not found in database' });
+        }
+
+        let roleName = 'patient'; // Default role
+        if (userData) {
+          const { data: roleData } = await supabase
+            .from('Role')
+            .select('RoleName')
+            .eq('RoleID', userData.RoleID)
+            .single();
+          roleName = roleData?.RoleName || 'patient';
+        }
+
+        const userResponse = {
+          username: data.user.email,
+          role: roleName,
+          token: data.session.access_token,
+          firstLogin: userData?.FirstLogin || false
+        };
+
+        return res.status(200).json(userResponse);
+      }
+    }
+
+    // Fallback to database check for username login
+    const { data: userData, error } = await supabase
+      .from('Users')
+      .select(`
+        UserID,
+        Username,
+        Password,
+        Role:RoleID (RoleName),
+        FirstLogin
+      `)
+      .eq('Username', username)
+      .single();
+
+    if (error || !userData || userData.Password !== password) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Get user role from Users table
-    const { data: userData, error: userError } = await supabase
-      .from('Users')
-      .select('RoleID, FirstLogin')
-      .eq('UserID', data.user.id)
-      .single();
-
-    if (userError) {
-      return res.status(500).json({ message: 'Failed to fetch user role' });
-    }
-
-    const { data: roleData } = await supabase
-      .from('Role')
-      .select('RoleName')
-      .eq('RoleID', userData.RoleID)
-      .single();
-
     const userResponse = {
-      username: data.user.email,
-      role: roleData.RoleName,
-      fullName: data.user.user_metadata?.full_name || username,
-      token: data.session.access_token,
+      username: userData.Username,
+      role: userData.Role.RoleName,
+      token: 'dummy-token', // Placeholder for prototype
       firstLogin: userData.FirstLogin
     };
 

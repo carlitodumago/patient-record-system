@@ -10,19 +10,9 @@
 export const areNotificationsEnabled = (user) => {
   if (!user) return false;
   
-  // Get saved settings if they exist
-  const savedSettings = localStorage.getItem('userSettings');
-  if (savedSettings) {
-    try {
-      const parsedSettings = JSON.parse(savedSettings);
-      // Only use settings if they belong to current user
-      if (parsedSettings.username === user.username) {
-        return parsedSettings.settings.notifications !== false; // Default to true if not explicitly false
-      }
-    } catch (error) {
-      console.error('Failed to parse notification settings:', error);
-    }
-  }
+  // User settings are now managed by Supabase
+  // Default to true for notifications
+  return true;
   
   // Default to true if no settings found
   return true;

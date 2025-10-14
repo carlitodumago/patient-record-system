@@ -34,9 +34,6 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = profile
       isAuthenticated.value = true
 
-      // Store in localStorage
-      localStorage.setItem('user', JSON.stringify(profile))
-
       return { success: true }
     } catch (error) {
       console.error('Login error:', error)
@@ -51,7 +48,8 @@ export const useAuthStore = defineStore('auth', () => {
       await supabase.auth.signOut()
       user.value = null
       isAuthenticated.value = false
-      localStorage.removeItem('user')
+      // User data is now managed by Supabase session
+      // No need for localStorage removal
       return { success: true }
     } catch (error) {
       console.error('Logout error:', error)
@@ -70,11 +68,10 @@ export const useAuthStore = defineStore('auth', () => {
           .eq('id', session.user.id)
           .single()
 
-        if (!error && profile) {
-          user.value = profile
-          isAuthenticated.value = true
-          localStorage.setItem('user', JSON.stringify(profile))
-        }
+      if (!error && profile) {
+        user.value = profile
+        isAuthenticated.value = true
+      }
       }
     } catch (error) {
       console.error('Check auth error:', error)
@@ -93,7 +90,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (error) throw error
 
       user.value = { ...user.value, ...data }
-      localStorage.setItem('user', JSON.stringify(user.value))
 
       return { success: true, data }
     } catch (error) {
