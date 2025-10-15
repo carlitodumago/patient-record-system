@@ -19,7 +19,6 @@ const medicalRecords = ref([
     patientId: 1,
     patientName: "John Doe",
     appointmentId: 1,
-    healthcareProvider: "Dr. Sarah Johnson",
     date: "2024-10-10",
     type: "Consultation",
     diagnosis: "Hypertension",
@@ -45,7 +44,6 @@ const medicalRecords = ref([
     patientId: 1,
     patientName: "John Doe",
     appointmentId: 2,
-    healthcareProvider: "Dr. Sarah Johnson",
     date: "2024-10-14",
     type: "Follow-up",
     diagnosis: "Diabetes Type 2",
@@ -70,7 +68,6 @@ const medicalRecords = ref([
     patientId: 1,
     patientName: "John Doe",
     appointmentId: 3,
-    healthcareProvider: "Maria Santos, RN",
     date: "2024-09-28",
     type: "Vaccination",
     diagnosis: "COVID-19 Vaccination",
@@ -97,9 +94,6 @@ const user = computed(() => store.state.user);
 const filteredRecords = computed(() => {
   return medicalRecords.value.filter((record) => {
     const matchesSearch =
-      record.healthcareProvider
-        .toLowerCase()
-        .includes(search.value.toLowerCase()) ||
       record.diagnosis.toLowerCase().includes(search.value.toLowerCase()) ||
       record.treatment.toLowerCase().includes(search.value.toLowerCase()) ||
       record.type.toLowerCase().includes(search.value.toLowerCase());
@@ -166,7 +160,6 @@ const downloadRecord = (record) => {
   const recordData = {
     patientName: record.patientName,
     date: record.date,
-    provider: record.healthcareProvider,
     type: record.type,
     diagnosis: record.diagnosis,
     treatment: record.treatment,
@@ -189,8 +182,8 @@ const printRecord = (record) => {
 
 const requestRecordAccess = () => {
   console.log("Requesting record access");
-  // In a real application, this would send a request to healthcare providers
-  alert("Record access request would be sent to your healthcare provider");
+  // In a real application, this would send a request for record access
+  alert("Record access request would be processed");
 };
 
 const getStatusBadgeVariant = (status) => {
@@ -329,7 +322,7 @@ onMounted(() => {
                 v-model="search"
                 type="text"
                 class="form-control"
-                placeholder="Search records by provider, diagnosis, or type..."
+                placeholder="Search records by diagnosis, treatment, or type..."
               />
             </div>
           </div>
@@ -389,7 +382,6 @@ onMounted(() => {
             <thead class="table-light">
               <tr>
                 <th>Date</th>
-                <th>Healthcare Provider</th>
                 <th>Type</th>
                 <th>Diagnosis</th>
                 <th>Treatment</th>
@@ -405,21 +397,6 @@ onMounted(() => {
                 <td>
                   <div class="fw-medium">{{ formatDate(record.date) }}</div>
                   <small class="text-muted">{{ record.type }}</small>
-                </td>
-                <td>
-                  <div class="d-flex align-items-center">
-                    <div class="provider-avatar me-3">
-                      <i class="bi bi-person-circle"></i>
-                    </div>
-                    <div>
-                      <div class="fw-medium">
-                        {{ record.healthcareProvider }}
-                      </div>
-                      <small class="text-muted">{{
-                        formatDateTime(record.createdAt)
-                      }}</small>
-                    </div>
-                  </div>
                 </td>
                 <td>
                   <span
@@ -521,7 +498,7 @@ onMounted(() => {
                       <i class="bi bi-file-medical text-primary"></i>
                     </div>
                     <div>
-                      <strong>{{ record.healthcareProvider }}</strong>
+                      <strong>{{ record.type }}</strong>
                       <span
                         class="badge ms-2"
                         :class="`bg-${getTypeBadgeVariant(record.type)}`"
@@ -689,9 +666,6 @@ onMounted(() => {
                       {{ formatDate(selectedRecord.date) }} -
                       {{ selectedRecord.type }}
                     </h4>
-                    <p class="text-muted mb-1">
-                      {{ selectedRecord.healthcareProvider }}
-                    </p>
                     <p class="text-muted mb-0">
                       Record ID: {{ selectedRecord.id }}
                     </p>
@@ -702,10 +676,6 @@ onMounted(() => {
               <div class="col-md-6">
                 <label class="form-label fw-medium">Visit Information</label>
                 <div class="info-group">
-                  <div class="info-item">
-                    <strong>Healthcare Provider:</strong>
-                    {{ selectedRecord.healthcareProvider }}
-                  </div>
                   <div class="info-item">
                     <strong>Visit Type:</strong>
                     <span
@@ -846,18 +816,6 @@ onMounted(() => {
 
 .search-box input {
   padding-left: 40px;
-}
-
-.provider-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-gradient-start);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
 }
 
 .record-icon {

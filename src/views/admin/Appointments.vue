@@ -423,7 +423,6 @@ onMounted(() => {
             <thead class="table-light">
               <tr>
                 <th>Patient</th>
-                <th>Healthcare Provider</th>
                 <th>Date & Time</th>
                 <th>Type</th>
                 <th>Status</th>
@@ -449,12 +448,6 @@ onMounted(() => {
                       >
                     </div>
                   </div>
-                </td>
-                <td>
-                  <div class="fw-medium">{{ appointment.staffName }}</div>
-                  <small class="text-muted"
-                    >{{ appointment.duration }} min</small
-                  >
                 </td>
                 <td>
                   <div>{{ formatDateTime(appointment.dateTime) }}</div>

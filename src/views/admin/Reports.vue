@@ -1,9 +1,35 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useAuthStore } from "../../stores/auth";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line, Bar, Doughnut } from "vue-chartjs";
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // Store
-const store = useStore();
+const authStore = useAuthStore();
 
 // Reactive data
 const loading = ref(false);
@@ -92,7 +118,7 @@ const reportData = ref({
 });
 
 // Computed properties
-const user = computed(() => store.state.user);
+const user = computed(() => authStore.user);
 
 // Methods
 const fetchReportData = async () => {
@@ -163,6 +189,164 @@ const getLineChartData = (data, label) => {
         backgroundColor: "rgba(67, 97, 238, 0.1)",
         tension: 0.4,
         fill: true,
+      },
+    ],
+  };
+};
+
+// Chart configuration options
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "top",
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+    },
+  },
+};
+
+const doughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "bottom",
+    },
+  },
+};
+
+const barOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "top",
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+    },
+  },
+};
+
+// Chart data methods
+const getAppointmentTrendsData = () => {
+  return {
+    labels: reportData.value.appointments.trends.map((item) => item.month),
+    datasets: [
+      {
+        label: "Appointments",
+        data: reportData.value.appointments.trends.map(
+          (item) => item.appointments
+        ),
+        borderColor: "#4361ee",
+        backgroundColor: "rgba(67, 97, 238, 0.1)",
+        tension: 0.4,
+        fill: true,
+      },
+    ],
+  };
+};
+
+const getAppointmentStatusData = () => {
+  return {
+    labels: reportData.value.appointments.byStatus.map((item) => item.status),
+    datasets: [
+      {
+        data: reportData.value.appointments.byStatus.map((item) => item.count),
+        backgroundColor: reportData.value.appointments.byStatus.map(
+          (item) => item.color
+        ),
+        borderWidth: 2,
+      },
+    ],
+  };
+};
+
+const getAppointmentTypesData = () => {
+  return {
+    labels: reportData.value.appointments.byType.map((item) => item.type),
+    datasets: [
+      {
+        label: "Appointments",
+        data: reportData.value.appointments.byType.map((item) => item.count),
+        backgroundColor: reportData.value.appointments.byType.map(
+          (item) => item.color
+        ),
+        borderWidth: 2,
+      },
+    ],
+  };
+};
+
+const getPatientGenderData = () => {
+  return {
+    labels: reportData.value.patients.byGender.map((item) => item.gender),
+    datasets: [
+      {
+        data: reportData.value.patients.byGender.map((item) => item.count),
+        backgroundColor: reportData.value.patients.byGender.map(
+          (item) => item.color
+        ),
+        borderWidth: 2,
+      },
+    ],
+  };
+};
+
+const getPatientAgeData = () => {
+  return {
+    labels: reportData.value.patients.byAgeGroup.map(
+      (item) => item.group + " years"
+    ),
+    datasets: [
+      {
+        label: "Patients",
+        data: reportData.value.patients.byAgeGroup.map((item) => item.count),
+        backgroundColor: reportData.value.patients.byAgeGroup.map(
+          (item) => item.color
+        ),
+        borderWidth: 2,
+      },
+    ],
+  };
+};
+
+const getRegistrationTrendsData = () => {
+  return {
+    labels: reportData.value.patients.registrationTrends.map(
+      (item) => item.month
+    ),
+    datasets: [
+      {
+        label: "Registrations",
+        data: reportData.value.patients.registrationTrends.map(
+          (item) => item.registrations
+        ),
+        borderColor: "#4CAF50",
+        backgroundColor: "rgba(76, 175, 80, 0.1)",
+        tension: 0.4,
+        fill: true,
+      },
+    ],
+  };
+};
+
+const getWorkloadData = () => {
+  return {
+    labels: reportData.value.staff.workload.map((item) => item.day),
+    datasets: [
+      {
+        label: "Hours",
+        data: reportData.value.staff.workload.map((item) => item.hours),
+        backgroundColor: "#FF9800",
+        borderWidth: 1,
       },
     ],
   };
@@ -272,15 +456,6 @@ onMounted(() => {
           <i class="bi bi-people me-2"></i>Patients
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link"
-          :class="{ active: activeTab === 'staff' }"
-          @click="activeTab = 'staff'"
-        >
-          <i class="bi bi-person-badge me-2"></i>Staff Performance
-        </button>
-      </li>
     </ul>
 
     <!-- Loading State -->
@@ -385,26 +560,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-graph-up text-primary fs-1 mb-3"></i>
-                <h6>Line Chart: Appointment Trends</h6>
-                <p class="text-muted">
-                  Chart.js or similar library would render appointment trends
-                  over time
-                </p>
-                <div class="text-start mx-auto" style="max-width: 400px">
-                  <div
-                    v-for="trend in reportData.appointments.trends"
-                    :key="trend.month"
-                    class="d-flex justify-content-between mb-2"
-                  >
-                    <span>{{ trend.month }}</span>
-                    <span class="fw-medium"
-                      >{{ trend.appointments }} appointments</span
-                    >
-                  </div>
-                </div>
-              </div>
+              <Line
+                :data="getAppointmentTrendsData()"
+                :options="chartOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -419,29 +579,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-pie-chart text-success fs-1 mb-3"></i>
-                <h6>Pie Chart: Status Distribution</h6>
-                <p class="text-muted">
-                  Chart.js pie chart would show appointment status breakdown
-                </p>
-                <div class="text-start">
-                  <div
-                    v-for="status in reportData.appointments.byStatus"
-                    :key="status.status"
-                    class="d-flex justify-content-between align-items-center mb-2"
-                  >
-                    <div class="d-flex align-items-center">
-                      <div
-                        class="legend-dot me-2"
-                        :style="{ backgroundColor: status.color }"
-                      ></div>
-                      <span>{{ status.status }}</span>
-                    </div>
-                    <span class="fw-medium">{{ status.count }}</span>
-                  </div>
-                </div>
-              </div>
+              <Doughnut
+                :data="getAppointmentStatusData()"
+                :options="doughnutOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -461,29 +603,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-bar-chart text-info fs-1 mb-3"></i>
-                <h6>Bar Chart: Appointment Types</h6>
-                <p class="text-muted">
-                  Chart.js bar chart would show appointment types distribution
-                </p>
-                <div class="text-start">
-                  <div
-                    v-for="type in reportData.appointments.byType"
-                    :key="type.type"
-                    class="d-flex justify-content-between align-items-center mb-2"
-                  >
-                    <div class="d-flex align-items-center">
-                      <div
-                        class="legend-dot me-2"
-                        :style="{ backgroundColor: type.color }"
-                      ></div>
-                      <span>{{ type.type }}</span>
-                    </div>
-                    <span class="fw-medium">{{ type.count }}</span>
-                  </div>
-                </div>
-              </div>
+              <Bar
+                :data="getAppointmentTypesData()"
+                :options="barOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -498,23 +622,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-graph-up text-warning fs-1 mb-3"></i>
-                <h6>Line Chart: Monthly Trends</h6>
-                <p class="text-muted">
-                  Chart.js line chart would show monthly appointment trends
-                </p>
-                <div class="text-start mx-auto" style="max-width: 300px">
-                  <div
-                    v-for="trend in reportData.appointments.trends"
-                    :key="trend.month"
-                    class="d-flex justify-content-between mb-2"
-                  >
-                    <span>{{ trend.month }}</span>
-                    <span class="fw-medium">{{ trend.appointments }}</span>
-                  </div>
-                </div>
-              </div>
+              <Line
+                :data="getAppointmentTrendsData()"
+                :options="chartOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -534,29 +646,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-pie-chart text-primary fs-1 mb-3"></i>
-                <h6>Pie Chart: Gender Distribution</h6>
-                <p class="text-muted">
-                  Chart.js pie chart would show patient gender distribution
-                </p>
-                <div class="text-start">
-                  <div
-                    v-for="gender in reportData.patients.byGender"
-                    :key="gender.gender"
-                    class="d-flex justify-content-between align-items-center mb-2"
-                  >
-                    <div class="d-flex align-items-center">
-                      <div
-                        class="legend-dot me-2"
-                        :style="{ backgroundColor: gender.color }"
-                      ></div>
-                      <span>{{ gender.gender }}</span>
-                    </div>
-                    <span class="fw-medium">{{ gender.count }}</span>
-                  </div>
-                </div>
-              </div>
+              <Doughnut
+                :data="getPatientGenderData()"
+                :options="doughnutOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -571,29 +665,11 @@ onMounted(() => {
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder text-center py-4">
-                <i class="bi bi-bar-chart text-success fs-1 mb-3"></i>
-                <h6>Bar Chart: Age Distribution</h6>
-                <p class="text-muted">
-                  Chart.js bar chart would show patient age group distribution
-                </p>
-                <div class="text-start">
-                  <div
-                    v-for="ageGroup in reportData.patients.byAgeGroup"
-                    :key="ageGroup.group"
-                    class="d-flex justify-content-between align-items-center mb-2"
-                  >
-                    <div class="d-flex align-items-center">
-                      <div
-                        class="legend-dot me-2"
-                        :style="{ backgroundColor: ageGroup.color }"
-                      ></div>
-                      <span>{{ ageGroup.group }} years</span>
-                    </div>
-                    <span class="fw-medium">{{ ageGroup.count }}</span>
-                  </div>
-                </div>
-              </div>
+              <Bar
+                :data="getPatientAgeData()"
+                :options="barOptions"
+                class="chart-container"
+              />
             </div>
           </div>
         </div>
@@ -608,126 +684,11 @@ onMounted(() => {
           </h5>
         </div>
         <div class="card-body">
-          <div class="chart-placeholder text-center py-4">
-            <i class="bi bi-graph-up text-info fs-1 mb-3"></i>
-            <h6>Line Chart: Registration Trends</h6>
-            <p class="text-muted">
-              Chart.js line chart would show monthly patient registration trends
-            </p>
-            <div class="text-start mx-auto" style="max-width: 400px">
-              <div
-                v-for="trend in reportData.patients.registrationTrends"
-                :key="trend.month"
-                class="d-flex justify-content-between mb-2"
-              >
-                <span>{{ trend.month }}</span>
-                <span class="fw-medium"
-                  >{{ trend.registrations }} registrations</span
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Staff Performance Tab -->
-    <div v-else-if="activeTab === 'staff'" class="animate-fade-in-up">
-      <!-- Staff Performance Table -->
-      <div class="card animate-fade-in-up">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <i class="bi bi-person-badge me-2"></i>
-            Staff Performance Metrics
-          </h5>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Staff Member</th>
-                  <th>Patients Served</th>
-                  <th>Appointments</th>
-                  <th>Performance Rating</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="staff in reportData.staff.performance"
-                  :key="staff.name"
-                  class="animate-fade-in-up"
-                >
-                  <td>
-                    <div class="d-flex align-items-center">
-                      <div class="staff-avatar me-3">
-                        <i class="bi bi-person-circle"></i>
-                      </div>
-                      <div>
-                        <div class="fw-medium">{{ staff.name }}</div>
-                        <small class="text-muted">Healthcare Provider</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge bg-primary">{{ staff.patients }}</span>
-                  </td>
-                  <td>
-                    <span class="badge bg-info">{{ staff.appointments }}</span>
-                  </td>
-                  <td>
-                    <div class="rating">
-                      <i class="bi bi-star-fill text-warning"></i>
-                      <span class="ms-1">{{ staff.rating }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge bg-success">Active</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Workload Distribution -->
-      <div class="card mt-4 animate-fade-in-up animation-delay-200">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <i class="bi bi-bar-chart me-2"></i>
-            Weekly Workload Distribution
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="chart-placeholder text-center py-4">
-            <i class="bi bi-bar-chart text-warning fs-1 mb-3"></i>
-            <h6>Bar Chart: Weekly Workload</h6>
-            <p class="text-muted">
-              Chart.js bar chart would show daily workload distribution
-            </p>
-            <div class="row g-3">
-              <div
-                v-for="day in reportData.staff.workload"
-                :key="day.day"
-                class="col-md-2"
-              >
-                <div class="text-center">
-                  <div
-                    class="workload-bar mb-2"
-                    :style="{
-                      height: day.hours * 10 + 'px',
-                      backgroundColor: '#4361ee',
-                    }"
-                  ></div>
-                  <small class="fw-medium">{{ day.day }}</small
-                  ><br />
-                  <small class="text-muted">{{ day.hours }}h</small>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Line
+            :data="getRegistrationTrendsData()"
+            :options="chartOptions"
+            class="chart-container"
+          />
         </div>
       </div>
     </div>
@@ -778,6 +739,12 @@ onMounted(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.chart-container {
+  width: 100% !important;
+  height: 300px !important;
+  position: relative;
 }
 
 .legend-dot {
@@ -844,6 +811,10 @@ onMounted(() => {
 
   .chart-placeholder {
     min-height: 200px;
+  }
+
+  .chart-container {
+    height: 250px !important;
   }
 }
 </style>

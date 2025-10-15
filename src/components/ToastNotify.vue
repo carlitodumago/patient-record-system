@@ -1,35 +1,36 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useStore } from 'vuex';
+import { ref, onMounted, onUnmounted } from "vue";
+import { useStore } from "vuex";
 
 const props = defineProps({
   message: {
     type: String,
-    required: true
+    required: true,
   },
   type: {
     type: String,
-    default: 'success', // success, error, warning, info
-    validator: (value) => ['success', 'error', 'warning', 'info'].includes(value)
+    default: "success", // success, error, warning, info
+    validator: (value) =>
+      ["success", "error", "warning", "info"].includes(value),
   },
   duration: {
     type: Number,
-    default: 3000 // ms, 0 means it won't auto-close
+    default: 3000, // ms, 0 means it won't auto-close
   },
   showOkButton: {
     type: Boolean,
-    default: true
-  }
+    default: true,
+  },
 });
 
-const emit = defineEmits(['closed']);
+const emit = defineEmits(["closed"]);
 const store = useStore();
 const visible = ref(true);
 let timer = null;
 
 const close = () => {
   visible.value = false;
-  emit('closed');
+  emit("closed");
 };
 
 onMounted(() => {
@@ -48,11 +49,24 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" :class="['toast-notify', `toast-${type}`]">
+  <div
+    v-if="visible"
+    :class="['toast-notify', `toast-${type}`]"
+    role="alert"
+    :aria-live="type === 'error' ? 'assertive' : 'polite'"
+    aria-atomic="true"
+  >
     <div class="toast-message">
       {{ message }}
     </div>
-    <button v-if="showOkButton" class="toast-ok-btn" @click="close">OK</button>
+    <button
+      v-if="showOkButton"
+      class="toast-ok-btn"
+      @click="close"
+      :aria-label="`Close ${type} notification: ${message}`"
+    >
+      OK
+    </button>
   </div>
 </template>
 
@@ -109,11 +123,42 @@ onUnmounted(() => {
   font-weight: 600;
   transition: all 0.2s;
   min-width: 100px;
+  min-height: 44px;
+  font-size: 16px;
 }
 
-.toast-ok-btn:hover {
+.toast-ok-btn:hover,
+.toast-ok-btn:focus {
   background-color: white;
   transform: translateY(-2px);
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 768px) {
+  .toast-notify {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    bottom: 20px;
+    max-width: calc(100% - 20px);
+    padding: 16px;
+    font-size: 14px;
+  }
+
+  .toast-message {
+    font-size: 0.95rem;
+    text-align: left;
+    margin-bottom: 12px;
+  }
+
+  .toast-ok-btn {
+    align-self: stretch;
+    padding: 12px 24px;
+    font-size: 16px;
+    min-height: 48px;
+  }
 }
 
 @keyframes slide-up {
@@ -126,4 +171,4 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-</style> 
+</style>

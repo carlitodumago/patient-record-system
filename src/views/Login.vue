@@ -126,11 +126,11 @@ const fillDemoAccount = (username, password) => {
             {{ successMessage }}
           </div>
 
-          <form @submit.prevent="login">
+          <form @submit.prevent="login" novalidate>
             <div class="form-group">
               <label for="username">Username</label>
               <div class="input-container">
-                <i class="bi bi-person input-icon"></i>
+                <i class="bi bi-person input-icon" aria-hidden="true"></i>
                 <input
                   type="text"
                   id="username"
@@ -138,8 +138,13 @@ const fillDemoAccount = (username, password) => {
                   placeholder="Enter your username"
                   autocomplete="username"
                   required
+                  aria-describedby="username-help"
+                  :aria-invalid="errorMessage ? 'true' : 'false'"
                 />
               </div>
+              <small id="username-help" class="form-help">
+                Enter your registered username
+              </small>
             </div>
 
             <!-- Role selection removed - role is now automatically determined -->
@@ -147,7 +152,7 @@ const fillDemoAccount = (username, password) => {
             <div class="form-group">
               <label for="password">Password</label>
               <div class="input-container">
-                <i class="bi bi-lock input-icon"></i>
+                <i class="bi bi-lock input-icon" aria-hidden="true"></i>
                 <input
                   :type="showLoginFormPassword ? 'text' : 'password'"
                   id="password"
@@ -155,13 +160,29 @@ const fillDemoAccount = (username, password) => {
                   placeholder="Enter your password"
                   autocomplete="current-password"
                   required
+                  aria-describedby="password-help"
+                  :aria-invalid="errorMessage ? 'true' : 'false'"
                 />
-                <i
-                  class="bi toggle-password"
+                <button
+                  type="button"
+                  class="toggle-password"
                   :class="showLoginFormPassword ? 'bi-eye-slash' : 'bi-eye'"
                   @click="toggleLoginFormPassword"
-                ></i>
+                  :aria-label="
+                    showLoginFormPassword ? 'Hide password' : 'Show password'
+                  "
+                  aria-pressed="showLoginFormPassword"
+                >
+                  <span class="visually-hidden">
+                    {{
+                      showLoginFormPassword ? "Hide password" : "Show password"
+                    }}
+                  </span>
+                </button>
               </div>
+              <small id="password-help" class="form-help">
+                Enter your password
+              </small>
             </div>
 
             <!-- Role selection removed - role is now automatically determined -->
@@ -406,6 +427,18 @@ label {
   color: #6c757d;
   font-size: 18px;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.toggle-password:hover,
+.toggle-password:focus {
+  color: var(--primary-gradient-start);
+  background-color: rgba(13, 110, 253, 0.1);
+  outline: none;
 }
 
 input,
@@ -595,5 +628,74 @@ select:focus {
 .demo-button:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+/* Form help text */
+.form-help {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: #6c757d;
+  transition: color 0.2s ease;
+}
+
+.form-group:has(input[aria-invalid="true"]) .form-help {
+  color: var(--danger-color, #dc3545);
+}
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Enhanced focus styles for better accessibility */
+input:focus,
+select:focus,
+button:focus,
+.demo-button:focus {
+  outline: 2px solid var(--primary-gradient-start);
+  outline-offset: 2px;
+}
+
+/* Improved error states */
+.form-group:has(input[aria-invalid="true"]) .input-container {
+  border-color: var(--danger-color, #dc3545);
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+  .input-container {
+    position: relative;
+  }
+
+  .toggle-password {
+    right: 12px;
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .demo-buttons {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .demo-button {
+    padding: 16px;
+    font-size: 16px;
+    min-height: 48px;
+  }
 }
 </style>

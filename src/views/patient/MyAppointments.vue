@@ -18,7 +18,6 @@ const appointmentsList = ref([]);
 
 // Form data
 const appointmentForm = ref({
-  healthcareProvider: "",
   dateTime: "",
   type: "",
   reason: "",
@@ -31,9 +30,6 @@ const user = computed(() => store.state.user);
 const filteredAppointments = computed(() => {
   return appointmentsList.value.filter((appointment) => {
     const matchesSearch =
-      appointment.healthcareProvider
-        .toLowerCase()
-        .includes(search.value.toLowerCase()) ||
       appointment.reason.toLowerCase().includes(search.value.toLowerCase()) ||
       appointment.type.toLowerCase().includes(search.value.toLowerCase());
 
@@ -78,7 +74,6 @@ const fetchAppointments = async () => {
 
 const resetForm = () => {
   appointmentForm.value = {
-    healthcareProvider: "",
     dateTime: "",
     type: "",
     reason: "",
@@ -96,7 +91,6 @@ const openBookModal = () => {
 const openRescheduleModal = (appointment) => {
   selectedAppointment.value = appointment;
   appointmentForm.value = {
-    healthcareProvider: appointment.healthcareProvider,
     dateTime: appointment.dateTime,
     type: appointment.type,
     reason: appointment.reason,
@@ -320,7 +314,7 @@ onMounted(() => {
                 v-model="search"
                 type="text"
                 class="form-control"
-                placeholder="Search appointments by provider or reason..."
+                placeholder="Search appointments by reason or type..."
               />
             </div>
           </div>
@@ -371,7 +365,6 @@ onMounted(() => {
           <table class="table table-hover mb-0">
             <thead class="table-light">
               <tr>
-                <th>Healthcare Provider</th>
                 <th>Date & Time</th>
                 <th>Type</th>
                 <th>Status</th>
@@ -385,21 +378,6 @@ onMounted(() => {
                 :key="appointment.id"
                 class="animate-fade-in-up"
               >
-                <td>
-                  <div class="d-flex align-items-center">
-                    <div class="provider-avatar me-3">
-                      <i class="bi bi-person-circle"></i>
-                    </div>
-                    <div>
-                      <div class="fw-medium">
-                        {{ appointment.healthcareProvider }}
-                      </div>
-                      <small class="text-muted">{{
-                        appointment.location
-                      }}</small>
-                    </div>
-                  </div>
-                </td>
                 <td>
                   <div>{{ formatDateTime(appointment.dateTime) }}</div>
                   <small
@@ -514,7 +492,7 @@ onMounted(() => {
                       <i class="bi bi-calendar-check text-primary"></i>
                     </div>
                     <div>
-                      <strong>{{ appointment.healthcareProvider }}</strong>
+                      <strong>{{ appointment.type }}</strong>
                       <span
                         class="badge ms-2"
                         :class="`bg-${getTypeBadgeVariant(appointment.type)}`"
@@ -572,16 +550,6 @@ onMounted(() => {
           <form @submit.prevent="bookAppointment">
             <div class="modal-body">
               <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Healthcare Provider *</label>
-                  <select
-                    v-model="appointmentForm.healthcareProvider"
-                    class="form-select"
-                    required
-                  >
-                    <option value="">Select Provider</option>
-                  </select>
-                </div>
                 <div class="col-md-6">
                   <label class="form-label">Preferred Date & Time *</label>
                   <input
@@ -678,18 +646,11 @@ onMounted(() => {
                 class="current-appointment mb-4 p-3 bg-light rounded"
               >
                 <h6 class="mb-2">Current Appointment:</h6>
-                <strong>{{ selectedAppointment.healthcareProvider }}</strong> -
+                <strong>{{ selectedAppointment.type }}</strong> -
                 {{ formatDateTime(selectedAppointment.dateTime) }}
               </div>
 
               <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Healthcare Provider</label>
-                  <select
-                    v-model="appointmentForm.healthcareProvider"
-                    class="form-select"
-                  ></select>
-                </div>
                 <div class="col-md-6">
                   <label class="form-label">New Date & Time *</label>
                   <input
@@ -750,7 +711,7 @@ onMounted(() => {
           <div class="modal-body">
             <p>Are you sure you want to cancel this appointment?</p>
             <div v-if="selectedAppointment" class="alert alert-warning">
-              <strong>{{ selectedAppointment.healthcareProvider }}</strong
+              <strong>{{ selectedAppointment.type }}</strong
               ><br />
               <small>{{ formatDateTime(selectedAppointment.dateTime) }}</small
               ><br />
@@ -807,18 +768,6 @@ onMounted(() => {
 
 .search-box input {
   padding-left: 40px;
-}
-
-.provider-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-gradient-start);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
 }
 
 .appointment-icon-small {

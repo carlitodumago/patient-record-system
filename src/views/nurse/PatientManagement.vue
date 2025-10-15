@@ -51,7 +51,6 @@ const patientsList = ref([
     registrationDate: "2024-02-20",
     lastVisit: "2024-10-14",
     status: "Active",
-    riskLevel: "Medium",
     allergies: "Penicillin",
     currentMedications: "Metformin 500mg twice daily",
     medicalHistory: "Type 2 Diabetes diagnosed in 2019",
@@ -71,7 +70,6 @@ const patientsList = ref([
     registrationDate: "2024-03-10",
     lastVisit: "2024-09-28",
     status: "Active",
-    riskLevel: "High",
     allergies: "Shellfish, Aspirin",
     currentMedications: "Atorvastatin 20mg daily, Aspirin 81mg daily",
     medicalHistory: "Coronary artery disease, High cholesterol",
@@ -122,10 +120,6 @@ const filteredPatients = computed(() => {
 
     return matchesSearch && matchesStatus;
   });
-});
-
-const highRiskPatients = computed(() => {
-  return patientsList.value.filter((patient) => patient.riskLevel === "High");
 });
 
 // Methods
@@ -217,7 +211,6 @@ const addPatient = async () => {
       registrationDate: new Date().toISOString().split("T")[0],
       lastVisit: "Never",
       status: "Active",
-      riskLevel: "Low",
     };
 
     patientsList.value.push(newPatient);
@@ -273,15 +266,6 @@ const getStatusBadgeVariant = (status) => {
 
 const getGenderBadgeVariant = (gender) => {
   return gender === "Male" ? "primary" : "info";
-};
-
-const getRiskBadgeVariant = (riskLevel) => {
-  const variants = {
-    Low: "success",
-    Medium: "warning",
-    High: "danger",
-  };
-  return variants[riskLevel] || "secondary";
 };
 
 const calculateAge = (birthDate) => {
@@ -346,17 +330,6 @@ onMounted(() => {
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card stats-card animate-fade-in-up animation-delay-100">
-          <div class="card-body text-center">
-            <div class="stats-icon mb-2">
-              <i class="bi bi-exclamation-triangle text-danger fs-2"></i>
-            </div>
-            <h4 class="mb-1">{{ highRiskPatients.length }}</h4>
-            <small class="text-muted">High Risk Patients</small>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
         <div class="card stats-card animate-fade-in-up animation-delay-200">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
@@ -368,23 +341,6 @@ onMounted(() => {
               }}
             </h4>
             <small class="text-muted">Recent Visits</small>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card stats-card animate-fade-in-up animation-delay-300">
-          <div class="card-body text-center">
-            <div class="stats-icon mb-2">
-              <i class="bi bi-clipboard-pulse text-info fs-2"></i>
-            </div>
-            <h4 class="mb-1">
-              {{
-                filteredPatients.filter(
-                  (p) => p.allergies && p.allergies !== "None"
-                ).length
-              }}
-            </h4>
-            <small class="text-muted">With Allergies</small>
           </div>
         </div>
       </div>
@@ -417,7 +373,6 @@ onMounted(() => {
               <option value="all">All Risk Levels</option>
               <option value="low">Low Risk</option>
               <option value="medium">Medium Risk</option>
-              <option value="high">High Risk</option>
             </select>
           </div>
         </div>
@@ -461,7 +416,6 @@ onMounted(() => {
                 <th>Patient</th>
                 <th>Contact</th>
                 <th>Age/Gender</th>
-                <th>Risk Level</th>
                 <th>Last Visit</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -496,14 +450,6 @@ onMounted(() => {
                     :class="`bg-${getGenderBadgeVariant(patient.gender)}`"
                   >
                     {{ patient.gender }}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    class="badge"
-                    :class="`bg-${getRiskBadgeVariant(patient.riskLevel)}`"
-                  >
-                    {{ patient.riskLevel }} Risk
                   </span>
                 </td>
                 <td>
@@ -558,57 +504,6 @@ onMounted(() => {
             <i class="bi bi-person-plus me-2"></i>
             Register New Patient
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- High Risk Patients Alert -->
-    <div
-      v-if="highRiskPatients.length > 0"
-      class="card mt-4 border-danger animate-fade-in-up animation-delay-400"
-    >
-      <div class="card-header bg-danger text-white">
-        <h5 class="mb-0">
-          <i class="bi bi-exclamation-triangle me-2"></i>
-          High Risk Patients Requiring Attention
-        </h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div
-            v-for="patient in highRiskPatients"
-            :key="patient.id"
-            class="col-md-6"
-          >
-            <div class="alert alert-danger p-3 animate-fade-in-up">
-              <div class="d-flex align-items-center">
-                <div class="patient-avatar-small me-3">
-                  <i class="bi bi-person-circle"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <strong>{{ patient.firstName }} {{ patient.surname }}</strong
-                  ><br />
-                  <small>{{ patient.medicalHistory }}</small>
-                </div>
-                <div class="text-end">
-                  <button
-                    class="btn btn-sm btn-danger me-2"
-                    @click="scheduleFollowUp(patient)"
-                  >
-                    <i class="bi bi-calendar-plus me-1"></i>
-                    Schedule
-                  </button>
-                  <button
-                    class="btn btn-sm btn-outline-danger"
-                    @click="viewMedicalHistory(patient)"
-                  >
-                    <i class="bi bi-file-medical me-1"></i>
-                    History
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

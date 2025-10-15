@@ -29,9 +29,28 @@ const unreadNotificationCount = computed(() => {
 
 const userRole = computed(() => user.value?.role || null);
 
-const logout = () => {
-  authStore.logout();
-  router.push("/login");
+// Enhanced logout with loading state
+const isLoggingOut = ref(false);
+
+const logout = async () => {
+  if (isLoggingOut.value) return; // Prevent multiple clicks
+
+  isLoggingOut.value = true;
+
+  try {
+    // Show logging out message briefly
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // Clear authentication session
+    authStore.logout();
+
+    // Redirect to login page
+    router.push("/login");
+  } catch (error) {
+    console.error("Logout error:", error);
+  } finally {
+    isLoggingOut.value = false;
+  }
 };
 
 const toggleSidebar = () => {
@@ -292,10 +311,32 @@ const closeSidebar = () => {
           <li class="nav-item">
             <button
               @click="logout"
-              class="nav-link text-white w-100 text-start border-0 bg-transparent"
+              :disabled="isLoggingOut"
+              :class="[
+                'logout-btn',
+                'nav-link w-100 text-start border-0',
+                { 'logging-out': isLoggingOut },
+              ]"
+              :aria-label="isLoggingOut ? 'Logging out...' : 'Logout'"
+              tabindex="0"
+              @keydown.enter="logout"
+              @keydown.space.prevent="logout"
             >
-              <i class="bi bi-box-arrow-right me-2"></i>
-              <span v-if="!isSidebarCollapsed">Logout</span>
+              <i
+                :class="[
+                  'me-2',
+                  isLoggingOut ? 'bi bi-hourglass-split' : 'bi bi-door-open',
+                ]"
+              ></i>
+              <span v-if="!isSidebarCollapsed">
+                {{ isLoggingOut ? "Logging out..." : "Logout" }}
+              </span>
+              <span
+                v-if="isLoggingOut && isSidebarCollapsed"
+                class="visually-hidden"
+              >
+                Logging out...
+              </span>
             </button>
           </li>
         </ul>
@@ -322,7 +363,7 @@ const closeSidebar = () => {
   );
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
   z-index: 1000;
-  overflow: hidden; /* Prevent scrolling of the sidebar itself */
+  overflow: visible; /* Allow scrolling */
   transform: translateX(-100%); /* Hide by default */
 }
 
@@ -360,7 +401,7 @@ const closeSidebar = () => {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 56px); /* subtract header height */
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -370,19 +411,20 @@ const closeSidebar = () => {
   padding-bottom: 20px; /* Add some space at the bottom */
   display: flex;
   flex-direction: column;
+  max-height: calc(
+    100vh - 120px
+  ); /* Ensure space for header and user section */
 }
 
 .user-nav-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   background: linear-gradient(
     135deg,
     var(--primary-gradient-start),
     var(--primary-gradient-end)
   );
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
 .user-nav {
@@ -472,5 +514,120 @@ const closeSidebar = () => {
 /* Add styles for the icons on the right */
 .nav-link i:last-child:not(.me-2) {
   margin-left: auto; /* Push the last icon to the right */
+}
+
+/* Enhanced logout button styling */
+.logout-btn {
+  background: linear-gradient(135deg, #dc3545, #c82333) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  margin: 8px 12px !important;
+  padding: 12px 16px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2) !important;
+}
+
+.logout-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c82333, #a71e2a) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.logout-btn:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25),
+    0 4px 8px rgba(220, 53, 69, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.logout-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2) !important;
+}
+
+.logout-btn:disabled.logging-out {
+  background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+  cursor: not-allowed !important;
+  opacity: 0.8 !important;
+}
+
+.logout-btn:disabled.logging-out:hover {
+  transform: none !important;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2) !important;
+}
+
+/* Animation for logout button */
+.logout-btn::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  ) !important;
+  transition: left 0.5s ease !important;
+}
+
+.logout-btn:hover::before {
+  left: 100% !important;
+}
+
+/* Responsive design for logout button */
+@media (max-width: 768px) {
+  .logout-btn {
+    margin: 6px 8px !important;
+    padding: 10px 12px !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .logout-btn {
+    margin: 4px 6px !important;
+    padding: 8px 10px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Collapsed sidebar logout button */
+.sidebar.collapsed .logout-btn {
+  margin: 8px 6px !important;
+  padding: 12px 8px !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+}
+
+.sidebar.collapsed .logout-btn i {
+  margin-right: 0 !important;
+  font-size: 1.1rem !important;
+}
+
+/* Accessibility improvements */
+.logout-btn:focus-visible {
+  outline: 2px solid #ffffff !important;
+  outline-offset: 2px !important;
+}
+
+/* Screen reader only text for collapsed state */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 </style>

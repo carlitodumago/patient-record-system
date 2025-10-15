@@ -39,6 +39,27 @@ const closeSidebar = () => {
 const navigateToProfile = () => {
   router.push("/profile");
 };
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push("/login");
+};
+
+// Enhanced keyboard navigation for navbar
+const handleNavbarKeyDown = (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    navigateToProfile();
+  }
+};
+
+// Focus management for better accessibility
+const focusMainContent = () => {
+  const mainContent = document.getElementById("main-content");
+  if (mainContent) {
+    mainContent.focus();
+  }
+};
 </script>
 
 <template>
@@ -80,6 +101,7 @@ const navigateToProfile = () => {
               @click="toggleSidebarVisibility"
               class="btn btn-link border-0 menu-toggle-btn"
               title="Toggle menu"
+              style="min-height: 48px; min-width: 48px; padding: 12px"
             >
               <i class="bi bi-list fs-4"></i>
             </button>
@@ -96,28 +118,49 @@ const navigateToProfile = () => {
           <!-- Right side: Profile picture (only for authenticated users) -->
           <div
             v-if="isAuthenticated && !hideSidebar"
-            class="d-flex align-items-center animate-fade-in-left"
+            class="d-flex align-center animate-fade-in-left"
           >
-            <div
-              @click="navigateToProfile"
-              class="profile-picture-nav animate-fade-in"
-            >
-              <div class="d-flex align-items-center">
-                <!-- Show profile picture if exists, otherwise show default icon -->
-                <div v-if="user?.profilePicture" class="profile-img-container">
-                  <img
-                    :src="user.profilePicture"
-                    alt="Profile"
-                    class="profile-img"
-                  />
-                </div>
-                <div v-else class="profile-avatar">
-                  <span>{{ user?.username?.[0]?.toUpperCase() || "U" }}</span>
-                </div>
-                <span class="ms-2 fw-medium">{{
+            <div class="profile-section">
+              <div
+                @click="navigateToProfile"
+                @keydown="handleNavbarKeyDown"
+                class="profile-picture-nav animate-fade-in"
+                tabindex="0"
+                role="button"
+                :aria-label="`Go to profile for ${
                   user?.fullName || user?.username
-                }}</span>
+                }`"
+                style="min-height: 48px; padding: 8px 12px; cursor: pointer"
+              >
+                <div class="d-flex align-items-center">
+                  <!-- Show profile picture if exists, otherwise show default icon -->
+                  <div
+                    v-if="user?.profilePicture"
+                    class="profile-img-container"
+                  >
+                    <img
+                      :src="user.profilePicture"
+                      alt="Profile"
+                      class="profile-img"
+                    />
+                  </div>
+                  <div v-else class="profile-avatar">
+                    <span>{{ user?.username?.[0]?.toUpperCase() || "U" }}</span>
+                  </div>
+                  <span class="ms-2 fw-medium">{{
+                    user?.fullName || user?.username
+                  }}</span>
+                </div>
               </div>
+              <button
+                @click="handleLogout"
+                class="btn btn-outline-danger btn-sm ms-3 logout-btn"
+                title="Logout"
+                style="min-height: 48px; padding: 8px 16px; font-size: 0.875rem"
+              >
+                <i class="bi bi-box-arrow-right me-1"></i>
+                <span class="d-none d-sm-inline">Logout</span>
+              </button>
             </div>
           </div>
           <!-- Empty div for balance when no profile is shown -->
@@ -125,7 +168,13 @@ const navigateToProfile = () => {
         </div>
       </nav>
 
-      <main class="container-fluid px-4 py-3">
+      <main
+        id="main-content"
+        class="container-fluid px-4 py-3"
+        role="main"
+        tabindex="-1"
+        @focus="focusMainContent"
+      >
         <!-- Router view with animation -->
         <router-view v-slot="{ Component }">
           <transition name="page" appear>
@@ -163,7 +212,8 @@ const navigateToProfile = () => {
   margin-left: 80px; /* Space for collapsed sidebar */
 }
 
-@media (max-width: 768px) {
+/* Enhanced responsive design */
+@media (max-width: 479px) {
   .main-content.sidebar-visible {
     margin-left: 0; /* No margin on mobile - overlay behavior */
   }
@@ -171,10 +221,144 @@ const navigateToProfile = () => {
   .main-content.sidebar-visible.has-collapsed-sidebar {
     margin-left: 0; /* No margin on mobile even when collapsed */
   }
+
+  .navbar {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .system-title {
+    font-size: var(--font-size-sm);
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .profile-section {
+    gap: var(--space-xs);
+  }
+
+  .profile-picture-nav {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .logout-btn {
+    min-height: var(--touch-target-min);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-xs);
+  }
+
+  .logout-btn span {
+    display: none; /* Hide text on very small screens */
+  }
+
+  .menu-toggle-btn {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    padding: var(--space-sm);
+  }
+}
+
+/* Small devices (480px to 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+  .main-content.sidebar-visible {
+    margin-left: 0; /* No margin on mobile - overlay behavior */
+  }
+
+  .main-content.sidebar-visible.has-collapsed-sidebar {
+    margin-left: 0; /* No margin on mobile even when collapsed */
+  }
+
+  .navbar {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .system-title {
+    font-size: var(--font-size-base);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .profile-section {
+    gap: var(--space-sm);
+  }
+
+  .logout-btn {
+    min-height: var(--touch-target-comfortable);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+  }
 }
 
 main {
   min-height: calc(100vh - 170px); /* Subtract header and footer height */
+}
+
+/* Enhanced focus styles for main content */
+main:focus {
+  outline: none;
+}
+
+/* Tablet responsive behavior (768px to 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content.sidebar-visible {
+    margin-left: 80px; /* Collapsed sidebar width on tablet */
+  }
+
+  .main-content.sidebar-visible.has-collapsed-sidebar {
+    margin-left: 60px; /* Partially collapsed on tablet */
+  }
+
+  .navbar {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .system-title {
+    font-size: var(--font-size-lg);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .profile-section {
+    gap: var(--space-sm);
+  }
+
+  .profile-picture-nav {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .logout-btn {
+    font-size: var(--font-size-sm);
+    padding: var(--space-sm) var(--space-md);
+  }
+}
+
+/* Desktop responsive behavior (1024px and up) */
+@media (min-width: 1024px) {
+  .main-content.sidebar-visible {
+    margin-left: 280px; /* Full sidebar width on desktop */
+  }
+
+  .main-content.sidebar-visible.has-collapsed-sidebar {
+    margin-left: 80px; /* Collapsed sidebar width on desktop */
+  }
+
+  .navbar {
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .system-title {
+    font-size: var(--font-size-xl);
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .profile-section {
+    gap: var(--space-md);
+  }
+
+  .profile-picture-nav {
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .logout-btn {
+    font-size: var(--font-size-base);
+    padding: var(--space-md) var(--space-lg);
+  }
 }
 
 .footer {
@@ -191,10 +375,33 @@ main {
 /* Menu button styling */
 .btn-link {
   color: var(--primary-gradient-start);
+  min-height: var(--touch-target-min, 44px);
+  min-width: var(--touch-target-min, 44px);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-link:hover {
   color: var(--primary-gradient-end);
+}
+
+.menu-toggle-btn {
+  min-height: var(--touch-target-comfortable, 48px);
+  min-width: var(--touch-target-comfortable, 48px);
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.menu-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.05);
+}
+
+.menu-toggle-btn:active {
+  transform: scale(0.95);
 }
 
 .navbar {
@@ -249,17 +456,43 @@ main {
   margin-left: auto;
 }
 
+.profile-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .profile-picture-nav {
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 5px 10px;
+  padding: 8px 12px;
   border-radius: 20px;
   transition: background-color 0.2s;
+  min-height: var(--touch-target-comfortable, 48px);
 }
 
 .profile-picture-nav:hover {
   background-color: rgba(0, 0, 0, 0.05);
+}
+
+.logout-btn {
+  font-size: 0.875rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: var(--touch-target-comfortable, 48px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs, 0.25rem);
+}
+
+.logout-btn:hover {
+  background-color: var(--danger-color, #dc3545);
+  border-color: var(--danger-color, #dc3545);
+  color: white;
 }
 
 .profile-img-container {

@@ -1,12 +1,12 @@
-# 🏥 Baan KM-3 Health Information System
+# 🏢 Baan KM-3 Information System
 
-A comprehensive web-based Health Information System designed for the Barangay Baan KM-3 Health Center in Butuan City, Philippines.
+A comprehensive web-based information system designed for the Barangay Baan KM-3 in Butuan City, Philippines.
 
 ## 🚀 Features
 
 ### 👥 Multi-Role Support
 - **Administrator**: Complete system management and oversight
-- **Nurse/Healthcare Staff**: Patient care and medical record management
+- **Staff**: Patient care and record management
 - **Patient**: Personal health management and appointment booking
 
 ### 📋 Core Modules
@@ -91,10 +91,10 @@ Use these credentials to test different user roles:
 - **Password**: `password`
 - **Access**: Full system administration
 
-#### Nurse/Healthcare Staff
+#### Staff
 - **Username**: `nurse`
 - **Password**: `password`
-- **Access**: Patient management and medical records
+- **Access**: Patient management and records
 
 #### Patient
 - **Username**: `patient`
@@ -125,7 +125,7 @@ src/
 ## 🎨 UI Features
 
 - **Responsive Design**: Works on desktop, tablet, and mobile
-- **Modern Interface**: Clean, professional healthcare design
+- **Modern Interface**: Clean, professional design
 - **Role-Based Navigation**: Dynamic sidebar based on user permissions
 - **Interactive Dashboards**: Real-time statistics and charts
 - **Smooth Animations**: Enhanced user experience
@@ -143,7 +143,7 @@ src/
 
 - **Responsive Layouts**: Optimized for all screen sizes
 - **Touch-Friendly**: Large buttons and easy navigation
-- **Mobile-First**: Designed for healthcare workers on-the-go
+- **Mobile-First**: Designed for users on-the-go
 
 ## 🚀 Deployment
 
@@ -230,4 +230,4 @@ For support and questions:
 
 ---
 
-**Built with ❤️ for Barangay Baan KM-3 Health Center**
+**Built with ❤️ for Barangay Baan KM-3**

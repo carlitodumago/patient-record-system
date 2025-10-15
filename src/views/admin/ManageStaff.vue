@@ -170,7 +170,7 @@ onMounted(() => {
       <div>
         <h1 class="mb-2 animate-fade-in-left">Manage Staff</h1>
         <p class="text-muted mb-0 animate-fade-in-left animation-delay-100">
-          Manage healthcare staff accounts and permissions
+          Manage staff accounts and permissions
         </p>
       </div>
       <div class="animate-fade-in-right">

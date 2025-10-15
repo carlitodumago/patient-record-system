@@ -18,7 +18,6 @@ const notifications = ref([
     title: "Upcoming Appointment",
     message:
       "You have an appointment with John Doe scheduled for tomorrow at 10:30 AM.",
-    priority: "normal",
     status: "unread",
     createdAt: "2024-10-14T10:00:00",
     relatedPatient: "John Doe",
@@ -30,23 +29,10 @@ const notifications = ref([
     title: "Appointment Confirmation",
     message:
       "Your appointment with Maria Santos has been confirmed for October 15, 2024 at 2:00 PM.",
-    priority: "normal",
     status: "read",
     createdAt: "2024-10-15T08:00:00",
     relatedPatient: "Maria Santos",
     relatedAppointment: 2,
-  },
-  {
-    id: 3,
-    type: "system_alert",
-    title: "New Patient Registration",
-    message:
-      "A new patient (Ana Reyes) has been registered and assigned to your care.",
-    priority: "high",
-    status: "unread",
-    createdAt: "2024-10-13T16:00:00",
-    relatedPatient: "Ana Reyes",
-    relatedAppointment: null,
   },
   {
     id: 4,
@@ -54,7 +40,6 @@ const notifications = ref([
     title: "Medical Record Updated",
     message:
       "Medical record for patient Pedro Cruz has been updated by Dr. Sarah Johnson.",
-    priority: "normal",
     status: "read",
     createdAt: "2024-10-15T14:00:00",
     relatedPatient: "Pedro Cruz",
@@ -66,7 +51,6 @@ const notifications = ref([
     title: "Appointment Completed",
     message:
       "Vaccination appointment for Luis Mendoza has been completed successfully.",
-    priority: "low",
     status: "read",
     createdAt: "2024-10-15T15:30:00",
     relatedPatient: "Luis Mendoza",
@@ -100,12 +84,6 @@ const unreadCount = computed(() => {
   return notifications.value.filter((n) => n.status === "unread").length;
 });
 
-const highPriorityCount = computed(() => {
-  return notifications.value.filter(
-    (n) => n.priority === "high" && n.status === "unread"
-  ).length;
-});
-
 // Methods
 const fetchNotifications = async () => {
   loading.value = true;
@@ -137,15 +115,6 @@ const deleteNotification = (notification) => {
 
 const getStatusBadgeVariant = (status) => {
   return status === "read" ? "success" : "warning";
-};
-
-const getPriorityBadgeVariant = (priority) => {
-  const variants = {
-    low: "secondary",
-    normal: "primary",
-    high: "danger",
-  };
-  return variants[priority] || "secondary";
 };
 
 const getTypeBadgeVariant = (type) => {
@@ -249,17 +218,6 @@ onMounted(() => {
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card stats-card animate-fade-in-up animation-delay-200">
-          <div class="card-body text-center">
-            <div class="stats-icon mb-2">
-              <i class="bi bi-exclamation-triangle text-danger fs-2"></i>
-            </div>
-            <h4 class="mb-1">{{ highPriorityCount }}</h4>
-            <small class="text-muted">High Priority</small>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
         <div class="card stats-card animate-fade-in-up animation-delay-300">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
@@ -275,31 +233,6 @@ onMounted(() => {
             <small class="text-muted">Appointment Related</small>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- High Priority Alert -->
-    <div
-      v-if="highPriorityCount > 0"
-      class="alert alert-danger animate-fade-in-up animation-delay-200"
-    >
-      <div class="d-flex align-items-center">
-        <div class="alert-icon me-3">
-          <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
-        </div>
-        <div class="flex-grow-1">
-          <h6 class="alert-heading mb-1">
-            High Priority Notifications Require Attention
-          </h6>
-          <p class="mb-0">
-            You have {{ highPriorityCount }} high priority notification(s) that
-            need immediate attention.
-          </p>
-        </div>
-        <button class="btn btn-danger btn-sm">
-          <i class="bi bi-eye me-1"></i>
-          View High Priority
-        </button>
       </div>
     </div>
 
@@ -355,14 +288,6 @@ onMounted(() => {
           <i class="bi bi-bell-fill me-2"></i>
           Notifications ({{ filteredNotifications.length }})
         </h5>
-        <div class="d-flex align-items-center gap-2">
-          <span v-if="unreadCount > 0" class="badge bg-warning text-dark">
-            {{ unreadCount }} unread
-          </span>
-          <span v-if="highPriorityCount > 0" class="badge bg-danger">
-            {{ highPriorityCount }} high priority
-          </span>
-        </div>
       </div>
       <div class="card-body p-0">
         <div class="notifications-list">
@@ -397,14 +322,6 @@ onMounted(() => {
                     </div>
                   </div>
                   <div class="text-end">
-                    <span
-                      class="badge me-2"
-                      :class="`bg-${getPriorityBadgeVariant(
-                        notification.priority
-                      )}`"
-                    >
-                      {{ notification.priority }}
-                    </span>
                     <span
                       class="badge"
                       :class="`bg-${getStatusBadgeVariant(

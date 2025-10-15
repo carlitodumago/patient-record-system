@@ -96,10 +96,43 @@ onMounted(() => {
 
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary animate-pulse" role="status">
-        <span class="visually-hidden">Loading...</span>
+      <div
+        class="spinner-border text-primary animate-pulse"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="visually-hidden">Loading dashboard data...</span>
       </div>
-      <p class="mt-3 text-muted">Loading dashboard data...</p>
+      <p class="mt-3 text-muted" role="status" aria-live="polite">
+        Loading dashboard data...
+      </p>
+
+      <!-- Skeleton loading for stats cards -->
+      <div class="row g-4 mt-4">
+        <div v-for="n in 4" :key="n" class="col-xl-3 col-lg-6 col-md-6">
+          <div class="card">
+            <div class="card-body text-center">
+              <div
+                class="loading-skeleton mb-3"
+                style="
+                  width: 60px;
+                  height: 60px;
+                  border-radius: 50%;
+                  margin: 0 auto;
+                "
+              ></div>
+              <div
+                class="loading-skeleton mb-2"
+                style="width: 40px; height: 32px; margin: 0 auto"
+              ></div>
+              <div
+                class="loading-skeleton"
+                style="width: 120px; height: 20px; margin: 0 auto"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Stats Cards -->

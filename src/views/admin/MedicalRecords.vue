@@ -431,7 +431,6 @@ onMounted(() => {
             <thead class="table-light">
               <tr>
                 <th>Patient</th>
-                <th>Healthcare Provider</th>
                 <th>Diagnosis</th>
                 <th>Treatment</th>
                 <th>Status</th>
@@ -457,12 +456,6 @@ onMounted(() => {
                       >
                     </div>
                   </div>
-                </td>
-                <td>
-                  <div class="fw-medium">{{ record.staffName }}</div>
-                  <small class="text-muted">{{
-                    formatDateTime(record.createdAt)
-                  }}</small>
                 </td>
                 <td>
                   <div class="fw-medium">{{ record.diagnosis }}</div>

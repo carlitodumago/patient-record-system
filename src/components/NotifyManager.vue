@@ -1,6 +1,6 @@
 <script setup>
-import { ref, provide, inject, getCurrentInstance, onMounted } from 'vue';
-import ToastNotify from './ToastNotify.vue';
+import { ref, provide, inject, getCurrentInstance, onMounted } from "vue";
+import ToastNotify from "./ToastNotify.vue";
 
 const notifications = ref([]);
 const notificationSymbol = Symbol();
@@ -15,24 +15,25 @@ const notify = (message, options = {}) => {
   const notification = {
     id,
     message,
-    type: options.type || 'success',
+    type: options.type || "success",
     duration: options.duration !== undefined ? options.duration : 3000,
-    showOkButton: options.showOkButton !== undefined ? options.showOkButton : true,
+    showOkButton:
+      options.showOkButton !== undefined ? options.showOkButton : true,
   };
-  
+
   notifications.value.push(notification);
-  
+
   // Return a method to close this notification
   return {
     close: () => {
       removeNotification(id);
-    }
+    },
   };
 };
 
 // Remove a notification by ID
 const removeNotification = (id) => {
-  const index = notifications.value.findIndex(n => n.id === id);
+  const index = notifications.value.findIndex((n) => n.id === id);
   if (index !== -1) {
     notifications.value.splice(index, 1);
   }
@@ -46,18 +47,24 @@ onMounted(() => {
 });
 
 // Provide the notify function for child components
-provide('notify', notify);
+provide("notify", notify);
 </script>
 
 <script>
 // Create a composable to use the notification system
 export function useNotify() {
-  return inject('notify');
+  return inject("notify");
 }
 </script>
 
 <template>
-  <div class="notifications-container">
+  <div
+    class="notifications-container"
+    role="log"
+    aria-live="polite"
+    aria-label="Notifications"
+    aria-atomic="false"
+  >
     <TransitionGroup name="notification">
       <ToastNotify
         v-for="notification in notifications"
@@ -99,4 +106,4 @@ export function useNotify() {
   opacity: 0;
   transform: translateY(-30px);
 }
-</style> 
+</style>

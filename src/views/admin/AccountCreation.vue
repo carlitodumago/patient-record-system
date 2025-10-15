@@ -23,7 +23,6 @@ const accountForm = ref({
   email: "",
   address: "",
   role: "Nurse",
-  bloodType: "",
   emergencyContact: "",
 });
 
@@ -85,7 +84,6 @@ const resetForm = () => {
     email: "",
     address: "",
     role: "Nurse",
-    bloodType: "",
     emergencyContact: "",
   };
 };
@@ -235,12 +233,6 @@ onMounted(() => {
           Create new user accounts with automatic credential generation and
           delivery
         </p>
-      </div>
-      <div class="animate-fade-in-right">
-        <button class="btn btn-primary" @click="openCreateModal">
-          <i class="bi bi-person-plus me-2"></i>
-          Create New Account
-        </button>
       </div>
     </div>
 
@@ -402,7 +394,7 @@ onMounted(() => {
                   </div>
 
                   <!-- Contact Information -->
-                  <div class="col-md-6">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label">Contact Number *</label>
                     <input
                       v-model="accountForm.contactNumber"
@@ -411,7 +403,7 @@ onMounted(() => {
                       required
                     />
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label">Email Address *</label>
                     <input
                       v-model="accountForm.email"
@@ -421,27 +413,9 @@ onMounted(() => {
                     />
                   </div>
 
-                  <!-- Patient-specific additional fields -->
                   <div
                     v-if="accountForm.accountType === 'patient'"
-                    class="col-md-6"
-                  >
-                    <label class="form-label">Blood Type</label>
-                    <select v-model="accountForm.bloodType" class="form-select">
-                      <option value="">Select Blood Type</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                  <div
-                    v-if="accountForm.accountType === 'patient'"
-                    class="col-md-12"
+                    class="col-md-12 mb-3"
                   >
                     <label class="form-label">Address *</label>
                     <textarea
@@ -453,7 +427,7 @@ onMounted(() => {
                   </div>
                   <div
                     v-if="accountForm.accountType === 'patient'"
-                    class="col-md-12"
+                    class="col-md-12 mb-4"
                   >
                     <label class="form-label">Emergency Contact</label>
                     <input
