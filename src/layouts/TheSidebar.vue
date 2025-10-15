@@ -1,59 +1,59 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
+import { computed, ref, onMounted } from "vue";
+import { useAuthStore } from "../stores/auth";
+import { useRouter } from "vue-router";
 
 const props = defineProps({
   isSidebarCollapsed: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isVisible: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
-const emit = defineEmits(['toggle-sidebar', 'close-sidebar']);
+const emit = defineEmits(["toggle-sidebar", "close-sidebar"]);
 
-const store = useStore();
+const authStore = useAuthStore();
 const router = useRouter();
 
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
 
-// Get unread notification count
+// Get unread notification count - simplified for now
 const unreadNotificationCount = computed(() => {
-  return store.state.notifications.filter(n => !n.read).length;
+  return 0; // TODO: Implement notification system with Pinia
 });
 
-const userRole = ref(null);
-onMounted(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  userRole.value = user?.role || null;
-});
+const userRole = computed(() => user.value?.role || null);
 
 const logout = () => {
-  localStorage.removeItem('user');
-  store.commit('setAuthenticated', false);
-  store.commit('setUser', null);
-  router.push('/login');
+  authStore.logout();
+  router.push("/login");
 };
 
 const toggleSidebar = () => {
-  emit('toggle-sidebar');
+  emit("toggle-sidebar");
 };
 
 const closeSidebar = () => {
-  emit('close-sidebar');
+  emit("close-sidebar");
 };
 </script>
 
 <template>
-  <div :class="['sidebar', {'collapsed': isSidebarCollapsed, 'visible': isVisible}]">
+  <div
+    :class="['sidebar', { collapsed: isSidebarCollapsed, visible: isVisible }]"
+  >
     <div class="sidebar-header">
       <h3 class="text-white mb-0">
-        <router-link to="/dashboard" class="text-white text-decoration-none" @click="closeSidebar">
+        <router-link
+          to="/dashboard"
+          class="text-white text-decoration-none"
+          @click="closeSidebar"
+        >
           <i class="bi bi-hospital me-2"></i>
           <span v-if="!isSidebarCollapsed">Patient Record System</span>
         </router-link>
@@ -62,7 +62,7 @@ const closeSidebar = () => {
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
-    
+
     <div class="sidebar-content">
       <!-- Main navigation links -->
       <ul class="nav flex-column main-nav">
@@ -70,14 +70,25 @@ const closeSidebar = () => {
           <!-- Admin menu -->
           <template v-if="userRole === 'admin'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/dashboard"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-person-badge me-2"></i>
                 <span v-if="!isSidebarCollapsed">Admin Dashboard</span>
-                <i v-if="!isSidebarCollapsed" class="bi bi-grid-fill ms-auto"></i>
+                <i
+                  v-if="!isSidebarCollapsed"
+                  class="bi bi-grid-fill ms-auto"
+                ></i>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/records"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
               </router-link>
@@ -86,49 +97,81 @@ const closeSidebar = () => {
           <!-- Nurse/Clinic Staff menu -->
           <template v-else-if="userRole === 'nurse'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/dashboard" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/dashboard"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-briefcase-medical me-2"></i>
                 <span v-if="!isSidebarCollapsed">Dashboard</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/patients" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/patients"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-people me-2"></i>
                 <span v-if="!isSidebarCollapsed">Patient List</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/records"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/visits"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-calendar-check me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Visits</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/history" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/history"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-clock-history me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical History</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white notification-link"
+                to="/notifications"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-bell me-2"></i>
                 <span v-if="!isSidebarCollapsed">Notifications</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/calendar"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-calendar me-2"></i>
                 <span v-if="!isSidebarCollapsed">Calendar</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/settings" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/settings"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-gear me-2"></i>
                 <span v-if="!isSidebarCollapsed">Settings</span>
               </router-link>
@@ -138,61 +181,95 @@ const closeSidebar = () => {
           <!-- Patient menu -->
           <template v-else-if="userRole === 'patient'">
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/records" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/records"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Records</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/visits" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/visits"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-calendar-check me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical Appointment</span>
-                
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/history" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/history"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-clock-history me-2"></i>
                 <span v-if="!isSidebarCollapsed">Medical History</span>
-                
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white notification-link" to="/notifications" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white notification-link"
+                to="/notifications"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-bell me-2"></i>
                 <span v-if="!isSidebarCollapsed">
                   Notifications
-                  <span v-if="unreadNotificationCount > 0" class="badge bg-danger notification-badge">
-                    {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+                  <span
+                    v-if="unreadNotificationCount > 0"
+                    class="badge bg-danger notification-badge"
+                  >
+                    {{
+                      unreadNotificationCount > 99
+                        ? "99+"
+                        : unreadNotificationCount
+                    }}
                   </span>
                 </span>
-                
-                <span v-else-if="unreadNotificationCount > 0" class="badge bg-danger notification-badge-collapsed">
-                  {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+
+                <span
+                  v-else-if="unreadNotificationCount > 0"
+                  class="badge bg-danger notification-badge-collapsed"
+                >
+                  {{
+                    unreadNotificationCount > 99
+                      ? "99+"
+                      : unreadNotificationCount
+                  }}
                 </span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/calendar" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/calendar"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-calendar me-2"></i>
                 <span v-if="!isSidebarCollapsed">Calendar</span>
-                
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link text-white" to="/settings" @click="closeSidebar">
+              <router-link
+                class="nav-link text-white"
+                to="/settings"
+                @click="closeSidebar"
+              >
                 <i class="bi bi-gear me-2"></i>
                 <span v-if="!isSidebarCollapsed">Settings</span>
-                
               </router-link>
             </li>
           </template>
         </template>
-        
+
         <!-- Spacer to push profile to bottom (if needed) -->
         <li class="flex-grow-1"></li>
       </ul>
-      
+
       <!-- Bottom user profile and logout section -->
       <div class="user-nav-container" v-if="isAuthenticated">
         <ul class="nav flex-column user-nav">
@@ -200,14 +277,23 @@ const closeSidebar = () => {
             <div class="nav-link text-white user-info">
               <!-- Show profile picture if exists, otherwise show default icon -->
               <div v-if="user?.profilePicture" class="sidebar-profile-img">
-                <img :src="user.profilePicture" alt="Profile" class="img-fluid rounded-circle">
+                <img
+                  :src="user.profilePicture"
+                  alt="Profile"
+                  class="img-fluid rounded-circle"
+                />
               </div>
               <i v-else class="bi bi-person-circle me-2"></i>
-              <span v-if="!isSidebarCollapsed">{{ user?.fullName || user?.username }}</span>
+              <span v-if="!isSidebarCollapsed">{{
+                user?.fullName || user?.username
+              }}</span>
             </div>
           </li>
           <li class="nav-item">
-            <button @click="logout" class="nav-link text-white w-100 text-start border-0 bg-transparent">
+            <button
+              @click="logout"
+              class="nav-link text-white w-100 text-start border-0 bg-transparent"
+            >
               <i class="bi bi-box-arrow-right me-2"></i>
               <span v-if="!isSidebarCollapsed">Logout</span>
             </button>
@@ -229,7 +315,11 @@ const closeSidebar = () => {
   position: fixed;
   top: 0;
   left: 0;
-  background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
+  );
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   overflow: hidden; /* Prevent scrolling of the sidebar itself */
@@ -287,7 +377,11 @@ const closeSidebar = () => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
+  );
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -369,7 +463,7 @@ const closeSidebar = () => {
   .sidebar {
     width: 240px; /* Keep the menu width consistent on mobile */
   }
-  
+
   .sidebar.collapsed {
     width: 70px;
   }
@@ -377,7 +471,6 @@ const closeSidebar = () => {
 
 /* Add styles for the icons on the right */
 .nav-link i:last-child:not(.me-2) {
-    margin-left: auto; /* Push the last icon to the right */
+  margin-left: auto; /* Push the last icon to the right */
 }
-
 </style>

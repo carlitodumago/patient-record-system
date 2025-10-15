@@ -1,12 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, reactive } from "vue";
-import { useStore } from "vuex";
+import { ref, onMounted, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { authService } from "../services/api";
+import { useAuthStore } from "../stores/auth";
 
-const store = useStore();
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
 // Login form data
 const loginForm = reactive({
@@ -15,55 +14,18 @@ const loginForm = reactive({
   // role removed as it's now automatically determined
 });
 
-// Register form data
-const registerForm = reactive({
-  username: "",
-  password: "",
-  confirmPassword: "",
-  role: "patient", // Default role set to patient
-  fullName: "",
-  email: "",
-});
-
 // UI state
-const isLoginMode = ref(true);
 const isLoading = ref(false);
 const errorMessage = ref("");
 const autoLogoutMessage = ref("");
 const successMessage = ref("");
 const showLoginFormPassword = ref(false);
-const showRegisterFormPassword = ref(false);
-
-// Animation states
-const isAnimating = ref(false);
-const formDirection = ref("right");
-
-// Animated class based on current mode
-const containerClass = computed(() => {
-  return {
-    "auth-container": true,
-    "register-mode": !isLoginMode.value,
-    "slide-from-left": formDirection.value === "left" && isAnimating.value,
-    "slide-from-right": formDirection.value === "right" && isAnimating.value,
-  };
-});
 
 // Check if user was auto-logged out
 onMounted(() => {
   if (route.query.autoLogout === "true") {
     autoLogoutMessage.value =
       "You have been automatically logged out due to inactivity.";
-  }
-
-  // Check if coming from register page
-  if (route.query.register === "success") {
-    successMessage.value =
-      "Registration successful! Please log in with your new account.";
-  }
-
-  // Check if we should show register form
-  if (route.path === "/register") {
-    switchMode("register");
   }
 });
 
@@ -80,17 +42,19 @@ const login = async () => {
   isLoading.value = true;
 
   try {
-    // Use the auth service to login
-    const userData = await authService.login({
+    // Use the auth store to login
+    const result = await authStore.login({
       username: loginForm.username,
       password: loginForm.password,
     });
 
-    // Update store with user data
-    store.commit("setAuthenticated", true);
-    store.commit("setUser", userData);
-
-    router.push("/dashboard");
+    if (result.success) {
+      // Redirect based on user role
+      const roleRoute = getDefaultRouteForRole(result.user.role);
+      router.push(roleRoute);
+    } else {
+      errorMessage.value = result.error || "Invalid username or password";
+    }
   } catch (error) {
     errorMessage.value = error.message || "Invalid username or password";
   } finally {
@@ -98,100 +62,23 @@ const login = async () => {
   }
 };
 
-// Register function
-const register = async () => {
-  // Clear any previous error
-  errorMessage.value = "";
-  successMessage.value = "";
-
-  // Basic validation
-  if (
-    !registerForm.username ||
-    !registerForm.password ||
-    !registerForm.confirmPassword
-  ) {
-    errorMessage.value = "Please fill in all required fields";
-    return;
+// Helper function to get default route for role
+const getDefaultRouteForRole = (role) => {
+  switch (role) {
+    case "admin":
+      return "/admin";
+    case "nurse":
+      return "/nurse";
+    case "patient":
+      return "/patient";
+    default:
+      return "/login";
   }
-
-  if (registerForm.password !== registerForm.confirmPassword) {
-    errorMessage.value = "Passwords do not match";
-    return;
-  }
-
-  if (registerForm.password.length < 6) {
-    errorMessage.value = "Password must be at least 6 characters long";
-    return;
-  }
-
-  isLoading.value = true;
-
-  try {
-    // Use the auth service to register
-    const newUser = {
-      username: registerForm.username,
-      password: registerForm.password,
-      role: registerForm.role,
-      fullName: registerForm.fullName,
-      email: registerForm.email,
-    };
-
-    await authService.register(newUser);
-
-    // Show success message
-    successMessage.value = "Registration successful! You can now log in.";
-
-    // Switch to login mode after successful registration
-    setTimeout(() => {
-      switchMode("login");
-    }, 1500);
-  } catch (error) {
-    errorMessage.value = error.message || "Registration failed";
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// Switch between login and register modes
-const switchMode = (mode) => {
-  if (
-    (mode === "login" && isLoginMode.value) ||
-    (mode === "register" && !isLoginMode.value)
-  ) {
-    return; // Already in this mode
-  }
-
-  // Set animation direction
-  formDirection.value = mode === "login" ? "left" : "right";
-
-  // Start animation
-  isAnimating.value = true;
-  setTimeout(() => {
-    isLoginMode.value = mode === "login";
-
-    // Update URL without navigation
-    router.replace({
-      path: mode === "login" ? "/login" : "/register",
-      query: route.query,
-    });
-
-    // Reset errors
-    errorMessage.value = "";
-
-    // End animation
-    setTimeout(() => {
-      isAnimating.value = false;
-    }, 300);
-  }, 300); // Match this with the CSS transition time
 };
 
 // Toggle password visibility
 const toggleLoginFormPassword = () => {
   showLoginFormPassword.value = !showLoginFormPassword.value;
-};
-
-const toggleRegisterFormPassword = () => {
-  showRegisterFormPassword.value = !showRegisterFormPassword.value;
 };
 
 // Function to fill demo account credentials
@@ -204,7 +91,7 @@ const fillDemoAccount = (username, password) => {
 
 <template>
   <div class="auth-page">
-    <div :class="containerClass">
+    <div class="auth-container">
       <!-- Animated background elements -->
       <div class="animated-bg">
         <div class="circle circle-1"></div>
@@ -215,7 +102,7 @@ const fillDemoAccount = (username, password) => {
 
       <div class="auth-content">
         <!-- Login Form -->
-        <div v-if="isLoginMode" class="auth-form login-form" key="login">
+        <div class="auth-form login-form">
           <div class="auth-header">
             <div class="logo-container">
               <i class="bi bi-hospital"></i>
@@ -289,145 +176,38 @@ const fillDemoAccount = (username, password) => {
                 <span>{{ isLoading ? "Signing in..." : "Sign in" }}</span>
               </button>
             </div>
-          </form>
 
-          <div class="form-footer">
-            <p>
-              Don't have an account?
-              <a href="#" @click.prevent="switchMode('register')">Register</a>
-            </p>
-          </div>
-        </div>
-
-        <!-- Register Form -->
-        <div v-else class="auth-form register-form" key="register">
-          <div class="auth-header">
-            <div class="logo-container">
-              <i class="bi bi-hospital"></i>
-            </div>
-            <h1>Create Account</h1>
-            <p class="subtitle">Get started with your account</p>
-          </div>
-
-          <div v-if="errorMessage" class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            {{ errorMessage }}
-          </div>
-
-          <div v-if="successMessage" class="alert alert-success">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            {{ successMessage }}
-          </div>
-
-          <form @submit.prevent="register">
-            <div class="form-group">
-              <label for="register-username">Username</label>
-              <div class="input-container">
-                <i class="bi bi-person input-icon"></i>
-                <input
-                  type="text"
-                  id="register-username"
-                  v-model="registerForm.username"
-                  placeholder="Choose a username"
-                  autocomplete="new-username"
-                  required
-                />
+            <!-- Demo Account Buttons -->
+            <div class="demo-accounts">
+              <p class="demo-title">Demo Accounts:</p>
+              <div class="demo-buttons">
+                <button
+                  type="button"
+                  class="demo-button admin-demo"
+                  @click="fillDemoAccount('admin', 'password')"
+                >
+                  <i class="bi bi-shield-check"></i>
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  class="demo-button nurse-demo"
+                  @click="fillDemoAccount('nurse.demo', 'password')"
+                >
+                  <i class="bi bi-heart-pulse"></i>
+                  Nurse
+                </button>
+                <button
+                  type="button"
+                  class="demo-button patient-demo"
+                  @click="fillDemoAccount('john.doe', 'password')"
+                >
+                  <i class="bi bi-person"></i>
+                  Patient
+                </button>
               </div>
-            </div>
-
-            <div class="form-group">
-              <label for="register-password">Password</label>
-              <div class="input-container">
-                <i class="bi bi-lock input-icon"></i>
-                <input
-                  :type="showRegisterFormPassword ? 'text' : 'password'"
-                  id="register-password"
-                  v-model="registerForm.password"
-                  placeholder="Create a password"
-                  autocomplete="new-password"
-                  required
-                />
-                <i
-                  class="bi toggle-password"
-                  :class="showRegisterFormPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="toggleRegisterFormPassword"
-                ></i>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="confirm-password">Confirm Password</label>
-              <div class="input-container">
-                <i class="bi bi-lock input-icon"></i>
-                <input
-                  :type="showRegisterFormPassword ? 'text' : 'password'"
-                  id="confirm-password"
-                  v-model="registerForm.confirmPassword"
-                  placeholder="Confirm your password"
-                  autocomplete="new-password"
-                  required
-                />
-                <i
-                  class="bi toggle-password"
-                  :class="showRegisterFormPassword ? 'bi-eye-slash' : 'bi-eye'"
-                  @click="toggleRegisterFormPassword"
-                ></i>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="register-role">Role</label>
-              <div class="input-container">
-                <i class="bi bi-person-badge input-icon"></i>
-                <select id="register-role" v-model="registerForm.role" required>
-                  <option value="nurse">Nurse/Clinic Staff</option>
-                  <option value="patient">Patient</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="full-name">Full Name (Optional)</label>
-              <div class="input-container">
-                <i class="bi bi-person input-icon"></i>
-                <input
-                  type="text"
-                  id="full-name"
-                  v-model="registerForm.fullName"
-                  placeholder="Enter your full name"
-                />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="email">Email (Optional)</label>
-              <div class="input-container">
-                <i class="bi bi-envelope input-icon"></i>
-                <input
-                  type="email"
-                  id="email"
-                  v-model="registerForm.email"
-                  placeholder="Enter your email address"
-                />
-              </div>
-            </div>
-
-            <div class="form-button">
-              <button
-                type="submit"
-                class="primary-button"
-                :disabled="isLoading"
-              >
-                <span v-if="isLoading" class="spinner"></span>
-                <span>{{ isLoading ? "Registering..." : "Register" }}</span>
-              </button>
             </div>
           </form>
-
-          <p class="switch-mode">
-            Already have an account?
-            <a href="#" @click.prevent="switchMode('login')">Sign in</a>
-          </p>
         </div>
       </div>
     </div>
@@ -734,301 +514,86 @@ select:focus {
   border-left: 4px solid #198754;
 }
 
-/* Animation classes */
-.slide-from-left {
-  animation: slideFromLeft 0.6s forwards;
+/* Demo Account Buttons */
+.demo-accounts {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
 }
 
-.slide-from-right {
-  animation: slideFromRight 0.6s forwards;
-}
-
-@keyframes slideFromLeft {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  50% {
-    transform: translateX(100px);
-    opacity: 0;
-  }
-  51% {
-    transform: translateX(-100px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideFromRight {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  50% {
-    transform: translateX(-100px);
-    opacity: 0;
-  }
-  51% {
-    transform: translateX(100px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* Simple Register Form */
-.simple-register-container {
-  max-width: 100%;
+.demo-title {
   text-align: center;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 600;
 }
 
-.hospital-icon {
-  width: 75px;
-  height: 75px;
-  background: #0d6efd;
-  border-radius: 50%;
+.demo-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.demo-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 15px;
-}
-
-.hospital-icon i {
-  font-size: 40px;
-  color: white;
-}
-
-.system-title {
-  font-size: 36px;
-  font-weight: 700;
-  margin-bottom: 25px;
-  color: #212529;
-}
-
-.register-card {
-  background: white;
-  border-radius: 10px;
-  padding: 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin: 0 auto;
-  max-width: 600px;
-}
-
-.create-account-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 25px;
-  color: #212529;
-}
-
-.register-form-simple {
-  text-align: left;
-}
-
-.register-form-row {
-  margin-bottom: 20px;
-}
-
-.register-form-row label {
-  display: block;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: #fff;
+  color: #495057;
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 8px;
-  color: #212529;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
 }
 
-.required-field {
+.demo-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.demo-button i {
+  font-size: 16px;
+}
+
+.admin-demo {
+  border-color: #dc3545;
   color: #dc3545;
 }
 
-.input-group {
-  display: flex;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: #f8f9fa;
-}
-
-.icon-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  background-color: #f8f9fa;
-  border-right: 1px solid #dee2e6;
-}
-
-.icon-container i {
-  font-size: 16px;
-  color: #6c757d;
-}
-
-.register-form-simple input,
-.register-form-simple select {
-  flex: 1;
-  border: none;
-  padding: 12px 15px;
-  font-size: 14px;
-  background-color: #f8f9fa;
-  outline: none;
-}
-
-.register-form-simple input:focus,
-.register-form-simple select:focus {
-  background-color: white;
-}
-
-.password-hint {
-  font-size: 12px;
-  color: #6c757d;
-  margin-top: 5px;
-}
-
-.register-submit-button {
-  width: 100%;
-  background-color: #4361ee;
+.admin-demo:hover {
+  background-color: #dc3545;
   color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: background-color 0.3s ease;
 }
 
-.register-submit-button:hover {
-  background-color: #3a56d4;
+.nurse-demo {
+  border-color: #20c997;
+  color: #20c997;
 }
 
-.register-submit-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.nurse-demo:hover {
+  background-color: #20c997;
+  color: white;
 }
 
-.account-links {
-  margin-top: 20px;
-  font-size: 14px;
+.patient-demo {
+  border-color: #0d6efd;
+  color: #0d6efd;
 }
 
-.account-links a {
-  color: #4361ee;
-  text-decoration: none;
-  font-weight: 500;
+.patient-demo:hover {
+  background-color: #0d6efd;
+  color: white;
 }
 
-.account-links a:hover {
-  text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-  .auth-content {
-    padding: 30px 20px;
-  }
-
-  .system-title {
-    font-size: 28px;
-  }
-
-  .register-card {
-    padding: 20px 15px;
-  }
-
-  .create-account-title {
-    font-size: 24px;
-  }
-}
-
-/* If there's a line-clamp property anywhere, add it here with standard property */
-.text-with-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Demo Accounts Section */
-.demo-accounts {
-  margin-top: 30px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  border: 1px solid #dee2e6;
-}
-
-.demo-accounts h4 {
-  color: #495057;
-  font-size: 18px;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-.demo-account-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.demo-account {
-  background: white;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.demo-account:hover {
-  border-color: #4361ee;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.15);
-}
-
-.demo-account-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-weight: 600;
-  color: #495057;
-}
-
-.demo-account-header i {
-  font-size: 18px;
-  color: #4361ee;
-}
-
-.demo-account-details {
-  font-size: 12px;
-  color: #6c757d;
-  line-height: 1.4;
-}
-
-.demo-note {
-  text-align: center;
-  font-size: 12px;
-  color: #6c757d;
-  margin: 0;
-  font-style: italic;
-}
-
-@media (max-width: 768px) {
-  .demo-account-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .demo-accounts {
-    margin-top: 20px;
-    padding: 15px;
-  }
+.demo-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 </style>

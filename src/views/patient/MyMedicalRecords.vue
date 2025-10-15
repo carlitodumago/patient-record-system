@@ -9,26 +9,21 @@ const store = useStore();
 const loading = ref(false);
 const search = ref("");
 const showViewModal = ref(false);
-const showEditModal = ref(false);
-const showDeleteModal = ref(false);
 const selectedRecord = ref(null);
-const filterStatus = ref("all");
 const filterType = ref("all");
+const filterDateRange = ref("all");
 
 const medicalRecords = ref([
   {
     id: 1,
-    appointmentId: 1,
     patientId: 1,
     patientName: "John Doe",
-    enteredBy: 1,
-    staffName: "Dr. Sarah Johnson",
-    diagnosisId: 1,
+    appointmentId: 1,
+    healthcareProvider: "Dr. Sarah Johnson",
+    date: "2024-10-10",
+    type: "Consultation",
     diagnosis: "Hypertension",
-    treatmentId: 1,
-    treatment: "Lisinopril 10mg daily",
-    notes:
-      "Patient advised to monitor blood pressure regularly and maintain low-sodium diet.",
+    treatment: "Lisinopril 10mg daily, lifestyle modifications",
     vitalSigns: {
       bloodPressure: "140/90",
       heartRate: "72 bpm",
@@ -36,100 +31,110 @@ const medicalRecords = ref([
       weight: "70 kg",
       height: "175 cm",
     },
+    notes:
+      "Patient advised to monitor blood pressure regularly and maintain low-sodium diet. Follow-up in 2 weeks.",
+    assessment:
+      "Blood pressure slightly elevated but stable. No acute concerns.",
+    plan: "Continue current antihypertensive medication. Follow-up in 2 weeks for repeat BP check.",
+    status: "Final",
     createdAt: "2024-10-10T10:30:00",
     updatedAt: "2024-10-10T10:30:00",
-    status: "Final",
   },
   {
     id: 2,
+    patientId: 1,
+    patientName: "John Doe",
     appointmentId: 2,
-    patientId: 2,
-    patientName: "Maria Santos",
-    enteredBy: 2,
-    staffName: "Dr. Sarah Johnson",
-    diagnosisId: 2,
+    healthcareProvider: "Dr. Sarah Johnson",
+    date: "2024-10-14",
+    type: "Follow-up",
     diagnosis: "Diabetes Type 2",
-    treatmentId: 2,
-    treatment: "Metformin 500mg twice daily",
-    notes:
-      "Blood sugar levels are well controlled. Continue current medication and diet plan.",
+    treatment: "Metformin 500mg twice daily, blood sugar monitoring",
     vitalSigns: {
       bloodPressure: "120/80",
       heartRate: "68 bpm",
       temperature: "36.5°C",
-      weight: "65 kg",
-      height: "160 cm",
+      weight: "69 kg",
+      height: "175 cm",
     },
+    notes:
+      "Blood sugar levels are well controlled. Continue current medication and diet plan. Next follow-up in 3 months.",
+    assessment: "Diabetes well-controlled with current management plan.",
+    plan: "Continue current metformin dosage. Increase physical activity as tolerated.",
+    status: "Final",
     createdAt: "2024-10-14T14:00:00",
     updatedAt: "2024-10-14T14:00:00",
-    status: "Final",
   },
   {
     id: 3,
+    patientId: 1,
+    patientName: "John Doe",
     appointmentId: 3,
-    patientId: 3,
-    patientName: "Pedro Cruz",
-    enteredBy: 3,
-    staffName: "Maria Santos, RN",
-    diagnosisId: 3,
-    diagnosis: "Vaccination",
-    treatmentId: 3,
-    treatment: "COVID-19 Booster Vaccination",
-    notes:
-      "Patient received Pfizer COVID-19 booster shot. No immediate adverse reactions observed.",
+    healthcareProvider: "Maria Santos, RN",
+    date: "2024-09-28",
+    type: "Vaccination",
+    diagnosis: "COVID-19 Vaccination",
+    treatment: "Pfizer COVID-19 booster vaccination administered",
     vitalSigns: {
       bloodPressure: "130/85",
       heartRate: "75 bpm",
       temperature: "36.6°C",
-      weight: "75 kg",
-      height: "168 cm",
+      weight: "71 kg",
+      height: "175 cm",
     },
+    notes:
+      "Patient received Pfizer COVID-19 booster shot. No immediate adverse reactions observed. Advised to monitor for side effects.",
+    assessment: "Vaccination administered successfully without complications.",
+    plan: "Monitor for post-vaccination symptoms. Next booster as per guidelines.",
+    status: "Final",
     createdAt: "2024-09-28T09:00:00",
     updatedAt: "2024-09-28T09:00:00",
-    status: "Final",
   },
 ]);
-
-// Form data
-const recordForm = ref({
-  diagnosis: "",
-  treatment: "",
-  notes: "",
-  vitalSigns: {
-    bloodPressure: "",
-    heartRate: "",
-    temperature: "",
-    weight: "",
-    height: "",
-  },
-  status: "Draft",
-});
 
 // Computed properties
 const user = computed(() => store.state.user);
 const filteredRecords = computed(() => {
   return medicalRecords.value.filter((record) => {
     const matchesSearch =
-      record.patientName.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.staffName.toLowerCase().includes(search.value.toLowerCase()) ||
+      record.healthcareProvider
+        .toLowerCase()
+        .includes(search.value.toLowerCase()) ||
       record.diagnosis.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.treatment.toLowerCase().includes(search.value.toLowerCase());
+      record.treatment.toLowerCase().includes(search.value.toLowerCase()) ||
+      record.type.toLowerCase().includes(search.value.toLowerCase());
 
-    const matchesStatus =
-      filterStatus.value === "all" ||
-      record.status.toLowerCase() === filterStatus.value;
     const matchesType =
       filterType.value === "all" ||
-      record.diagnosis.toLowerCase().includes(filterType.value);
+      record.type.toLowerCase() === filterType.value;
 
-    return matchesSearch && matchesStatus && matchesType;
+    let matchesDate = true;
+    if (filterDateRange.value !== "all") {
+      const recordDate = new Date(record.date);
+      const now = new Date();
+      const daysDiff = Math.floor((now - recordDate) / (1000 * 60 * 60 * 24));
+
+      switch (filterDateRange.value) {
+        case "week":
+          matchesDate = daysDiff <= 7;
+          break;
+        case "month":
+          matchesDate = daysDiff <= 30;
+          break;
+        case "quarter":
+          matchesDate = daysDiff <= 90;
+          break;
+      }
+    }
+
+    return matchesSearch && matchesType && matchesDate;
   });
 });
 
 const recentRecords = computed(() => {
   return medicalRecords.value
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 5);
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 3);
 });
 
 // Methods
@@ -146,88 +151,46 @@ const fetchMedicalRecords = async () => {
   }
 };
 
-const resetForm = () => {
-  recordForm.value = {
-    diagnosis: "",
-    treatment: "",
-    notes: "",
-    vitalSigns: {
-      bloodPressure: "",
-      heartRate: "",
-      temperature: "",
-      weight: "",
-      height: "",
-    },
-    status: "Draft",
-  };
-};
-
 const openViewModal = (record) => {
   selectedRecord.value = record;
   showViewModal.value = true;
 };
 
-const openEditModal = (record) => {
-  selectedRecord.value = record;
-  recordForm.value = {
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: { ...record.vitalSigns },
-    status: record.status,
-  };
-  showEditModal.value = true;
-};
-
-const openDeleteModal = (record) => {
-  selectedRecord.value = record;
-  showDeleteModal.value = true;
-};
-
 const closeModals = () => {
   showViewModal.value = false;
-  showEditModal.value = false;
-  showDeleteModal.value = false;
   selectedRecord.value = null;
-  resetForm();
 };
 
-const updateRecord = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+const downloadRecord = (record) => {
+  // Simulate download functionality
+  const recordData = {
+    patientName: record.patientName,
+    date: record.date,
+    provider: record.healthcareProvider,
+    type: record.type,
+    diagnosis: record.diagnosis,
+    treatment: record.treatment,
+    vitalSigns: record.vitalSigns,
+    notes: record.notes,
+    assessment: record.assessment,
+    plan: record.plan,
+  };
 
-    const index = medicalRecords.value.findIndex(
-      (r) => r.id === selectedRecord.value.id
-    );
-    if (index !== -1) {
-      medicalRecords.value[index] = {
-        ...medicalRecords.value[index],
-        ...recordForm.value,
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    closeModals();
-    console.log("Record updated successfully");
-  } catch (error) {
-    console.error("Error updating record:", error);
-  }
+  console.log("Downloading record:", recordData);
+  // In a real application, this would generate and download a PDF file
+  alert("Medical record download would be implemented here");
 };
 
-const deleteRecord = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+const printRecord = (record) => {
+  console.log("Printing record:", record);
+  // In a real application, this would open a print dialog
+  alert("Print functionality would be implemented here");
+};
 
-    medicalRecords.value = medicalRecords.value.filter(
-      (r) => r.id !== selectedRecord.value.id
-    );
-    closeModals();
-    console.log("Record deleted successfully");
-  } catch (error) {
-    console.error("Error deleting record:", error);
-  }
+const requestRecordAccess = () => {
+  console.log("Requesting record access");
+  // In a real application, this would send a request to healthcare providers
+  alert("Record access request would be sent to your healthcare provider");
 };
 
 const getStatusBadgeVariant = (status) => {
@@ -239,31 +202,22 @@ const getStatusBadgeVariant = (status) => {
   return variants[status] || "secondary";
 };
 
+const getTypeBadgeVariant = (type) => {
+  const variants = {
+    Consultation: "primary",
+    "Follow-up": "info",
+    Vaccination: "success",
+    Emergency: "danger",
+  };
+  return variants[type] || "secondary";
+};
+
 const formatDateTime = (dateTime) => {
   return new Date(dateTime).toLocaleString();
 };
 
-const exportRecord = (record) => {
-  // Simulate export functionality
-  const exportData = {
-    patientName: record.patientName,
-    date: formatDateTime(record.createdAt),
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: record.vitalSigns,
-    staffName: record.staffName,
-  };
-
-  console.log("Exporting record:", exportData);
-  // In a real application, this would generate a PDF or export file
-  alert("Record export functionality would be implemented here");
-};
-
-const printRecord = (record) => {
-  console.log("Printing record:", record);
-  // In a real application, this would open a print dialog
-  alert("Print functionality would be implemented here");
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString();
 };
 
 onMounted(() => {
@@ -272,13 +226,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="medical-records-management">
+  <div class="my-medical-records">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h1 class="mb-2 animate-fade-in-left">Medical Records</h1>
+        <h1 class="mb-2 animate-fade-in-left">My Medical Records</h1>
         <p class="text-muted mb-0 animate-fade-in-left animation-delay-100">
-          Manage and oversee patient medical records
+          View and download your medical records and health information
         </p>
       </div>
       <div class="animate-fade-in-right">
@@ -289,18 +243,18 @@ onMounted(() => {
             data-bs-toggle="dropdown"
           >
             <i class="bi bi-download me-2"></i>
-            Export
+            Export Records
           </button>
           <ul class="dropdown-menu">
             <li>
               <a class="dropdown-item" href="#" @click="exportAllRecords"
-                ><i class="bi bi-file-earmark-spreadsheet me-2"></i>Export All
-                (CSV)</a
+                ><i class="bi bi-file-earmark-pdf me-2"></i>Export All (PDF)</a
               >
             </li>
             <li>
               <a class="dropdown-item" href="#" @click="exportAllRecords"
-                ><i class="bi bi-file-earmark-pdf me-2"></i>Export All (PDF)</a
+                ><i class="bi bi-file-earmark-excel me-2"></i>Export All
+                (Excel)</a
               >
             </li>
           </ul>
@@ -327,10 +281,8 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-clock text-warning fs-2"></i>
             </div>
-            <h4 class="mb-1">
-              {{ filteredRecords.filter((r) => r.status === "Draft").length }}
-            </h4>
-            <small class="text-muted">Draft Records</small>
+            <h4 class="mb-1">{{ recentRecords.length }}</h4>
+            <small class="text-muted">Recent (30 days)</small>
           </div>
         </div>
       </div>
@@ -338,12 +290,14 @@ onMounted(() => {
         <div class="card stats-card animate-fade-in-up animation-delay-200">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
-              <i class="bi bi-check-circle text-success fs-2"></i>
+              <i class="bi bi-clipboard-pulse text-info fs-2"></i>
             </div>
             <h4 class="mb-1">
-              {{ filteredRecords.filter((r) => r.status === "Final").length }}
+              {{
+                filteredRecords.filter((r) => r.type === "Consultation").length
+              }}
             </h4>
-            <small class="text-muted">Final Records</small>
+            <small class="text-muted">Consultations</small>
           </div>
         </div>
       </div>
@@ -351,16 +305,20 @@ onMounted(() => {
         <div class="card stats-card animate-fade-in-up animation-delay-300">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
-              <i class="bi bi-calendar-week text-info fs-2"></i>
+              <i class="bi bi-shield-check text-success fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ recentRecords.length }}</h4>
-            <small class="text-muted">Recent (7 days)</small>
+            <h4 class="mb-1">
+              {{
+                filteredRecords.filter((r) => r.type === "Vaccination").length
+              }}
+            </h4>
+            <small class="text-muted">Vaccinations</small>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Search and Filters -->
     <div class="card mb-4 animate-fade-in-up animation-delay-200">
       <div class="card-body">
         <div class="row g-3">
@@ -371,25 +329,25 @@ onMounted(() => {
                 v-model="search"
                 type="text"
                 class="form-control"
-                placeholder="Search records by patient, staff, or diagnosis..."
+                placeholder="Search records by provider, diagnosis, or type..."
               />
             </div>
           </div>
           <div class="col-md-4">
-            <select v-model="filterStatus" class="form-select">
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="final">Final</option>
-              <option value="amended">Amended</option>
+            <select v-model="filterType" class="form-select">
+              <option value="all">All Types</option>
+              <option value="consultation">Consultation</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="vaccination">Vaccination</option>
+              <option value="emergency">Emergency</option>
             </select>
           </div>
           <div class="col-md-4">
-            <select v-model="filterType" class="form-select">
-              <option value="all">All Types</option>
-              <option value="hypertension">Hypertension</option>
-              <option value="diabetes">Diabetes</option>
-              <option value="vaccination">Vaccination</option>
-              <option value="consultation">Consultation</option>
+            <select v-model="filterDateRange" class="form-select">
+              <option value="all">All Dates</option>
+              <option value="week">Last 7 days</option>
+              <option value="month">Last 30 days</option>
+              <option value="quarter">Last 90 days</option>
             </select>
           </div>
         </div>
@@ -411,7 +369,7 @@ onMounted(() => {
       >
         <h5 class="mb-0">
           <i class="bi bi-file-medical-fill me-2"></i>
-          Medical Records ({{ filteredRecords.length }})
+          My Medical Records ({{ filteredRecords.length }})
         </h5>
         <button
           class="btn btn-sm btn-outline-primary"
@@ -430,12 +388,11 @@ onMounted(() => {
           <table class="table table-hover mb-0">
             <thead class="table-light">
               <tr>
-                <th>Patient</th>
+                <th>Date</th>
                 <th>Healthcare Provider</th>
+                <th>Type</th>
                 <th>Diagnosis</th>
                 <th>Treatment</th>
-                <th>Status</th>
-                <th>Date Created</th>
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
@@ -446,23 +403,31 @@ onMounted(() => {
                 class="animate-fade-in-up"
               >
                 <td>
+                  <div class="fw-medium">{{ formatDate(record.date) }}</div>
+                  <small class="text-muted">{{ record.type }}</small>
+                </td>
+                <td>
                   <div class="d-flex align-items-center">
-                    <div class="patient-avatar me-3">
+                    <div class="provider-avatar me-3">
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <div class="fw-medium">{{ record.patientName }}</div>
-                      <small class="text-muted"
-                        >ID: {{ record.patientId }}</small
-                      >
+                      <div class="fw-medium">
+                        {{ record.healthcareProvider }}
+                      </div>
+                      <small class="text-muted">{{
+                        formatDateTime(record.createdAt)
+                      }}</small>
                     </div>
                   </div>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ record.staffName }}</div>
-                  <small class="text-muted">{{
-                    formatDateTime(record.createdAt)
-                  }}</small>
+                  <span
+                    class="badge"
+                    :class="`bg-${getTypeBadgeVariant(record.type)}`"
+                  >
+                    {{ record.type }}
+                  </span>
                 </td>
                 <td>
                   <div class="fw-medium">{{ record.diagnosis }}</div>
@@ -479,44 +444,28 @@ onMounted(() => {
                     >{{ record.notes.substring(0, 50) }}...</small
                   >
                 </td>
-                <td>
-                  <span
-                    class="badge"
-                    :class="`bg-${getStatusBadgeVariant(record.status)}`"
-                  >
-                    {{ record.status }}
-                  </span>
-                </td>
-                <td>{{ new Date(record.createdAt).toLocaleDateString() }}</td>
                 <td class="text-center">
                   <div class="btn-group" role="group">
                     <button
                       class="btn btn-sm btn-outline-info"
                       @click="openViewModal(record)"
-                      title="View Record"
+                      title="View Details"
                     >
                       <i class="bi bi-eye"></i>
                     </button>
                     <button
-                      class="btn btn-sm btn-outline-primary"
-                      @click="openEditModal(record)"
-                      title="Edit Record"
-                    >
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button
                       class="btn btn-sm btn-outline-success"
-                      @click="exportRecord(record)"
-                      title="Export Record"
+                      @click="downloadRecord(record)"
+                      title="Download"
                     >
                       <i class="bi bi-download"></i>
                     </button>
                     <button
-                      class="btn btn-sm btn-outline-danger"
-                      @click="openDeleteModal(record)"
-                      title="Delete Record"
+                      class="btn btn-sm btn-outline-secondary"
+                      @click="printRecord(record)"
+                      title="Print"
                     >
-                      <i class="bi bi-trash"></i>
+                      <i class="bi bi-printer"></i>
                     </button>
                   </div>
                 </td>
@@ -531,11 +480,15 @@ onMounted(() => {
           <h5 class="text-muted">No medical records found</h5>
           <p class="text-muted mb-3">
             {{
-              search || filterStatus !== "all" || filterType !== "all"
+              search || filterType !== "all" || filterDateRange !== "all"
                 ? "Try adjusting your search or filter criteria."
-                : "No medical records have been created yet."
+                : "No medical records are available yet."
             }}
           </p>
+          <button class="btn btn-primary" @click="requestRecordAccess">
+            <i class="bi bi-envelope me-2"></i>
+            Request Record Access
+          </button>
         </div>
       </div>
     </div>
@@ -548,7 +501,7 @@ onMounted(() => {
       <div class="card-header">
         <h5 class="mb-0">
           <i class="bi bi-clock-history me-2"></i>
-          Recent Records
+          Recent Medical Records
         </h5>
       </div>
       <div class="card-body">
@@ -564,11 +517,17 @@ onMounted(() => {
               <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
                   <div class="d-flex align-items-center mb-2">
-                    <div class="patient-avatar-small me-3">
-                      <i class="bi bi-person-circle"></i>
+                    <div class="record-icon me-3">
+                      <i class="bi bi-file-medical text-primary"></i>
                     </div>
                     <div>
-                      <strong>{{ record.patientName }}</strong>
+                      <strong>{{ record.healthcareProvider }}</strong>
+                      <span
+                        class="badge ms-2"
+                        :class="`bg-${getTypeBadgeVariant(record.type)}`"
+                      >
+                        {{ record.type }}
+                      </span>
                       <span
                         class="badge ms-2"
                         :class="`bg-${getStatusBadgeVariant(record.status)}`"
@@ -577,15 +536,10 @@ onMounted(() => {
                       </span>
                     </div>
                   </div>
-                  <p class="mb-2">
-                    <strong>Diagnosis:</strong> {{ record.diagnosis }}
-                  </p>
-                  <p class="mb-2">
-                    <strong>Treatment:</strong> {{ record.treatment }}
-                  </p>
+                  <h6 class="mb-2">{{ record.diagnosis }}</h6>
+                  <p class="mb-2">{{ record.treatment }}</p>
                   <small class="text-muted">
-                    Created by {{ record.staffName }} on
-                    {{ formatDateTime(record.createdAt) }}
+                    {{ formatDate(record.date) }} • {{ record.notes }}
                   </small>
                 </div>
                 <div class="text-end">
@@ -597,13 +551,104 @@ onMounted(() => {
                     View
                   </button>
                   <button
-                    class="btn btn-sm btn-outline-secondary"
-                    @click="printRecord(record)"
+                    class="btn btn-sm btn-outline-success"
+                    @click="downloadRecord(record)"
                   >
-                    <i class="bi bi-printer me-1"></i>
-                    Print
+                    <i class="bi bi-download me-1"></i>
+                    Download
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Summary Card -->
+    <div class="card mt-4 animate-fade-in-up animation-delay-500">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-clipboard-pulse me-2"></i>
+          My Health Summary
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="health-summary-item p-3 border rounded">
+              <h6 class="text-primary mb-3">
+                <i class="bi bi-clipboard-pulse me-2"></i>
+                Current Health Status
+              </h6>
+              <div
+                class="health-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Blood Type</span>
+                <span class="badge bg-primary">O+</span>
+              </div>
+              <div
+                class="health-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Allergies</span>
+                <span class="badge bg-success">None</span>
+              </div>
+              <div
+                class="health-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Current Medications</span>
+                <span class="badge bg-info">2 Active</span>
+              </div>
+              <div
+                class="health-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Active Conditions</span>
+                <span class="badge bg-warning">2</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="health-summary-item p-3 border rounded">
+              <h6 class="text-primary mb-3">
+                <i class="bi bi-graph-up me-2"></i>
+                Health Trends
+              </h6>
+              <div
+                class="trend-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Blood Pressure</span>
+                <span class="text-success">
+                  <i class="bi bi-arrow-down me-1"></i>
+                  Improving
+                </span>
+              </div>
+              <div
+                class="trend-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Weight</span>
+                <span class="text-success">
+                  <i class="bi bi-arrow-down me-1"></i>
+                  Stable
+                </span>
+              </div>
+              <div
+                class="trend-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Blood Sugar</span>
+                <span class="text-success">
+                  <i class="bi bi-arrow-down me-1"></i>
+                  Well Controlled
+                </span>
+              </div>
+              <div
+                class="trend-item d-flex justify-content-between align-items-center py-2"
+              >
+                <span>Overall Health</span>
+                <span class="text-info">
+                  <i class="bi bi-dash me-1"></i>
+                  Good
+                </span>
               </div>
             </div>
           </div>
@@ -636,13 +681,16 @@ onMounted(() => {
                 <div
                   class="record-header d-flex align-items-center mb-4 p-3 bg-light rounded"
                 >
-                  <div class="patient-avatar-large me-3">
-                    <i class="bi bi-person-circle"></i>
+                  <div class="record-icon-large me-3">
+                    <i class="bi bi-file-medical"></i>
                   </div>
                   <div>
-                    <h4 class="mb-1">{{ selectedRecord.patientName }}</h4>
+                    <h4 class="mb-1">
+                      {{ formatDate(selectedRecord.date) }} -
+                      {{ selectedRecord.type }}
+                    </h4>
                     <p class="text-muted mb-1">
-                      Patient ID: {{ selectedRecord.patientId }}
+                      {{ selectedRecord.healthcareProvider }}
                     </p>
                     <p class="text-muted mb-0">
                       Record ID: {{ selectedRecord.id }}
@@ -652,19 +700,23 @@ onMounted(() => {
               </div>
 
               <div class="col-md-6">
-                <label class="form-label fw-medium">Record Information</label>
+                <label class="form-label fw-medium">Visit Information</label>
                 <div class="info-group">
                   <div class="info-item">
                     <strong>Healthcare Provider:</strong>
-                    {{ selectedRecord.staffName }}
+                    {{ selectedRecord.healthcareProvider }}
                   </div>
                   <div class="info-item">
-                    <strong>Created:</strong>
-                    {{ formatDateTime(selectedRecord.createdAt) }}
+                    <strong>Visit Type:</strong>
+                    <span
+                      class="badge ms-2"
+                      :class="`bg-${getTypeBadgeVariant(selectedRecord.type)}`"
+                    >
+                      {{ selectedRecord.type }}
+                    </span>
                   </div>
                   <div class="info-item">
-                    <strong>Last Updated:</strong>
-                    {{ formatDateTime(selectedRecord.updatedAt) }}
+                    <strong>Date:</strong> {{ formatDate(selectedRecord.date) }}
                   </div>
                   <div class="info-item">
                     <strong>Status:</strong>
@@ -720,9 +772,22 @@ onMounted(() => {
                     <strong>Treatment:</strong> {{ selectedRecord.treatment }}
                   </div>
                   <div class="info-item">
-                    <strong>Notes:</strong>
-                    {{ selectedRecord.notes || "No additional notes" }}
+                    <strong>Assessment:</strong>
+                    {{ selectedRecord.assessment || "No assessment recorded" }}
                   </div>
+                  <div class="info-item">
+                    <strong>Treatment Plan:</strong>
+                    {{ selectedRecord.plan || "No plan recorded" }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label fw-medium">Consultation Notes</label>
+                <div class="info-group">
+                  <p class="mb-0">
+                    {{ selectedRecord.notes || "No additional notes" }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -737,194 +802,19 @@ onMounted(() => {
             </button>
             <button
               type="button"
-              class="btn btn-primary"
-              @click="openEditModal(selectedRecord)"
-            >
-              <i class="bi bi-pencil me-2"></i>
-              Edit Record
-            </button>
-            <button
-              type="button"
               class="btn btn-success"
-              @click="exportRecord(selectedRecord)"
+              @click="downloadRecord(selectedRecord)"
             >
               <i class="bi bi-download me-2"></i>
-              Export
+              Download PDF
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Edit Record Modal -->
-    <div
-      class="modal fade"
-      :class="{ show: showEditModal }"
-      :style="{ display: showEditModal ? 'block' : 'none' }"
-    >
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-pencil me-2"></i>
-              Edit Medical Record
-            </h5>
             <button
               type="button"
-              class="btn-close"
-              @click="closeModals"
-            ></button>
-          </div>
-          <form @submit.prevent="updateRecord">
-            <div class="modal-body">
-              <div class="row g-3">
-                <div class="col-md-12">
-                  <label class="form-label">Diagnosis *</label>
-                  <input
-                    v-model="recordForm.diagnosis"
-                    type="text"
-                    class="form-control"
-                    required
-                  />
-                </div>
-                <div class="col-md-12">
-                  <label class="form-label">Treatment *</label>
-                  <textarea
-                    v-model="recordForm.treatment"
-                    class="form-control"
-                    rows="3"
-                    required
-                  ></textarea>
-                </div>
-                <div class="col-md-12">
-                  <label class="form-label">Notes</label>
-                  <textarea
-                    v-model="recordForm.notes"
-                    class="form-control"
-                    rows="3"
-                  ></textarea>
-                </div>
-
-                <div class="col-md-12">
-                  <label class="form-label">Vital Signs</label>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Blood Pressure</label>
-                  <input
-                    v-model="recordForm.vitalSigns.bloodPressure"
-                    type="text"
-                    class="form-control"
-                    placeholder="e.g., 120/80"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Heart Rate (bpm)</label>
-                  <input
-                    v-model="recordForm.vitalSigns.heartRate"
-                    type="text"
-                    class="form-control"
-                    placeholder="e.g., 72"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Temperature (°C)</label>
-                  <input
-                    v-model="recordForm.vitalSigns.temperature"
-                    type="text"
-                    class="form-control"
-                    placeholder="e.g., 36.8"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Weight (kg)</label>
-                  <input
-                    v-model="recordForm.vitalSigns.weight"
-                    type="text"
-                    class="form-control"
-                    placeholder="e.g., 70"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Height (cm)</label>
-                  <input
-                    v-model="recordForm.vitalSigns.height"
-                    type="text"
-                    class="form-control"
-                    placeholder="e.g., 175"
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Status</label>
-                  <select v-model="recordForm.status" class="form-select">
-                    <option value="Draft">Draft</option>
-                    <option value="Final">Final</option>
-                    <option value="Amended">Amended</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                @click="closeModals"
-              >
-                Cancel
-              </button>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check-lg me-2"></i>
-                Update Record
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div
-      class="modal fade"
-      :class="{ show: showDeleteModal }"
-      :style="{ display: showDeleteModal ? 'block' : 'none' }"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title text-danger">
-              <i class="bi bi-exclamation-triangle me-2"></i>
-              Confirm Deletion
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              @click="closeModals"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <p>Are you sure you want to delete this medical record?</p>
-            <div v-if="selectedRecord" class="alert alert-warning">
-              <strong>{{ selectedRecord.patientName }}</strong
-              ><br />
-              <small>{{ selectedRecord.diagnosis }}</small
-              ><br />
-              <small>{{ formatDateTime(selectedRecord.createdAt) }}</small>
-            </div>
-            <p class="text-muted mb-0">
-              This action cannot be undone and will permanently remove the
-              record.
-            </p>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="closeModals"
+              class="btn btn-outline-secondary"
+              @click="printRecord(selectedRecord)"
             >
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-danger" @click="deleteRecord">
-              <i class="bi bi-trash me-2"></i>
-              Delete Record
+              <i class="bi bi-printer me-2"></i>
+              Print
             </button>
           </div>
         </div>
@@ -933,7 +823,7 @@ onMounted(() => {
 
     <!-- Modal Backdrop -->
     <div
-      v-if="showViewModal || showEditModal || showDeleteModal"
+      v-if="showViewModal"
       class="modal-backdrop fade show"
       @click="closeModals"
     ></div>
@@ -958,7 +848,7 @@ onMounted(() => {
   padding-left: 40px;
 }
 
-.patient-avatar {
+.provider-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -970,7 +860,18 @@ onMounted(() => {
   font-size: 1.2rem;
 }
 
-.patient-avatar-large {
+.record-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.record-icon-large {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -980,18 +881,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-}
-
-.patient-avatar-small {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: var(--primary-gradient-start);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
 }
 
 .stats-card {
@@ -1045,6 +934,26 @@ onMounted(() => {
 .recent-record-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.health-summary-item {
+  background-color: var(--light-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.health-summary-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.health-item,
+.trend-item {
+  padding: 0.5rem 0;
+}
+
+.health-item:not(:last-child),
+.trend-item:not(:last-child) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 /* Animation for spinner */

@@ -1,113 +1,233 @@
-# Web-based Patient Record System
+# 🏥 Baan KM-3 Health Information System
 
-A modern, responsive web application for managing patient records, built with Vue.js, Vuex, and Bootstrap 5.
+A comprehensive web-based Health Information System designed for the Barangay Baan KM-3 Health Center in Butuan City, Philippines.
 
-## Features
+## 🚀 Features
 
-- **User Authentication:** Secure login and registration with role-based access control (Admin, Physician, Nurse)
-- **Patient Management:** Add, view, edit, and delete patient records with comprehensive details
-- **Medical Visits:** Schedule upcoming visits and record completed visits with full CRUD operations
-- **Medical Records:** Document patient conditions, diagnoses, and treatment plans
-- **Medical History:** View a timeline of a patient's complete medical history
-- **Notifications:** Real-time system alerts for patient and visit activities
-- **User Preferences:** Personalized settings including auto-logout for security
-- **Responsive Design:** Works seamlessly on desktop, tablet, and mobile devices
+### 👥 Multi-Role Support
+- **Administrator**: Complete system management and oversight
+- **Nurse/Healthcare Staff**: Patient care and medical record management
+- **Patient**: Personal health management and appointment booking
 
-## Demo Credentials
+### 📋 Core Modules
 
-- **Admin:** `admin` / `admin123`
-    - **Nurse/Clinic Staff:** `nurse` / `nurse123`
-    - **Patient:** `patient` / `patient123`
+#### Admin Features
+- ✅ User account creation with automatic credential generation
+- ✅ Staff and patient management
+- ✅ Appointment scheduling and oversight
+- ✅ Medical records management
+- ✅ System notifications and alerts
+- ✅ Reports and analytics dashboard
 
-## Technology Stack
+#### Nurse Features
+- ✅ Patient registration and management
+- ✅ Vital signs recording
+- ✅ Medical record creation and editing
+- ✅ Appointment request handling
+- ✅ Treatment protocol management
+- ✅ Consultation notes documentation
 
-- Vue.js 3 with Composition API
-- Vuex for state management
-- Vue Router for navigation
-- Bootstrap 5 for UI components
-- Bootstrap Icons for iconography
-- LocalStorage for data persistence (demo purposes)
+#### Patient Features
+- ✅ Personal health dashboard
+- ✅ Appointment booking and management
+- ✅ Medical record access
+- ✅ Health reminders and notifications
 
-## Getting Started
+## 🛠️ Tech Stack
+
+- **Frontend**: Vue.js 3 + Vuetify + Pinia
+- **Backend**: Supabase (Authentication + PostgreSQL)
+- **Server Logic**: Node.js (Gmail/SMS automation)
+- **Styling**: Bootstrap 5 + Bootstrap Icons
+- **State Management**: Pinia
+
+## 🚦 Getting Started
 
 ### Prerequisites
-
-- Node.js (v14 or newer)
-- npm (v6 or newer)
+- Node.js (v16 or higher)
+- npm or yarn
+- Supabase account and project
 
 ### Installation
 
-1. Clone the repository
-2. Navigate to the project directory
-3. Install dependencies:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd patient-record-system-3
+   ```
 
-```bash
-npm install
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   ```bash
+   # Copy environment file
+   cp .env.example .env
+
+   # Configure your Supabase credentials
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Access the application**
+   ```
+   http://localhost:5173
+   ```
+
+## 🔐 Demo Accounts
+
+### Test Users
+Use these credentials to test different user roles:
+
+#### Administrator
+- **Username**: `admin`
+- **Password**: `password`
+- **Access**: Full system administration
+
+#### Nurse/Healthcare Staff
+- **Username**: `nurse`
+- **Password**: `password`
+- **Access**: Patient management and medical records
+
+#### Patient
+- **Username**: `patient`
+- **Password**: `password`
+- **Access**: Personal health management
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # Reusable Vue components
+│   ├── RoleBasedSidebar.vue    # Role-specific navigation
+│   └── ...
+├── views/              # Page components by role
+│   ├── admin/          # Administrator views
+│   ├── nurse/          # Nurse/Staff views
+│   └── patient/        # Patient views
+├── stores/             # Pinia state management
+│   └── auth.js         # Authentication store
+├── router/             # Route definitions
+│   ├── admin.js        # Admin routes
+│   ├── nurse.js        # Nurse routes
+│   └── patient.js      # Patient routes
+├── layouts/            # Layout components
+└── services/           # API services
 ```
 
-4. Start the development server:
+## 🎨 UI Features
 
-```bash
-npm run dev
-```
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Modern Interface**: Clean, professional healthcare design
+- **Role-Based Navigation**: Dynamic sidebar based on user permissions
+- **Interactive Dashboards**: Real-time statistics and charts
+- **Smooth Animations**: Enhanced user experience
+- **Dark/Light Theme Support**: Adaptive theming
 
-5. Open your browser and navigate to the URL shown in the terminal (usually http://localhost:5173)
+## 🔒 Security Features
 
-## Building for Production
+- **Role-Based Access Control (RBAC)**
+- **Secure Authentication** via Supabase
+- **Password Encryption** for production
+- **Audit Logging** for sensitive actions
+- **Session Management** with auto-logout
+
+## 📱 Mobile Support
+
+- **Responsive Layouts**: Optimized for all screen sizes
+- **Touch-Friendly**: Large buttons and easy navigation
+- **Mobile-First**: Designed for healthcare workers on-the-go
+
+## 🚀 Deployment
+
+### Supabase Setup
+
+1. **Create a new project** in Supabase
+2. **Set up authentication** with email/password
+3. **Create database tables** based on the schema provided
+4. **Configure RLS policies** for data security
+
+### Build for Production
 
 ```bash
 npm run build
 ```
 
-## Features Implemented
+## 📊 Database Schema
 
-1. **Patient Management**
-   - Complete CRUD operations for patient records
-   - Detailed patient information including medical conditions, allergies
-   - Patient search and filtering
+See the detailed schema in the project requirements for table structures including:
+- Users and Roles
+- Staff and Patient management
+- Appointments and scheduling
+- Medical records and history
+- Notifications and alerts
 
-2. **Medical Visits**
-   - Schedule upcoming visits
-   - Record completed visits
-   - Edit and delete functionality
-   - Mark visits as completed
-   - Search and filter by status
+## 🔧 Development
 
-3. **Medical Records**
-   - Document patient conditions, diagnoses, and treatment plans
-   - Full CRUD operations
-   - Associate records with specific patients
+### Adding New Features
 
-4. **Medical History**
-   - Combined timeline view of all patient medical events
-   - Chronological display with filtering options
+1. **Create views** in appropriate role directories
+2. **Add routes** to respective router files
+3. **Update navigation** in RoleBasedSidebar.vue
+4. **Add state management** in Pinia stores
 
-5. **User Authentication**
-   - Login/Logout functionality
-   - Role-based access
-   - Auto-logout for security
+### Code Style
 
-6. **Notifications**
-   - Real-time notifications for system actions
-   - Notification center for viewing all alerts
-   - Mark notifications as read
+- **ESLint** for code quality
+- **Prettier** for formatting
+- **Vue 3 Composition API** patterns
 
-7. **User Settings**
-   - Configurable auto-logout timer
-   - Notification preferences
-   - Persistent user settings
+## 🧪 Testing
 
-## Notes
+```bash
+# Run unit tests
+npm run test:unit
 
-This is a demonstration project using localStorage for data persistence. In a production environment, you would implement:
+# Run e2e tests
+npm run test:e2e
+```
 
-- A secure backend API with proper authentication
-- Database storage for patient records
-- Data encryption for sensitive information
-- Comprehensive security measures for HIPAA compliance
-- Advanced validation and error handling
-- Audit logging for all access to patient data
+## 📚 Documentation
 
-## License
+- **Component Documentation**: Available in each component file
+- **API Documentation**: Supabase auto-generated docs
+- **User Guide**: In-app help and tooltips
 
-MIT
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+## 🎯 Future Enhancements
+
+- [ ] Real-time notifications with WebSockets
+- [ ] Advanced reporting with charts
+- [ ] Mobile app (React Native)
+- [ ] Telemedicine features
+- [ ] AI-powered health insights
+- [ ] Integration with medical devices
+
+---
+
+**Built with ❤️ for Barangay Baan KM-3 Health Center**

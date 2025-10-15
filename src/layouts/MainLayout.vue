@@ -1,27 +1,31 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
-import TheSidebar from './TheSidebar.vue';
-import SidebarBackdrop from '../components/SidebarBackdrop.vue';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+import RoleBasedSidebar from "../components/RoleBasedSidebar.vue";
+import SidebarBackdrop from "../components/SidebarBackdrop.vue";
 
 const route = useRoute();
 const router = useRouter();
-const store = useStore();
-const isSidebarCollapsed = ref(false);
-const isSidebarVisible = ref(false); // Default to hidden for a menu-style approach
+const authStore = useAuthStore();
+const isSidebarVisible = ref(true); // Default to visible for authenticated users
+const isSidebarCollapsed = ref(false); // Default to not collapsed
 
 // User authentication and profile data
-const isAuthenticated = computed(() => store.state.isAuthenticated);
-const user = computed(() => store.state.user);
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
 
 // Check if current route is login or register page
 const hideSidebar = computed(() => {
-  return route.path === '/login' || route.path === '/register';
+  return route.path === "/login" || route.path === "/register";
 });
 
 const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
+};
+
+const handleSidebarToggle = (collapsed) => {
+  isSidebarCollapsed.value = collapsed;
 };
 
 const toggleSidebarVisibility = () => {
@@ -33,43 +37,54 @@ const closeSidebar = () => {
 };
 
 const navigateToProfile = () => {
-  router.push('/profile');
+  router.push("/profile");
 };
 </script>
 
 <template>
   <div class="app-container">
     <!-- Sidebar backdrop - Only shown when sidebar is visible on mobile -->
-    <SidebarBackdrop 
-      :show="isSidebarVisible && !hideSidebar" 
+    <SidebarBackdrop
+      :show="isSidebarVisible && !hideSidebar"
       @close="closeSidebar"
     />
-    
-    <!-- Sidebar Component - Hidden for login and register pages -->
-    <TheSidebar 
+
+    <!-- Role-Based Sidebar Component - Hidden for login and register pages -->
+    <RoleBasedSidebar
       v-if="!hideSidebar"
-      :isSidebarCollapsed="isSidebarCollapsed"
+      :isCollapsed="isSidebarCollapsed"
       :isVisible="isSidebarVisible"
-      @toggle-sidebar="toggleSidebar" 
-      @close-sidebar="closeSidebar"
+      @toggle="handleSidebarToggle"
+      @close="closeSidebar"
     />
-    
+
     <!-- Main content -->
-    <div class="main-content">
+    <div
+      class="main-content"
+      :class="{
+        'sidebar-visible': isSidebarVisible && !hideSidebar,
+        'has-collapsed-sidebar':
+          isSidebarCollapsed && isSidebarVisible && !hideSidebar,
+      }"
+    >
       <!-- Top navbar with animation -->
       <nav class="navbar navbar-expand-lg navbar-light animate-fade-in-down">
-        <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div
+          class="container-fluid d-flex justify-content-between align-items-center"
+        >
           <!-- Left side: Menu button with hover animation -->
           <div>
             <!-- Only show menu button if not on login/register pages -->
-            <button v-if="!hideSidebar" 
-                    @click="toggleSidebarVisibility" 
-                    class="btn btn-link border-0 menu-toggle-btn"
-                    title="Toggle menu">
+            <button
+              v-if="!hideSidebar"
+              @click="toggleSidebarVisibility"
+              class="btn btn-link border-0 menu-toggle-btn"
+              title="Toggle menu"
+            >
               <i class="bi bi-list fs-4"></i>
             </button>
           </div>
-          
+
           <!-- Center: App name with hover animation -->
           <div>
             <div class="system-title animate-fade-in">
@@ -77,19 +92,31 @@ const navigateToProfile = () => {
               <span class="title-text">Patient Record System</span>
             </div>
           </div>
-          
+
           <!-- Right side: Profile picture (only for authenticated users) -->
-          <div v-if="isAuthenticated && !hideSidebar" class="d-flex align-items-center animate-fade-in-left">
-            <div @click="navigateToProfile" class="profile-picture-nav animate-fade-in">
+          <div
+            v-if="isAuthenticated && !hideSidebar"
+            class="d-flex align-items-center animate-fade-in-left"
+          >
+            <div
+              @click="navigateToProfile"
+              class="profile-picture-nav animate-fade-in"
+            >
               <div class="d-flex align-items-center">
                 <!-- Show profile picture if exists, otherwise show default icon -->
                 <div v-if="user?.profilePicture" class="profile-img-container">
-                  <img :src="user.profilePicture" alt="Profile" class="profile-img">
+                  <img
+                    :src="user.profilePicture"
+                    alt="Profile"
+                    class="profile-img"
+                  />
                 </div>
                 <div v-else class="profile-avatar">
-                  <span>{{ user?.username?.[0]?.toUpperCase() || 'U' }}</span>
+                  <span>{{ user?.username?.[0]?.toUpperCase() || "U" }}</span>
                 </div>
-                <span class="ms-2 fw-medium">{{ user?.fullName || user?.username }}</span>
+                <span class="ms-2 fw-medium">{{
+                  user?.fullName || user?.username
+                }}</span>
               </div>
             </div>
           </div>
@@ -97,7 +124,7 @@ const navigateToProfile = () => {
           <div v-else></div>
         </div>
       </nav>
-      
+
       <main class="container-fluid px-4 py-3">
         <!-- Router view with animation -->
         <router-view v-slot="{ Component }">
@@ -124,6 +151,26 @@ const navigateToProfile = () => {
   background: var(--background-color);
   transition: all 0.3s ease;
   flex: 1;
+  margin-left: 0; /* No margin by default when sidebar is hidden */
+}
+
+.main-content.sidebar-visible {
+  margin-left: 280px; /* Space for visible sidebar */
+  transition: margin-left 0.3s ease; /* Smooth transition */
+}
+
+.main-content.sidebar-visible.has-collapsed-sidebar {
+  margin-left: 80px; /* Space for collapsed sidebar */
+}
+
+@media (max-width: 768px) {
+  .main-content.sidebar-visible {
+    margin-left: 0; /* No margin on mobile - overlay behavior */
+  }
+
+  .main-content.sidebar-visible.has-collapsed-sidebar {
+    margin-left: 0; /* No margin on mobile even when collapsed */
+  }
 }
 
 main {
@@ -131,7 +178,11 @@ main {
 }
 
 .footer {
-  background: linear-gradient(135deg, var(--secondary-gradient-start), var(--secondary-gradient-end));
+  background: linear-gradient(
+    135deg,
+    var(--secondary-gradient-start),
+    var(--secondary-gradient-end)
+  );
   color: white;
   width: 100%;
   z-index: 10;
@@ -149,7 +200,7 @@ main {
 .navbar {
   background-color: var(--light-color);
   color: var(--text-color);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s, color 0.3s;
 }
 
@@ -163,7 +214,11 @@ main {
   align-items: center;
   padding: 6px 12px;
   border-radius: 8px;
-  background: linear-gradient(120deg, var(--primary-gradient-start) 0%, var(--primary-gradient-end) 100%);
+  background: linear-gradient(
+    120deg,
+    var(--primary-gradient-start) 0%,
+    var(--primary-gradient-end) 100%
+  );
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -254,7 +309,11 @@ main {
   align-items: center;
   padding: 6px 12px;
   border-radius: 8px;
-  background: linear-gradient(120deg, var(--primary-gradient-start) 0%, var(--primary-gradient-end) 100%);
+  background: linear-gradient(
+    120deg,
+    var(--primary-gradient-start) 0%,
+    var(--primary-gradient-end) 100%
+  );
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 }
@@ -263,4 +322,4 @@ main {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
-</style> 
+</style>

@@ -4,186 +4,24 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./assets/css/styles.css";
-import axios from "axios";
+
+// Vue and Pinia
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./App.vue";
 import router from "./router";
 
-import { createApp } from "vue";
-import App from "./App.vue";
-import { createStore } from "vuex";
-
-// Import utilities
-import { updateAutoLogout } from "./utils/autoLogout";
-import {
-  standardizePatientsList,
-  standardizePatientDates,
-} from "./utils/dateUtils";
-import {
-  loadNotifications,
-  saveNotifications,
-} from "./utils/notificationUtils";
-import { userService } from "./services/api";
+// Pinia stores
+import { useAuthStore } from "./stores/auth";
 
 // Apply animation CSS on app initialization
 import { generateAnimationCSS } from "./utils/animationUtils";
 
-// Create Vuex store
-const store = createStore({
-  state() {
-    return {
-      patients: [],
-      currentPatient: null,
-      isAuthenticated: false,
-      user: null,
-      users: [], // No longer used for login, but can be used for user lists
-      notifications: loadNotifications() || [
-        {
-          id: 1,
-          title: "New Patient Record",
-          message: "A new patient record has been created",
-          type: "info",
-          date: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          read: false,
-        },
-        {
-          id: 2,
-          title: "Record Updated",
-          message: "Patient #128 record was updated",
-          type: "success",
-          date: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-          read: true,
-        },
-        {
-          id: 3,
-          title: "System Maintenance",
-          message:
-            "System will be down for maintenance on Sunday, 2:00 AM - 4:00 AM",
-          type: "warning",
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-          read: false,
-        },
-      ],
-    };
-  },
-  mutations: {
-    setPatients(state, patients) {
-      state.patients = patients;
-    },
-    setCurrentPatient(state, patient) {
-      state.currentPatient = standardizePatientDates(patient);
-    },
-    addPatient(state, patient) {
-      // Ensure consistent date format before adding
-      const standardizedPatient = standardizePatientDates(patient);
-      state.patients.push(standardizedPatient);
-      // Save to localStorage
-      localStorage.setItem("patientRecords", JSON.stringify(state.patients));
-    },
-    updatePatient(state, updatedPatient) {
-      const index = state.patients.findIndex((p) => p.id === updatedPatient.id);
-      if (index !== -1) {
-        // Ensure consistent date format before updating
-        const standardizedPatient = standardizePatientDates(updatedPatient);
-        state.patients[index] = standardizedPatient;
-        // Save to localStorage
-        localStorage.setItem("patientRecords", JSON.stringify(state.patients));
-      }
-    },
-    deletePatient(state, id) {
-      state.patients = state.patients.filter((p) => p.id !== id);
-      // Save to localStorage
-      localStorage.setItem("patientRecords", JSON.stringify(state.patients));
-    },
-    setAuthenticated(state, isAuth) {
-      state.isAuthenticated = isAuth;
-
-      // Update auto logout when auth state changes
-      if (isAuth) {
-        updateAutoLogout(store, router);
-      }
-    },
-    setUser(state, user) {
-      state.user = user;
-    },
-    // Notification mutations
-    addNotification(state, notification) {
-      state.notifications.unshift({
-        id: notification.id || Date.now(), // Simple ID generation
-        date: notification.date || new Date(),
-        read: notification.read || false,
-        ...notification,
-      });
-
-      // Save to localStorage
-      saveNotifications(state.notifications);
-    },
-    markNotificationAsRead(state, id) {
-      const notification = state.notifications.find((n) => n.id === id);
-      if (notification) {
-        notification.read = true;
-
-        // Save to localStorage
-        saveNotifications(state.notifications);
-      }
-    },
-    markAllNotificationsAsRead(state) {
-      state.notifications.forEach((notification) => {
-        notification.read = true;
-      });
-
-      // Save to localStorage
-      saveNotifications(state.notifications);
-    },
-    deleteNotification(state, id) {
-      state.notifications = state.notifications.filter((n) => n.id !== id);
-
-      // Save to localStorage
-      saveNotifications(state.notifications);
-    },
-  },
-  actions: {
-    // Add an action to load patients from localStorage on app start
-    loadPatients({ commit }) {
-      const savedPatients = localStorage.getItem("patientRecords");
-      if (savedPatients) {
-        // Standardize all patient dates to MM-DD-YYYY format
-        const patients = standardizePatientsList(JSON.parse(savedPatients));
-        commit("setPatients", patients);
-      }
-    },
-    async loadUsers({ commit }) {
-      try {
-        // This action now correctly loads non-admin users for display in user management lists
-        const users = await userService.getAllUsers();
-        commit("setUsers", users);
-      } catch (error) {
-        // This won't block login, but we should log it.
-        console.error("Failed to load users from backend:", error);
-      }
-    },
-  },
-});
-
-// Check local storage for user login state
-const storedUser = localStorage.getItem("user");
-if (storedUser) {
-  try {
-    const userData = JSON.parse(storedUser);
-    store.commit("setAuthenticated", true);
-    store.commit("setUser", userData);
-  } catch (e) {
-    console.error("Error parsing stored user data:", e);
-    localStorage.removeItem("user");
-  }
-}
-
-// Load patients from localStorage on app start
-store.dispatch("loadPatients");
-
-// Load users from the backend on app start
-store.dispatch("loadUsers");
-
 // Create the app instance
 const app = createApp(App);
+
+// Create Pinia instance
+const pinia = createPinia();
 
 // Apply animation CSS
 try {
@@ -219,8 +57,13 @@ window.addEventListener("unhandledrejection", (event) => {
   console.error("Unhandled promise rejection:", event.reason);
 });
 
-app.use(store);
+// Use plugins
+app.use(pinia);
 app.use(router);
+
+// Initialize auth store and check for existing authentication
+const authStore = useAuthStore();
+authStore.initializeAuth();
 
 // Execute after app is mounted
 try {

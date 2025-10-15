@@ -11,24 +11,21 @@ const search = ref("");
 const showAddModal = ref(false);
 const showEditModal = ref(false);
 const showViewModal = ref(false);
-const selectedRecord = ref(null);
-const filterStatus = ref("all");
+const selectedNote = ref(null);
 const filterType = ref("all");
 
-const medicalRecords = ref([
+const consultationNotes = ref([
   {
     id: 1,
-    appointmentId: 1,
     patientId: 1,
     patientName: "John Doe",
+    appointmentId: 1,
     enteredBy: 1,
     staffName: "Dr. Sarah Johnson",
-    diagnosisId: 1,
-    diagnosis: "Hypertension",
-    treatmentId: 1,
-    treatment: "Lisinopril 10mg daily, lifestyle modifications",
-    notes:
-      "Patient advised to monitor blood pressure regularly and maintain low-sodium diet. Follow-up in 2 weeks.",
+    type: "Consultation",
+    subject: "Regular Check-up - October 2024",
+    content:
+      "Patient presented for routine check-up. Blood pressure readings: 135/85, 140/88. Patient reports occasional headaches but no chest pain or shortness of breath. Advised to continue current medication and monitor blood pressure at home. Diet counseling provided regarding low-sodium options.",
     vitalSigns: {
       bloodPressure: "140/90",
       heartRate: "72 bpm",
@@ -36,24 +33,25 @@ const medicalRecords = ref([
       weight: "70 kg",
       height: "175 cm",
     },
+    assessment:
+      "Blood pressure slightly elevated but stable. No acute concerns.",
+    plan: "Continue current antihypertensive medication. Follow-up in 2 weeks for repeat BP check.",
+    followUp: "2 weeks",
     createdAt: "2024-10-10T10:30:00",
     updatedAt: "2024-10-10T10:30:00",
     status: "Final",
-    type: "Consultation",
   },
   {
     id: 2,
-    appointmentId: 2,
     patientId: 2,
     patientName: "Maria Santos",
+    appointmentId: 2,
     enteredBy: 2,
     staffName: "Dr. Sarah Johnson",
-    diagnosisId: 2,
-    diagnosis: "Diabetes Type 2",
-    treatmentId: 2,
-    treatment: "Metformin 500mg twice daily, blood sugar monitoring",
-    notes:
-      "Blood sugar levels are well controlled. Continue current medication and diet plan. Next follow-up in 3 months.",
+    type: "Follow-up",
+    subject: "Diabetes Management Review",
+    content:
+      "Patient reports good compliance with medication and diet. Blood glucose readings have been within target range (80-140 mg/dL fasting). HbA1c results reviewed - showing improvement from 7.2% to 6.8%. No hypoglycemic episodes reported.",
     vitalSigns: {
       bloodPressure: "120/80",
       heartRate: "68 bpm",
@@ -61,24 +59,24 @@ const medicalRecords = ref([
       weight: "65 kg",
       height: "160 cm",
     },
+    assessment: "Diabetes well-controlled with current management plan.",
+    plan: "Continue current metformin dosage. Increase physical activity as tolerated.",
+    followUp: "3 months",
     createdAt: "2024-10-14T14:00:00",
     updatedAt: "2024-10-14T14:00:00",
     status: "Final",
-    type: "Follow-up",
   },
   {
     id: 3,
-    appointmentId: 3,
     patientId: 3,
     patientName: "Pedro Cruz",
+    appointmentId: 3,
     enteredBy: 3,
     staffName: "Maria Santos, RN",
-    diagnosisId: 3,
-    diagnosis: "Vaccination",
-    treatmentId: 3,
-    treatment: "COVID-19 Booster Vaccination (Pfizer)",
-    notes:
-      "Patient received Pfizer COVID-19 booster shot. No immediate adverse reactions observed. Advised to monitor for side effects.",
+    type: "Vaccination",
+    subject: "COVID-19 Booster Vaccination",
+    content:
+      "Patient received Pfizer COVID-19 booster vaccination in left deltoid. No immediate adverse reactions observed. Patient instructed to monitor for common side effects including injection site pain, fatigue, headache, and muscle pain for the next 24-48 hours.",
     vitalSigns: {
       bloodPressure: "130/85",
       heartRate: "75 bpm",
@@ -86,125 +84,126 @@ const medicalRecords = ref([
       weight: "75 kg",
       height: "168 cm",
     },
+    assessment: "Vaccination administered successfully without complications.",
+    plan: "Monitor for post-vaccination symptoms. Next booster as per guidelines.",
+    followUp: "As needed for symptoms",
     createdAt: "2024-09-28T09:00:00",
     updatedAt: "2024-09-28T09:00:00",
     status: "Final",
-    type: "Vaccination",
   },
 ]);
 
 // Form data
-const recordForm = ref({
+const noteForm = ref({
   patientId: "",
   patientName: "",
   appointmentId: "",
-  diagnosis: "",
-  treatment: "",
-  notes: "",
+  type: "Consultation",
+  subject: "",
+  content: "",
   vitalSigns: {
     bloodPressure: "",
     heartRate: "",
     temperature: "",
     weight: "",
     height: "",
-    oxygenSaturation: "",
-    respiratoryRate: "",
   },
+  assessment: "",
+  plan: "",
+  followUp: "",
   status: "Draft",
-  type: "Consultation",
 });
 
 // Computed properties
 const user = computed(() => store.state.user);
-const filteredRecords = computed(() => {
-  return medicalRecords.value.filter((record) => {
+const filteredNotes = computed(() => {
+  return consultationNotes.value.filter((note) => {
     const matchesSearch =
-      record.patientName.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.staffName.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.diagnosis.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.treatment.toLowerCase().includes(search.value.toLowerCase());
+      note.patientName.toLowerCase().includes(search.value.toLowerCase()) ||
+      note.staffName.toLowerCase().includes(search.value.toLowerCase()) ||
+      note.subject.toLowerCase().includes(search.value.toLowerCase()) ||
+      note.content.toLowerCase().includes(search.value.toLowerCase());
 
-    const matchesStatus =
-      filterStatus.value === "all" ||
-      record.status.toLowerCase() === filterStatus.value;
     const matchesType =
       filterType.value === "all" ||
-      record.type.toLowerCase() === filterType.value;
+      note.type.toLowerCase() === filterType.value;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesType;
   });
 });
 
-const draftRecords = computed(() => {
-  return medicalRecords.value.filter((record) => record.status === "Draft");
+const draftNotes = computed(() => {
+  return consultationNotes.value.filter((note) => note.status === "Draft");
 });
 
-const recentRecords = computed(() => {
-  return medicalRecords.value
+const recentNotes = computed(() => {
+  return consultationNotes.value
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5);
 });
 
 // Methods
-const fetchMedicalRecords = async () => {
+const fetchNotes = async () => {
   loading.value = true;
   try {
     // Simulate API call - replace with actual API call
     await new Promise((resolve) => setTimeout(resolve, 800));
     // Mock data is already loaded
   } catch (error) {
-    console.error("Error fetching medical records:", error);
+    console.error("Error fetching notes:", error);
   } finally {
     loading.value = false;
   }
 };
 
 const resetForm = () => {
-  recordForm.value = {
+  noteForm.value = {
     patientId: "",
     patientName: "",
     appointmentId: "",
-    diagnosis: "",
-    treatment: "",
-    notes: "",
+    type: "Consultation",
+    subject: "",
+    content: "",
     vitalSigns: {
       bloodPressure: "",
       heartRate: "",
       temperature: "",
       weight: "",
       height: "",
-      oxygenSaturation: "",
-      respiratoryRate: "",
     },
+    assessment: "",
+    plan: "",
+    followUp: "",
     status: "Draft",
-    type: "Consultation",
   };
 };
 
 const openAddModal = () => {
   resetForm();
-  selectedRecord.value = null;
+  selectedNote.value = null;
   showAddModal.value = true;
 };
 
-const openEditModal = (record) => {
-  selectedRecord.value = record;
-  recordForm.value = {
-    patientId: record.patientId,
-    patientName: record.patientName,
-    appointmentId: record.appointmentId,
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: { ...record.vitalSigns },
-    status: record.status,
-    type: record.type,
+const openEditModal = (note) => {
+  selectedNote.value = note;
+  noteForm.value = {
+    patientId: note.patientId,
+    patientName: note.patientName,
+    appointmentId: note.appointmentId,
+    type: note.type,
+    subject: note.subject,
+    content: note.content,
+    vitalSigns: { ...note.vitalSigns },
+    assessment: note.assessment,
+    plan: note.plan,
+    followUp: note.followUp,
+    status: note.status,
   };
   showEditModal.value = true;
 };
 
-const openViewModal = (record) => {
-  selectedRecord.value = record;
+const openViewModal = (note) => {
+  selectedNote.value = note;
   showViewModal.value = true;
 };
 
@@ -212,61 +211,57 @@ const closeModals = () => {
   showAddModal.value = false;
   showEditModal.value = false;
   showViewModal.value = false;
-  selectedRecord.value = null;
+  selectedNote.value = null;
   resetForm();
 };
 
-const addRecord = async () => {
+const addNote = async () => {
   try {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const newRecord = {
-      id: Math.max(...medicalRecords.value.map((r) => r.id)) + 1,
-      appointmentId: recordForm.value.appointmentId || null,
-      patientId: recordForm.value.patientId,
-      patientName: recordForm.value.patientName,
+    const newNote = {
+      id: Math.max(...consultationNotes.value.map((n) => n.id)) + 1,
+      appointmentId: noteForm.value.appointmentId || null,
+      patientId: noteForm.value.patientId,
+      patientName: noteForm.value.patientName,
       enteredBy: 1, // Current user ID
       staffName:
         user.value?.fullName || user.value?.username || "Current Nurse",
-      diagnosisId:
-        Math.max(...medicalRecords.value.map((r) => r.diagnosisId || 0)) + 1,
-      treatmentId:
-        Math.max(...medicalRecords.value.map((r) => r.treatmentId || 0)) + 1,
-      ...recordForm.value,
+      ...noteForm.value,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    medicalRecords.value.push(newRecord);
+    consultationNotes.value.push(newNote);
     closeModals();
 
-    console.log("Record added successfully");
+    console.log("Note added successfully");
   } catch (error) {
-    console.error("Error adding record:", error);
+    console.error("Error adding note:", error);
   }
 };
 
-const updateRecord = async () => {
+const updateNote = async () => {
   try {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const index = medicalRecords.value.findIndex(
-      (r) => r.id === selectedRecord.value.id
+    const index = consultationNotes.value.findIndex(
+      (n) => n.id === selectedNote.value.id
     );
     if (index !== -1) {
-      medicalRecords.value[index] = {
-        ...medicalRecords.value[index],
-        ...recordForm.value,
+      consultationNotes.value[index] = {
+        ...consultationNotes.value[index],
+        ...noteForm.value,
         updatedAt: new Date().toISOString(),
       };
     }
 
     closeModals();
-    console.log("Record updated successfully");
+    console.log("Note updated successfully");
   } catch (error) {
-    console.error("Error updating record:", error);
+    console.error("Error updating note:", error);
   }
 };
 
@@ -293,48 +288,49 @@ const formatDateTime = (dateTime) => {
   return new Date(dateTime).toLocaleString();
 };
 
-const exportRecord = (record) => {
+const exportNote = (note) => {
   // Simulate export functionality
   const exportData = {
-    patientName: record.patientName,
-    date: formatDateTime(record.createdAt),
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: record.vitalSigns,
-    staffName: record.staffName,
+    patientName: note.patientName,
+    date: formatDateTime(note.createdAt),
+    type: note.type,
+    subject: note.subject,
+    content: note.content,
+    assessment: note.assessment,
+    plan: note.plan,
+    staffName: note.staffName,
   };
 
-  console.log("Exporting record:", exportData);
+  console.log("Exporting note:", exportData);
   // In a real application, this would generate a PDF or export file
-  alert("Record export functionality would be implemented here");
+  alert("Note export functionality would be implemented here");
 };
 
-const printRecord = (record) => {
-  console.log("Printing record:", record);
+const printNote = (note) => {
+  console.log("Printing note:", note);
   // In a real application, this would open a print dialog
   alert("Print functionality would be implemented here");
 };
 
 onMounted(() => {
-  fetchMedicalRecords();
+  fetchNotes();
 });
 </script>
 
 <template>
-  <div class="medical-records-management">
+  <div class="consultation-notes">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h1 class="mb-2 animate-fade-in-left">Medical Records</h1>
+        <h1 class="mb-2 animate-fade-in-left">Consultation Notes</h1>
         <p class="text-muted mb-0 animate-fade-in-left animation-delay-100">
-          Create and manage patient medical records
+          Create and manage patient consultation notes
         </p>
       </div>
       <div class="animate-fade-in-right">
         <button class="btn btn-primary" @click="openAddModal">
           <i class="bi bi-plus-circle me-2"></i>
-          New Medical Record
+          New Consultation Note
         </button>
       </div>
     </div>
@@ -345,10 +341,10 @@ onMounted(() => {
         <div class="card stats-card animate-fade-in-up">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
-              <i class="bi bi-file-medical text-primary fs-2"></i>
+              <i class="bi bi-journal-text text-primary fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ medicalRecords.length }}</h4>
-            <small class="text-muted">Total Records</small>
+            <h4 class="mb-1">{{ consultationNotes.length }}</h4>
+            <small class="text-muted">Total Notes</small>
           </div>
         </div>
       </div>
@@ -358,8 +354,8 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-pencil text-warning fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ draftRecords.length }}</h4>
-            <small class="text-muted">Draft Records</small>
+            <h4 class="mb-1">{{ draftNotes.length }}</h4>
+            <small class="text-muted">Draft Notes</small>
           </div>
         </div>
       </div>
@@ -370,9 +366,9 @@ onMounted(() => {
               <i class="bi bi-check-circle text-success fs-2"></i>
             </div>
             <h4 class="mb-1">
-              {{ filteredRecords.filter((r) => r.status === "Final").length }}
+              {{ filteredNotes.filter((n) => n.status === "Final").length }}
             </h4>
-            <small class="text-muted">Final Records</small>
+            <small class="text-muted">Final Notes</small>
           </div>
         </div>
       </div>
@@ -382,16 +378,16 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-clock text-info fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ recentRecords.length }}</h4>
+            <h4 class="mb-1">{{ recentNotes.length }}</h4>
             <small class="text-muted">Recent (7 days)</small>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Draft Records Alert -->
+    <!-- Draft Notes Alert -->
     <div
-      v-if="draftRecords.length > 0"
+      v-if="draftNotes.length > 0"
       class="alert alert-warning animate-fade-in-up animation-delay-200"
     >
       <div class="d-flex align-items-center">
@@ -399,9 +395,9 @@ onMounted(() => {
           <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
         </div>
         <div class="flex-grow-1">
-          <h6 class="alert-heading mb-1">Draft Records Require Attention</h6>
+          <h6 class="alert-heading mb-1">Draft Notes Require Completion</h6>
           <p class="mb-0">
-            You have {{ draftRecords.length }} draft record(s) that need to be
+            You have {{ draftNotes.length }} draft note(s) that need to be
             finalized.
           </p>
         </div>
@@ -416,26 +412,18 @@ onMounted(() => {
     <div class="card mb-4 animate-fade-in-up animation-delay-300">
       <div class="card-body">
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-6">
             <div class="search-box">
               <i class="bi bi-search search-icon"></i>
               <input
                 v-model="search"
                 type="text"
                 class="form-control"
-                placeholder="Search records by patient, staff, or diagnosis..."
+                placeholder="Search notes by patient, staff, or content..."
               />
             </div>
           </div>
-          <div class="col-md-4">
-            <select v-model="filterStatus" class="form-select">
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="final">Final</option>
-              <option value="amended">Amended</option>
-            </select>
-          </div>
-          <div class="col-md-4">
+          <div class="col-md-6">
             <select v-model="filterType" class="form-select">
               <option value="all">All Types</option>
               <option value="consultation">Consultation</option>
@@ -453,21 +441,21 @@ onMounted(() => {
       <div class="spinner-border text-primary animate-pulse" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
-      <p class="mt-3 text-muted">Loading medical records...</p>
+      <p class="mt-3 text-muted">Loading consultation notes...</p>
     </div>
 
-    <!-- Records Table -->
+    <!-- Notes Table -->
     <div v-else class="card animate-fade-in-up animation-delay-400">
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
         <h5 class="mb-0">
-          <i class="bi bi-file-medical-fill me-2"></i>
-          Medical Records ({{ filteredRecords.length }})
+          <i class="bi bi-journal-text me-2"></i>
+          Consultation Notes ({{ filteredNotes.length }})
         </h5>
         <button
           class="btn btn-sm btn-outline-primary"
-          @click="fetchMedicalRecords"
+          @click="fetchNotes"
           :disabled="loading"
         >
           <i
@@ -484,8 +472,8 @@ onMounted(() => {
               <tr>
                 <th>Patient</th>
                 <th>Healthcare Provider</th>
-                <th>Diagnosis</th>
-                <th>Treatment</th>
+                <th>Type</th>
+                <th>Subject</th>
                 <th>Status</th>
                 <th>Date Created</th>
                 <th class="text-center">Actions</th>
@@ -493,8 +481,8 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr
-                v-for="record in filteredRecords"
-                :key="record.id"
+                v-for="note in filteredNotes"
+                :key="note.id"
                 class="animate-fade-in-up"
               >
                 <td>
@@ -503,63 +491,60 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <div class="fw-medium">{{ record.patientName }}</div>
-                      <small class="text-muted"
-                        >ID: {{ record.patientId }}</small
-                      >
+                      <div class="fw-medium">{{ note.patientName }}</div>
+                      <small class="text-muted">ID: {{ note.patientId }}</small>
                     </div>
                   </div>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ record.staffName }}</div>
+                  <div class="fw-medium">{{ note.staffName }}</div>
                   <small class="text-muted">{{
-                    formatDateTime(record.createdAt)
+                    formatDateTime(note.createdAt)
                   }}</small>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ record.diagnosis }}</div>
-                  <small
-                    v-if="record.vitalSigns.bloodPressure"
-                    class="text-muted"
+                  <span
+                    class="badge"
+                    :class="`bg-${getTypeBadgeVariant(note.type)}`"
                   >
-                    BP: {{ record.vitalSigns.bloodPressure }}
-                  </small>
+                    {{ note.type }}
+                  </span>
                 </td>
                 <td>
-                  <div>{{ record.treatment }}</div>
-                  <small v-if="record.notes" class="text-muted"
-                    >{{ record.notes.substring(0, 50) }}...</small
+                  <div class="fw-medium">{{ note.subject }}</div>
+                  <small class="text-muted"
+                    >{{ note.content.substring(0, 60) }}...</small
                   >
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getStatusBadgeVariant(record.status)}`"
+                    :class="`bg-${getStatusBadgeVariant(note.status)}`"
                   >
-                    {{ record.status }}
+                    {{ note.status }}
                   </span>
                 </td>
-                <td>{{ new Date(record.createdAt).toLocaleDateString() }}</td>
+                <td>{{ new Date(note.createdAt).toLocaleDateString() }}</td>
                 <td class="text-center">
                   <div class="btn-group" role="group">
                     <button
                       class="btn btn-sm btn-outline-info"
-                      @click="openViewModal(record)"
-                      title="View Record"
+                      @click="openViewModal(note)"
+                      title="View Note"
                     >
                       <i class="bi bi-eye"></i>
                     </button>
                     <button
                       class="btn btn-sm btn-outline-primary"
-                      @click="openEditModal(record)"
-                      title="Edit Record"
+                      @click="openEditModal(note)"
+                      title="Edit Note"
                     >
                       <i class="bi bi-pencil"></i>
                     </button>
                     <button
                       class="btn btn-sm btn-outline-success"
-                      @click="exportRecord(record)"
-                      title="Export Record"
+                      @click="exportNote(note)"
+                      title="Export Note"
                     >
                       <i class="bi bi-download"></i>
                     </button>
@@ -571,49 +556,39 @@ onMounted(() => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="filteredRecords.length === 0" class="text-center py-5">
-          <i class="bi bi-file-medical text-muted fs-1 mb-3"></i>
-          <h5 class="text-muted">No medical records found</h5>
+        <div v-if="filteredNotes.length === 0" class="text-center py-5">
+          <i class="bi bi-journal-x text-muted fs-1 mb-3"></i>
+          <h5 class="text-muted">No consultation notes found</h5>
           <p class="text-muted mb-3">
             {{
-              search || filterStatus !== "all" || filterType !== "all"
-                ? "Try adjusting your search or filter criteria."
-                : "No medical records have been created yet."
+              search
+                ? "Try adjusting your search criteria."
+                : "No consultation notes have been created yet."
             }}
           </p>
-          <button
-            v-if="!search && filterStatus === 'all' && filterType === 'all'"
-            class="btn btn-primary"
-            @click="openAddModal"
-          >
+          <button v-if="!search" class="btn btn-primary" @click="openAddModal">
             <i class="bi bi-plus-circle me-2"></i>
-            Create First Record
+            Create First Note
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Recent Records Summary -->
+    <!-- Recent Notes Summary -->
     <div
-      v-if="recentRecords.length > 0"
+      v-if="recentNotes.length > 0"
       class="card mt-4 animate-fade-in-up animation-delay-500"
     >
       <div class="card-header">
         <h5 class="mb-0">
           <i class="bi bi-clock-history me-2"></i>
-          Recent Records
+          Recent Notes
         </h5>
       </div>
       <div class="card-body">
         <div class="row g-3">
-          <div
-            v-for="record in recentRecords"
-            :key="record.id"
-            class="col-md-12"
-          >
-            <div
-              class="recent-record-card p-3 border rounded animate-fade-in-up"
-            >
+          <div v-for="note in recentNotes" :key="note.id" class="col-md-12">
+            <div class="recent-note-card p-3 border rounded animate-fade-in-up">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
                   <div class="d-flex align-items-center mb-2">
@@ -621,43 +596,39 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <strong>{{ record.patientName }}</strong>
+                      <strong>{{ note.patientName }}</strong>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getStatusBadgeVariant(record.status)}`"
+                        :class="`bg-${getStatusBadgeVariant(note.status)}`"
                       >
-                        {{ record.status }}
+                        {{ note.status }}
                       </span>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getTypeBadgeVariant(record.type)}`"
+                        :class="`bg-${getTypeBadgeVariant(note.type)}`"
                       >
-                        {{ record.type }}
+                        {{ note.type }}
                       </span>
                     </div>
                   </div>
-                  <p class="mb-2">
-                    <strong>Diagnosis:</strong> {{ record.diagnosis }}
-                  </p>
-                  <p class="mb-2">
-                    <strong>Treatment:</strong> {{ record.treatment }}
-                  </p>
+                  <h6 class="mb-2">{{ note.subject }}</h6>
+                  <p class="mb-2">{{ note.content.substring(0, 150) }}...</p>
                   <small class="text-muted">
-                    Created by {{ record.staffName }} on
-                    {{ formatDateTime(record.createdAt) }}
+                    Created by {{ note.staffName }} on
+                    {{ formatDateTime(note.createdAt) }}
                   </small>
                 </div>
                 <div class="text-end">
                   <button
                     class="btn btn-sm btn-outline-primary me-2"
-                    @click="openViewModal(record)"
+                    @click="openViewModal(note)"
                   >
                     <i class="bi bi-eye me-1"></i>
                     View
                   </button>
                   <button
                     class="btn btn-sm btn-outline-secondary"
-                    @click="printRecord(record)"
+                    @click="printNote(note)"
                   >
                     <i class="bi bi-printer me-1"></i>
                     Print
@@ -670,7 +641,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Add Record Modal -->
+    <!-- Add Note Modal -->
     <div
       class="modal fade"
       :class="{ show: showAddModal }"
@@ -681,7 +652,7 @@ onMounted(() => {
           <div class="modal-header">
             <h5 class="modal-title">
               <i class="bi bi-plus-circle me-2"></i>
-              Create New Medical Record
+              Create New Consultation Note
             </h5>
             <button
               type="button"
@@ -689,25 +660,21 @@ onMounted(() => {
               @click="closeModals"
             ></button>
           </div>
-          <form @submit.prevent="addRecord">
+          <form @submit.prevent="addNote">
             <div class="modal-body">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Patient Name *</label>
                   <input
-                    v-model="recordForm.patientName"
+                    v-model="noteForm.patientName"
                     type="text"
                     class="form-control"
                     required
                   />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Record Type *</label>
-                  <select
-                    v-model="recordForm.type"
-                    class="form-select"
-                    required
-                  >
+                  <label class="form-label">Note Type *</label>
+                  <select v-model="noteForm.type" class="form-select" required>
                     <option value="Consultation">Consultation</option>
                     <option value="Follow-up">Follow-up</option>
                     <option value="Vaccination">Vaccination</option>
@@ -715,30 +682,22 @@ onMounted(() => {
                   </select>
                 </div>
                 <div class="col-md-12">
-                  <label class="form-label">Diagnosis *</label>
+                  <label class="form-label">Subject *</label>
                   <input
-                    v-model="recordForm.diagnosis"
+                    v-model="noteForm.subject"
                     type="text"
                     class="form-control"
                     required
                   />
                 </div>
                 <div class="col-md-12">
-                  <label class="form-label">Treatment *</label>
+                  <label class="form-label">Consultation Content *</label>
                   <textarea
-                    v-model="recordForm.treatment"
+                    v-model="noteForm.content"
                     class="form-control"
-                    rows="3"
+                    rows="4"
                     required
-                  ></textarea>
-                </div>
-                <div class="col-md-12">
-                  <label class="form-label">Notes</label>
-                  <textarea
-                    v-model="recordForm.notes"
-                    class="form-control"
-                    rows="3"
-                    placeholder="Additional notes, observations, or recommendations"
+                    placeholder="Detailed description of the consultation, patient presentation, and findings"
                   ></textarea>
                 </div>
 
@@ -748,7 +707,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Blood Pressure</label>
                   <input
-                    v-model="recordForm.vitalSigns.bloodPressure"
+                    v-model="noteForm.vitalSigns.bloodPressure"
                     type="text"
                     class="form-control"
                     placeholder="e.g., 120/80"
@@ -757,7 +716,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Heart Rate (bpm)</label>
                   <input
-                    v-model="recordForm.vitalSigns.heartRate"
+                    v-model="noteForm.vitalSigns.heartRate"
                     type="text"
                     class="form-control"
                     placeholder="e.g., 72"
@@ -766,7 +725,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Temperature (°C)</label>
                   <input
-                    v-model="recordForm.vitalSigns.temperature"
+                    v-model="noteForm.vitalSigns.temperature"
                     type="text"
                     class="form-control"
                     placeholder="e.g., 36.8"
@@ -775,7 +734,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Weight (kg)</label>
                   <input
-                    v-model="recordForm.vitalSigns.weight"
+                    v-model="noteForm.vitalSigns.weight"
                     type="text"
                     class="form-control"
                     placeholder="e.g., 70"
@@ -784,15 +743,43 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Height (cm)</label>
                   <input
-                    v-model="recordForm.vitalSigns.height"
+                    v-model="noteForm.vitalSigns.height"
                     type="text"
                     class="form-control"
                     placeholder="e.g., 175"
                   />
                 </div>
+
+                <div class="col-md-12">
+                  <label class="form-label">Assessment</label>
+                  <textarea
+                    v-model="noteForm.assessment"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Clinical assessment and impression"
+                  ></textarea>
+                </div>
+                <div class="col-md-12">
+                  <label class="form-label">Plan</label>
+                  <textarea
+                    v-model="noteForm.plan"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Treatment plan and recommendations"
+                  ></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up</label>
+                  <input
+                    v-model="noteForm.followUp"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 2 weeks, 3 months"
+                  />
+                </div>
                 <div class="col-md-6">
                   <label class="form-label">Status</label>
-                  <select v-model="recordForm.status" class="form-select">
+                  <select v-model="noteForm.status" class="form-select">
                     <option value="Draft">Draft</option>
                     <option value="Final">Final</option>
                   </select>
@@ -809,7 +796,7 @@ onMounted(() => {
               </button>
               <button type="submit" class="btn btn-primary">
                 <i class="bi bi-check-lg me-2"></i>
-                Create Record
+                Create Note
               </button>
             </div>
           </form>
@@ -817,7 +804,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Edit Record Modal -->
+    <!-- Edit Note Modal -->
     <div
       class="modal fade"
       :class="{ show: showEditModal }"
@@ -828,7 +815,7 @@ onMounted(() => {
           <div class="modal-header">
             <h5 class="modal-title">
               <i class="bi bi-pencil me-2"></i>
-              Edit Medical Record
+              Edit Consultation Note
             </h5>
             <button
               type="button"
@@ -836,25 +823,21 @@ onMounted(() => {
               @click="closeModals"
             ></button>
           </div>
-          <form @submit.prevent="updateRecord">
+          <form @submit.prevent="updateNote">
             <div class="modal-body">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Patient Name *</label>
                   <input
-                    v-model="recordForm.patientName"
+                    v-model="noteForm.patientName"
                     type="text"
                     class="form-control"
                     required
                   />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Record Type *</label>
-                  <select
-                    v-model="recordForm.type"
-                    class="form-select"
-                    required
-                  >
+                  <label class="form-label">Note Type *</label>
+                  <select v-model="noteForm.type" class="form-select" required>
                     <option value="Consultation">Consultation</option>
                     <option value="Follow-up">Follow-up</option>
                     <option value="Vaccination">Vaccination</option>
@@ -862,29 +845,21 @@ onMounted(() => {
                   </select>
                 </div>
                 <div class="col-md-12">
-                  <label class="form-label">Diagnosis *</label>
+                  <label class="form-label">Subject *</label>
                   <input
-                    v-model="recordForm.diagnosis"
+                    v-model="noteForm.subject"
                     type="text"
                     class="form-control"
                     required
                   />
                 </div>
                 <div class="col-md-12">
-                  <label class="form-label">Treatment *</label>
+                  <label class="form-label">Consultation Content *</label>
                   <textarea
-                    v-model="recordForm.treatment"
+                    v-model="noteForm.content"
                     class="form-control"
-                    rows="3"
+                    rows="4"
                     required
-                  ></textarea>
-                </div>
-                <div class="col-md-12">
-                  <label class="form-label">Notes</label>
-                  <textarea
-                    v-model="recordForm.notes"
-                    class="form-control"
-                    rows="3"
                   ></textarea>
                 </div>
 
@@ -894,7 +869,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Blood Pressure</label>
                   <input
-                    v-model="recordForm.vitalSigns.bloodPressure"
+                    v-model="noteForm.vitalSigns.bloodPressure"
                     type="text"
                     class="form-control"
                   />
@@ -902,7 +877,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Heart Rate (bpm)</label>
                   <input
-                    v-model="recordForm.vitalSigns.heartRate"
+                    v-model="noteForm.vitalSigns.heartRate"
                     type="text"
                     class="form-control"
                   />
@@ -910,7 +885,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Temperature (°C)</label>
                   <input
-                    v-model="recordForm.vitalSigns.temperature"
+                    v-model="noteForm.vitalSigns.temperature"
                     type="text"
                     class="form-control"
                   />
@@ -918,7 +893,7 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Weight (kg)</label>
                   <input
-                    v-model="recordForm.vitalSigns.weight"
+                    v-model="noteForm.vitalSigns.weight"
                     type="text"
                     class="form-control"
                   />
@@ -926,14 +901,39 @@ onMounted(() => {
                 <div class="col-md-6">
                   <label class="form-label">Height (cm)</label>
                   <input
-                    v-model="recordForm.vitalSigns.height"
+                    v-model="noteForm.vitalSigns.height"
+                    type="text"
+                    class="form-control"
+                  />
+                </div>
+
+                <div class="col-md-12">
+                  <label class="form-label">Assessment</label>
+                  <textarea
+                    v-model="noteForm.assessment"
+                    class="form-control"
+                    rows="2"
+                  ></textarea>
+                </div>
+                <div class="col-md-12">
+                  <label class="form-label">Plan</label>
+                  <textarea
+                    v-model="noteForm.plan"
+                    class="form-control"
+                    rows="2"
+                  ></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up</label>
+                  <input
+                    v-model="noteForm.followUp"
                     type="text"
                     class="form-control"
                   />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Status</label>
-                  <select v-model="recordForm.status" class="form-select">
+                  <select v-model="noteForm.status" class="form-select">
                     <option value="Draft">Draft</option>
                     <option value="Final">Final</option>
                     <option value="Amended">Amended</option>
@@ -951,7 +951,7 @@ onMounted(() => {
               </button>
               <button type="submit" class="btn btn-primary">
                 <i class="bi bi-check-lg me-2"></i>
-                Update Record
+                Update Note
               </button>
             </div>
           </form>
@@ -959,7 +959,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- View Record Modal -->
+    <!-- View Note Modal -->
     <div
       class="modal fade"
       :class="{ show: showViewModal }"
@@ -969,8 +969,8 @@ onMounted(() => {
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="bi bi-file-medical me-2"></i>
-              Medical Record Details
+              <i class="bi bi-journal-text me-2"></i>
+              Consultation Note Details
             </h5>
             <button
               type="button"
@@ -978,60 +978,60 @@ onMounted(() => {
               @click="closeModals"
             ></button>
           </div>
-          <div class="modal-body" v-if="selectedRecord">
+          <div class="modal-body" v-if="selectedNote">
             <div class="row g-3">
               <div class="col-md-12">
                 <div
-                  class="record-header d-flex align-items-center mb-4 p-3 bg-light rounded"
+                  class="note-header d-flex align-items-center mb-4 p-3 bg-light rounded"
                 >
                   <div class="patient-avatar-large me-3">
                     <i class="bi bi-person-circle"></i>
                   </div>
                   <div>
-                    <h4 class="mb-1">{{ selectedRecord.patientName }}</h4>
+                    <h4 class="mb-1">{{ selectedNote.patientName }}</h4>
                     <p class="text-muted mb-1">
-                      Patient ID: {{ selectedRecord.patientId }}
+                      Patient ID: {{ selectedNote.patientId }}
                     </p>
                     <p class="text-muted mb-0">
-                      Record ID: {{ selectedRecord.id }}
+                      Note ID: {{ selectedNote.id }}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div class="col-md-6">
-                <label class="form-label fw-medium">Record Information</label>
+                <label class="form-label fw-medium">Note Information</label>
                 <div class="info-group">
                   <div class="info-item">
                     <strong>Healthcare Provider:</strong>
-                    {{ selectedRecord.staffName }}
+                    {{ selectedNote.staffName }}
                   </div>
                   <div class="info-item">
-                    <strong>Record Type:</strong>
+                    <strong>Note Type:</strong>
                     <span
                       class="badge ms-2"
-                      :class="`bg-${getTypeBadgeVariant(selectedRecord.type)}`"
+                      :class="`bg-${getTypeBadgeVariant(selectedNote.type)}`"
                     >
-                      {{ selectedRecord.type }}
+                      {{ selectedNote.type }}
                     </span>
                   </div>
                   <div class="info-item">
                     <strong>Created:</strong>
-                    {{ formatDateTime(selectedRecord.createdAt) }}
+                    {{ formatDateTime(selectedNote.createdAt) }}
                   </div>
                   <div class="info-item">
                     <strong>Last Updated:</strong>
-                    {{ formatDateTime(selectedRecord.updatedAt) }}
+                    {{ formatDateTime(selectedNote.updatedAt) }}
                   </div>
                   <div class="info-item">
                     <strong>Status:</strong>
                     <span
                       class="badge ms-2"
                       :class="`bg-${getStatusBadgeVariant(
-                        selectedRecord.status
+                        selectedNote.status
                       )}`"
                     >
-                      {{ selectedRecord.status }}
+                      {{ selectedNote.status }}
                     </span>
                   </div>
                 </div>
@@ -1043,42 +1043,48 @@ onMounted(() => {
                   <div class="info-item">
                     <strong>Blood Pressure:</strong>
                     {{
-                      selectedRecord.vitalSigns.bloodPressure || "Not recorded"
+                      selectedNote.vitalSigns.bloodPressure || "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Heart Rate:</strong>
-                    {{ selectedRecord.vitalSigns.heartRate || "Not recorded" }}
+                    {{ selectedNote.vitalSigns.heartRate || "Not recorded" }}
                   </div>
                   <div class="info-item">
                     <strong>Temperature:</strong>
-                    {{
-                      selectedRecord.vitalSigns.temperature || "Not recorded"
-                    }}
+                    {{ selectedNote.vitalSigns.temperature || "Not recorded" }}
                   </div>
                   <div class="info-item">
                     <strong>Weight:</strong>
-                    {{ selectedRecord.vitalSigns.weight || "Not recorded" }}
+                    {{ selectedNote.vitalSigns.weight || "Not recorded" }}
                   </div>
                   <div class="info-item">
                     <strong>Height:</strong>
-                    {{ selectedRecord.vitalSigns.height || "Not recorded" }}
+                    {{ selectedNote.vitalSigns.height || "Not recorded" }}
                   </div>
                 </div>
               </div>
 
               <div class="col-md-12">
-                <label class="form-label fw-medium">Medical Information</label>
+                <label class="form-label fw-medium">Consultation Details</label>
                 <div class="info-group">
                   <div class="info-item">
-                    <strong>Diagnosis:</strong> {{ selectedRecord.diagnosis }}
+                    <strong>Subject:</strong> {{ selectedNote.subject }}
                   </div>
                   <div class="info-item">
-                    <strong>Treatment:</strong> {{ selectedRecord.treatment }}
+                    <strong>Content:</strong> {{ selectedNote.content }}
                   </div>
                   <div class="info-item">
-                    <strong>Notes:</strong>
-                    {{ selectedRecord.notes || "No additional notes" }}
+                    <strong>Assessment:</strong>
+                    {{ selectedNote.assessment || "No assessment recorded" }}
+                  </div>
+                  <div class="info-item">
+                    <strong>Plan:</strong>
+                    {{ selectedNote.plan || "No plan recorded" }}
+                  </div>
+                  <div class="info-item">
+                    <strong>Follow-up:</strong>
+                    {{ selectedNote.followUp || "No follow-up scheduled" }}
                   </div>
                 </div>
               </div>
@@ -1095,15 +1101,15 @@ onMounted(() => {
             <button
               type="button"
               class="btn btn-primary"
-              @click="openEditModal(selectedRecord)"
+              @click="openEditModal(selectedNote)"
             >
               <i class="bi bi-pencil me-2"></i>
-              Edit Record
+              Edit Note
             </button>
             <button
               type="button"
               class="btn btn-success"
-              @click="exportRecord(selectedRecord)"
+              @click="exportNote(selectedNote)"
             >
               <i class="bi bi-download me-2"></i>
               Export
@@ -1197,7 +1203,7 @@ onMounted(() => {
   border-color: rgba(0, 0, 0, 0.05);
 }
 
-.record-header {
+.note-header {
   background: linear-gradient(
     135deg,
     rgba(67, 97, 238, 0.1),
@@ -1219,12 +1225,12 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
-.recent-record-card {
+.recent-note-card {
   background-color: var(--light-color);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.recent-record-card:hover {
+.recent-note-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

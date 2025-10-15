@@ -1,141 +1,76 @@
 <script setup>
-import { useRouter } from 'vue-router';
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const goBack = () => {
-  router.go(-1);
+const goHome = () => {
+  const userRole = localStorage.getItem("userRole") || "guest";
+  switch (userRole) {
+    case "admin":
+      router.push("/admin");
+      break;
+    case "nurse":
+      router.push("/nurse");
+      break;
+    case "patient":
+      router.push("/patient");
+      break;
+    default:
+      router.push("/login");
+  }
 };
 </script>
 
 <template>
-  <div class="not-found-container">
-    <div class="error-content">
-      <div class="error-code">404</div>
-      <div class="error-icon">
-        <i class="bi bi-exclamation-circle"></i>
+  <div
+    class="not-found-page d-flex align-items-center justify-content-center min-vh-100"
+  >
+    <div class="text-center">
+      <div class="error-icon mb-4">
+        <i
+          class="bi bi-exclamation-triangle text-warning fs-1 animate-pulse"
+        ></i>
       </div>
-      <h1 class="error-title">404 Not Found</h1>
-      <p class="error-message">
-        Sorry, the page you are looking for doesn't exist or has been moved.
+      <h1 class="display-1 fw-bold text-primary mb-3">404</h1>
+      <h2 class="mb-4">Page Not Found</h2>
+      <p class="text-muted mb-4">
+        The page you're looking for doesn't exist or has been moved.
       </p>
-      <div class="action-buttons">
-        <button class="btn-action back" @click="goBack">
-          <i class="bi bi-arrow-left me-2"></i>Go Back
-        </button>
-      </div>
+      <button class="btn btn-primary btn-lg" @click="goHome">
+        <i class="bi bi-house me-2"></i>
+        Go to Dashboard
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.not-found-container {
-  min-height: 80vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(240, 242, 245, 0.8));
-  border-radius: 16px;
-  margin: 1rem;
-}
-
-.error-content {
-  max-width: 550px;
-  text-align: center;
-  padding: 3rem;
-  background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.error-code {
-  font-size: 10rem;
-  font-weight: 800;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 0;
-  opacity: 0.05;
-  line-height: 1;
+.not-found-page {
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
+  );
+  color: white;
 }
 
 .error-icon {
-  font-size: 4rem;
-  color: var(--primary-gradient-start);
-  margin-bottom: 1.5rem;
-  position: relative;
-  z-index: 1;
+  opacity: 0.8;
 }
 
-.error-title {
-  font-size: 2.5rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 1rem;
-  position: relative;
-  z-index: 1;
-}
-
-.error-message {
-  font-size: 1.1rem;
-  color: #6c757d;
-  margin-bottom: 2rem;
-  position: relative;
-  z-index: 1;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-}
-
-.btn-action {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  display: flex;
-  align-items: center;
-  transition: all 0.3s ease;
-}
-
-.btn-action.back {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  color: #495057;
-}
-
-.btn-action.back:hover {
-  background-color: #e9ecef;
-}
-
-@media (max-width: 576px) {
-  .error-content {
-    padding: 2rem;
+@keyframes pulse {
+  0% {
+    transform: scale(1);
   }
-  
-  .error-code {
-    font-size: 7rem;
+  50% {
+    transform: scale(1.05);
   }
-  
-  .error-icon {
-    font-size: 3rem;
-  }
-  
-  .error-title {
-    font-size: 2rem;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
+  100% {
+    transform: scale(1);
   }
 }
-</style> 
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+</style>
