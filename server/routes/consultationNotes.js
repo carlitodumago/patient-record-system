@@ -1,13 +1,17 @@
 import express from "express";
-import DatabaseService from "../services/databaseService.js";
+import { notesService } from "../services/supabaseService.js";
 
 const router = express.Router();
 
 // Get all consultation notes
 router.get("/", async (req, res) => {
   try {
-    const notes = await DatabaseService.getConsultationNotes();
-    res.status(200).json(notes);
+    const { data, error } = await notesService.getAllNotes();
+    if (error) {
+      console.error("Error fetching consultation notes:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching consultation notes:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -17,13 +21,18 @@ router.get("/", async (req, res) => {
 // Get consultation note by ID
 router.get("/:id", async (req, res) => {
   try {
-    const note = await DatabaseService.getConsultationNoteById(req.params.id);
+    const { data, error } = await notesService.getNoteById(req.params.id);
 
-    if (!note) {
+    if (error) {
+      console.error("Error fetching consultation note:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (!data) {
       return res.status(404).json({ message: "Consultation note not found" });
     }
 
-    res.status(200).json(note);
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching consultation note:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -49,7 +58,7 @@ router.post("/", async (req, res) => {
       status,
     } = req.body;
 
-    const newNote = await DatabaseService.createConsultationNote({
+    const { data, error } = await notesService.createNote({
       PatientID: patientId,
       PatientName: patientName,
       AppointmentID: appointmentId,
@@ -63,11 +72,14 @@ router.post("/", async (req, res) => {
       Plan: plan,
       FollowUp: followUp,
       Status: status,
-      CreatedAt: new Date().toISOString(),
-      UpdatedAt: new Date().toISOString(),
     });
 
-    res.status(201).json(newNote);
+    if (error) {
+      console.error("Error creating consultation note:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(201).json(data);
   } catch (error) {
     console.error("Error creating consultation note:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -93,32 +105,39 @@ router.put("/:id", async (req, res) => {
       status,
     } = req.body;
 
-    const note = await DatabaseService.getConsultationNoteById(req.params.id);
+    const { data: note, error: fetchError } = await notesService.getNoteById(
+      req.params.id
+    );
+    if (fetchError) {
+      console.error("Error fetching consultation note:", fetchError);
+      return res.status(500).json({ message: "Internal server error" });
+    }
     if (!note) {
       return res.status(404).json({ message: "Consultation note not found" });
     }
 
-    const updatedNote = await DatabaseService.updateConsultationNote(
-      req.params.id,
-      {
-        PatientID: patientId,
-        PatientName: patientName,
-        AppointmentID: appointmentId,
-        EnteredBy: enteredBy,
-        StaffName: staffName,
-        Type: type,
-        Subject: subject,
-        Content: content,
-        VitalSigns: vitalSigns,
-        Assessment: assessment,
-        Plan: plan,
-        FollowUp: followUp,
-        Status: status,
-        UpdatedAt: new Date().toISOString(),
-      }
-    );
+    const { data, error } = await notesService.updateNote(req.params.id, {
+      PatientID: patientId,
+      PatientName: patientName,
+      AppointmentID: appointmentId,
+      EnteredBy: enteredBy,
+      StaffName: staffName,
+      Type: type,
+      Subject: subject,
+      Content: content,
+      VitalSigns: vitalSigns,
+      Assessment: assessment,
+      Plan: plan,
+      FollowUp: followUp,
+      Status: status,
+    });
 
-    res.status(200).json(updatedNote);
+    if (error) {
+      console.error("Error updating consultation note:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error updating consultation note:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -128,7 +147,13 @@ router.put("/:id", async (req, res) => {
 // Delete consultation note
 router.delete("/:id", async (req, res) => {
   try {
-    await DatabaseService.deleteConsultationNote(req.params.id);
+    const { error } = await notesService.deleteNote(req.params.id);
+
+    if (error) {
+      console.error("Error deleting consultation note:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
     res.status(200).json({ message: "Consultation note deleted successfully" });
   } catch (error) {
     console.error("Error deleting consultation note:", error);
@@ -139,10 +164,16 @@ router.delete("/:id", async (req, res) => {
 // Get consultation notes by patient ID
 router.get("/patient/:patientId", async (req, res) => {
   try {
-    const notes = await DatabaseService.getConsultationNotesByPatient(
+    const { data, error } = await notesService.getNotesByPatient(
       req.params.patientId
     );
-    res.status(200).json(notes);
+
+    if (error) {
+      console.error("Error fetching consultation notes by patient:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching consultation notes by patient:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -152,10 +183,16 @@ router.get("/patient/:patientId", async (req, res) => {
 // Get consultation notes by staff ID
 router.get("/staff/:staffId", async (req, res) => {
   try {
-    const notes = await DatabaseService.getConsultationNotesByStaff(
+    const { data, error } = await notesService.getNotesByStaff(
       req.params.staffId
     );
-    res.status(200).json(notes);
+
+    if (error) {
+      console.error("Error fetching consultation notes by staff:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching consultation notes by staff:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -165,7 +202,12 @@ router.get("/staff/:staffId", async (req, res) => {
 // Export consultation note
 router.get("/:id/export", async (req, res) => {
   try {
-    const note = await DatabaseService.getConsultationNoteById(req.params.id);
+    const { data: note, error } = await notesService.getNoteById(req.params.id);
+
+    if (error) {
+      console.error("Error fetching consultation note:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
 
     if (!note) {
       return res.status(404).json({ message: "Consultation note not found" });

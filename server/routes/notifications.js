@@ -1,13 +1,17 @@
 import express from "express";
-import DatabaseService from "../services/databaseService.js";
+import { notificationService } from "../services/supabaseService.js";
 
 const router = express.Router();
 
 // Get all notifications
 router.get("/", async (req, res) => {
   try {
-    const notifications = await DatabaseService.getNotifications();
-    res.status(200).json(notifications);
+    const { data, error } = await notificationService.getAllNotifications();
+    if (error) {
+      console.error("Error fetching notifications:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching notifications:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -17,10 +21,14 @@ router.get("/", async (req, res) => {
 // Get notifications by user ID
 router.get("/user/:userId", async (req, res) => {
   try {
-    const notifications = await DatabaseService.getNotificationsByUser(
+    const { data, error } = await notificationService.getNotificationsByUser(
       req.params.userId
     );
-    res.status(200).json(notifications);
+    if (error) {
+      console.error("Error fetching user notifications:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching user notifications:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -30,17 +38,20 @@ router.get("/user/:userId", async (req, res) => {
 // Get notification by ID
 router.get("/:id", async (req, res) => {
   try {
-    // Note: DatabaseService doesn't have getNotificationById method, need to add it
-    const notifications = await DatabaseService.getNotifications();
-    const notification = notifications.find(
-      (n) => n.NotificationID === parseInt(req.params.id)
+    const { data, error } = await notificationService.getNotificationById(
+      req.params.id
     );
 
-    if (!notification) {
+    if (error) {
+      console.error("Error fetching notification:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (!data) {
       return res.status(404).json({ message: "Notification not found" });
     }
 
-    res.status(200).json(notification);
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching notification:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -50,14 +61,23 @@ router.get("/:id", async (req, res) => {
 // Create new notification
 router.post("/", async (req, res) => {
   try {
-    const { userId, message } = req.body;
+    const { userId, title, message, type, priority, actionRequired } = req.body;
 
-    const newNotification = await DatabaseService.createNotification({
+    const { data, error } = await notificationService.createNotification({
       UserID: userId,
+      Title: title,
       Message: message,
+      Type: type || "general",
+      Priority: priority || "normal",
+      ActionRequired: actionRequired || false,
     });
 
-    res.status(201).json(newNotification);
+    if (error) {
+      console.error("Error creating notification:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(201).json(data);
   } catch (error) {
     console.error("Error creating notification:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -67,17 +87,26 @@ router.post("/", async (req, res) => {
 // Update notification
 router.put("/:id", async (req, res) => {
   try {
-    const { userId, message } = req.body;
+    const { userId, title, message, type, priority, actionRequired } = req.body;
 
-    const updatedNotification = await DatabaseService.updateNotification(
+    const { data, error } = await notificationService.updateNotification(
       req.params.id,
       {
         UserID: userId,
+        Title: title,
         Message: message,
+        Type: type,
+        Priority: priority,
+        ActionRequired: actionRequired,
       }
     );
 
-    res.status(200).json(updatedNotification);
+    if (error) {
+      console.error("Error updating notification:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error updating notification:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -87,7 +116,15 @@ router.put("/:id", async (req, res) => {
 // Delete notification
 router.delete("/:id", async (req, res) => {
   try {
-    await DatabaseService.deleteNotification(req.params.id);
+    const { error } = await notificationService.deleteNotification(
+      req.params.id
+    );
+
+    if (error) {
+      console.error("Error deleting notification:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
     res.status(200).json({ message: "Notification deleted successfully" });
   } catch (error) {
     console.error("Error deleting notification:", error);
@@ -95,23 +132,19 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// Mark notification as read (update - in a real app, you might want a read status field)
+// Mark notification as read
 router.patch("/:id/read", async (req, res) => {
   try {
-    // For now, we'll just return success since we don't have a read status field
-    // In a real implementation, you might want to add a 'read' field to the Notification table
-    const notifications = await DatabaseService.getNotifications();
-    const notification = notifications.find(
-      (n) => n.NotificationID === parseInt(req.params.id)
-    );
+    const { data, error } = await notificationService.markAsRead(req.params.id);
 
-    if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
+    if (error) {
+      console.error("Error marking notification as read:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
 
     res
       .status(200)
-      .json({ message: "Notification marked as read", notification });
+      .json({ message: "Notification marked as read", notification: data });
   } catch (error) {
     console.error("Error marking notification as read:", error);
     res.status(500).json({ message: "Internal server error" });

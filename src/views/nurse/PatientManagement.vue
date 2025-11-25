@@ -1,12 +1,19 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useSupabase } from "../../composables/useSupabase.js";
+import { useAuthStore } from "../../stores/auth.js";
 
-// Store
-const store = useStore();
+// Supabase integration
+const { patients, loading, error } = useSupabase();
+const { userRole, isAuthenticated } = useAuthStore();
+
+// Reactive data from Supabase
+const patientsList = ref([]);
+const isLoading = ref(false);
+const errorMessage = ref(null);
+let unsubscribePatients = null;
 
 // Reactive data
-const loading = ref(false);
 const search = ref("");
 const showAddModal = ref(false);
 const showEditModal = ref(false);
@@ -15,66 +22,13 @@ const showVitalsModal = ref(false);
 const selectedPatient = ref(null);
 const filterStatus = ref("all");
 
-const patientsList = ref([
-  {
-    id: 1,
-    firstName: "John",
-    surname: "Doe",
-    suffix: "",
-    birthDate: "1990-05-15",
-    gender: "Male",
-    contactNumber: "+63 917 123 4567",
-    email: "john.doe@email.com",
-    address: "123 Main St, Barangay Baan KM-3, Butuan City",
-    bloodType: "O+",
-    emergencyContact: "Jane Doe - +63 917 987 6543",
-    registrationDate: "2024-01-15",
-    lastVisit: "2024-10-10",
-    status: "Active",
-    riskLevel: "Low",
-    allergies: "None",
-    currentMedications: "Lisinopril 10mg daily",
-    medicalHistory: "Hypertension diagnosed in 2020",
-  },
-  {
-    id: 2,
-    firstName: "Maria",
-    surname: "Santos",
-    suffix: "",
-    birthDate: "1985-08-22",
-    gender: "Female",
-    contactNumber: "+63 917 234 5678",
-    email: "maria.santos@email.com",
-    address: "456 Oak Ave, Barangay Baan KM-3, Butuan City",
-    bloodType: "A+",
-    emergencyContact: "Pedro Santos - +63 917 876 5432",
-    registrationDate: "2024-02-20",
-    lastVisit: "2024-10-14",
-    status: "Active",
-    allergies: "Penicillin",
-    currentMedications: "Metformin 500mg twice daily",
-    medicalHistory: "Type 2 Diabetes diagnosed in 2019",
-  },
-  {
-    id: 3,
-    firstName: "Pedro",
-    surname: "Cruz",
-    suffix: "Jr.",
-    birthDate: "1975-12-03",
-    gender: "Male",
-    contactNumber: "+63 917 345 6789",
-    email: "pedro.cruz@email.com",
-    address: "789 Pine St, Barangay Baan KM-3, Butuan City",
-    bloodType: "B+",
-    emergencyContact: "Ana Cruz - +63 917 765 4321",
-    registrationDate: "2024-03-10",
-    lastVisit: "2024-09-28",
-    status: "Active",
-    allergies: "Shellfish, Aspirin",
-    currentMedications: "Atorvastatin 20mg daily, Aspirin 81mg daily",
-    medicalHistory: "Coronary artery disease, High cholesterol",
-  },
-]);
+// Role-based access control
+const canAccessPatients = computed(() => {
+  return (
+    isAuthenticated.value &&
+    (userRole.value === "nurse" || userRole.value === "admin")
+  );
+});
 
 // Form data
 const patientForm = ref({
@@ -93,6 +47,7 @@ const patientForm = ref({
   medicalHistory: "",
 });
 
+// Form data
 const vitalsForm = ref({
   bloodPressure: "",
   heartRate: "",
@@ -105,37 +60,24 @@ const vitalsForm = ref({
 });
 
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredPatients = computed(() => {
   return patientsList.value.filter((patient) => {
     const matchesSearch =
       patient.firstName.toLowerCase().includes(search.value.toLowerCase()) ||
       patient.surname.toLowerCase().includes(search.value.toLowerCase()) ||
-      patient.email.toLowerCase().includes(search.value.toLowerCase()) ||
+      (patient.email &&
+        patient.email.toLowerCase().includes(search.value.toLowerCase())) ||
       patient.contactNumber.includes(search.value);
 
     const matchesStatus =
       filterStatus.value === "all" ||
-      patient.status.toLowerCase() === filterStatus.value;
+      (patient.status && patient.status.toLowerCase() === filterStatus.value);
 
     return matchesSearch && matchesStatus;
   });
 });
 
 // Methods
-const fetchPatients = async () => {
-  loading.value = true;
-  try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching patients:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
 const resetForm = () => {
   patientForm.value = {
     firstName: "",
@@ -200,64 +142,75 @@ const closeModals = () => {
   resetVitalsForm();
 };
 
-const addPatient = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+const addPatient = () => {
+  // Generate new patient ID
+  const newId = Math.max(...patientsList.value.map((p) => p.PatientID)) + 1;
 
-    const newPatient = {
-      id: Math.max(...patientsList.value.map((p) => p.id)) + 1,
-      ...patientForm.value,
-      registrationDate: new Date().toISOString().split("T")[0],
-      lastVisit: "Never",
-      status: "Active",
-    };
+  // Create new patient object
+  const newPatient = {
+    ...patientForm.value,
+    PatientID: newId,
+    registrationDate: new Date().toISOString().split("T")[0],
+    lastVisit: "Never",
+    status: "Active",
+    riskLevel: "Low",
+  };
 
-    patientsList.value.push(newPatient);
-    closeModals();
+  // Add to patients list
+  patientsList.value.push(newPatient);
+  closeModals();
 
-    console.log("Patient added successfully");
-  } catch (error) {
-    console.error("Error adding patient:", error);
-  }
+  console.log("Patient added successfully");
 };
 
-const updatePatient = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+const updatePatient = () => {
+  if (!selectedPatient.value) {
+    return;
+  }
 
-    const index = patientsList.value.findIndex(
-      (p) => p.id === selectedPatient.value.id
-    );
-    if (index !== -1) {
-      patientsList.value[index] = { ...patientForm.value };
-    }
-
+  // Find patient index
+  const index = patientsList.value.findIndex(
+    (p) => p.PatientID === selectedPatient.value.PatientID
+  );
+  if (index !== -1) {
+    // Update patient data
+    patientsList.value[index] = {
+      ...patientsList.value[index],
+      ...patientForm.value,
+    };
     closeModals();
     console.log("Patient updated successfully");
-  } catch (error) {
-    console.error("Error updating patient:", error);
   }
 };
 
-const recordVitals = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    console.log(
-      "Recording vitals for patient:",
-      selectedPatient.value.firstName,
-      vitalsForm.value
-    );
-    // In a real application, this would save vitals to the patient's record
-
-    closeModals();
-    alert("Vital signs recorded successfully!");
-  } catch (error) {
-    console.error("Error recording vitals:", error);
+const deletePatient = (patient) => {
+  if (
+    !confirm(
+      `Are you sure you want to delete patient ${patient.firstName} ${patient.surname}?`
+    )
+  ) {
+    return;
   }
+
+  // Remove patient from list
+  const index = patientsList.value.findIndex(
+    (p) => p.PatientID === patient.PatientID
+  );
+  if (index !== -1) {
+    patientsList.value.splice(index, 1);
+    console.log("Patient deleted successfully");
+  }
+};
+
+const recordVitals = () => {
+  console.log(
+    "Recording vitals for patient:",
+    selectedPatient.value.firstName,
+    vitalsForm.value
+  );
+  // In a real application, this would save vitals to the patient's record
+  closeModals();
+  alert("Vital signs recorded successfully!");
 };
 
 const getStatusBadgeVariant = (status) => {
@@ -266,6 +219,19 @@ const getStatusBadgeVariant = (status) => {
 
 const getGenderBadgeVariant = (gender) => {
   return gender === "Male" ? "primary" : "info";
+};
+
+const getRiskBadgeVariant = (riskLevel) => {
+  switch (riskLevel?.toLowerCase()) {
+    case "low":
+      return "success";
+    case "medium":
+      return "warning";
+    case "high":
+      return "danger";
+    default:
+      return "secondary";
+  }
 };
 
 const calculateAge = (birthDate) => {
@@ -292,10 +258,6 @@ const viewMedicalHistory = (patient) => {
   // In a real application, this would navigate to the patient's medical records
   alert("Medical history view would be implemented here");
 };
-
-onMounted(() => {
-  fetchPatients();
-});
 </script>
 
 <template>
@@ -379,8 +341,28 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error Alert -->
+    <div
+      v-if="error"
+      class="alert alert-danger alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ error }}
+      <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+
+    <!-- Authentication Required -->
+    <div v-if="!canAccessPatients" class="alert alert-warning" role="alert">
+      <i class="bi bi-shield-exclamation me-2"></i>
+      You need to be logged in as a nurse or admin to access patient management.
+      <router-link to="/login" class="btn btn-sm btn-primary ms-2"
+        >Login</router-link
+      >
+    </div>
+
     <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
+    <div v-if="loading && canAccessPatients" class="text-center py-5">
       <div class="spinner-border text-primary animate-pulse" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -388,7 +370,10 @@ onMounted(() => {
     </div>
 
     <!-- Patients Table -->
-    <div v-else class="card animate-fade-in-up animation-delay-300">
+    <div
+      v-else-if="canAccessPatients"
+      class="card animate-fade-in-up animation-delay-300"
+    >
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
@@ -423,7 +408,7 @@ onMounted(() => {
             <tbody>
               <tr
                 v-for="patient in filteredPatients"
-                :key="patient.id"
+                :key="patient.PatientID"
                 class="animate-fade-in-up"
               >
                 <td>
@@ -482,6 +467,14 @@ onMounted(() => {
                     >
                       <i class="bi bi-clipboard-pulse"></i>
                     </button>
+                    <button
+                      class="btn btn-sm btn-outline-danger"
+                      @click="deletePatient(patient)"
+                      title="Delete Patient"
+                      :disabled="loading"
+                    >
+                      <i class="bi bi-trash"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -500,7 +493,11 @@ onMounted(() => {
                 : "Get started by registering your first patient."
             }}
           </p>
-          <button v-if="!search" class="btn btn-primary" @click="openAddModal">
+          <button
+            v-if="!search && canAccessPatients"
+            class="btn btn-primary"
+            @click="openAddModal"
+          >
             <i class="bi bi-person-plus me-2"></i>
             Register New Patient
           </button>
@@ -510,6 +507,7 @@ onMounted(() => {
 
     <!-- Add Patient Modal -->
     <div
+      v-if="canAccessPatients"
       class="modal fade"
       :class="{ show: showAddModal }"
       :style="{ display: showAddModal ? 'block' : 'none' }"
@@ -654,6 +652,7 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+
             <div class="modal-footer">
               <button
                 type="button"
@@ -674,6 +673,7 @@ onMounted(() => {
 
     <!-- Edit Patient Modal -->
     <div
+      v-if="canAccessPatients"
       class="modal fade"
       :class="{ show: showEditModal }"
       :style="{ display: showEditModal ? 'block' : 'none' }"
@@ -835,6 +835,7 @@ onMounted(() => {
 
     <!-- View Patient Modal -->
     <div
+      v-if="canAccessPatients"
       class="modal fade"
       :class="{ show: showViewModal }"
       :style="{ display: showViewModal ? 'block' : 'none' }"
@@ -1017,6 +1018,7 @@ onMounted(() => {
 
     <!-- Record Vitals Modal -->
     <div
+      v-if="canAccessPatients"
       class="modal fade"
       :class="{ show: showVitalsModal }"
       :style="{ display: showVitalsModal ? 'block' : 'none' }"
@@ -1150,7 +1152,10 @@ onMounted(() => {
 
     <!-- Modal Backdrop -->
     <div
-      v-if="showAddModal || showEditModal || showViewModal || showVitalsModal"
+      v-if="
+        (showAddModal || showEditModal || showViewModal || showVitalsModal) &&
+        canAccessPatients
+      "
       class="modal-backdrop fade show"
       @click="closeModals"
     ></div>

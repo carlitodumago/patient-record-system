@@ -1,13 +1,17 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useSupabase } from "../../composables/useSupabase.js";
+import { useAuthStore } from "../../stores/auth.js";
 
-// Store
-const store = useStore();
+// Initialize Supabase composable
+const { patients: patientOps, loading, error } = useSupabase();
+
+// Get auth store
+const authStore = useAuthStore();
 
 // Reactive data
-const loading = ref(false);
 const search = ref("");
+const statusFilter = ref("");
 const showAddModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
@@ -29,29 +33,51 @@ const patientForm = ref({
   emergencyContact: "",
 });
 
-// Computed properties
-const user = computed(() => store.state.user);
 const filteredPatients = computed(() => {
-  return patientsList.value.filter(
-    (patient) =>
-      patient.firstName.toLowerCase().includes(search.value.toLowerCase()) ||
-      patient.surname.toLowerCase().includes(search.value.toLowerCase()) ||
-      patient.email.toLowerCase().includes(search.value.toLowerCase()) ||
-      patient.contactNumber.includes(search.value)
-  );
+  if (!patientsList.value.length) return [];
+
+  return patientsList.value.filter((patient) => {
+    const fullName = `${patient.firstName} ${patient.surname}`.toLowerCase();
+    const searchTerm = search.value.toLowerCase();
+
+    const matchesSearch =
+      fullName.includes(searchTerm) ||
+      (patient.email && patient.email.toLowerCase().includes(searchTerm)) ||
+      (patient.contactNumber && patient.contactNumber.includes(search.value));
+
+    const matchesStatus =
+      !statusFilter.value || patient.status === statusFilter.value;
+
+    return matchesSearch && matchesStatus;
+  });
 });
 
 // Methods
 const fetchPatients = async () => {
-  loading.value = true;
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching patients:", error);
-  } finally {
-    loading.value = false;
+    const data = await patientOps.getAllPatients();
+    patientsList.value = data.map((patient) => ({
+      PatientID: patient.PatientID,
+      firstName: patient.firstName,
+      surname: patient.surname,
+      suffix: patient.suffix,
+      address: patient.address,
+      gender: patient.gender,
+      birthDate: patient.birthDate,
+      contactNumber: patient.contactNumber,
+      email: patient.email,
+      bloodType: patient.bloodType,
+      emergencyContact: patient.emergencyContact,
+      registrationDate: patient.created_at
+        ? new Date(patient.created_at).toISOString().split("T")[0]
+        : null,
+      lastVisit: patient.lastVisit,
+      status: patient.status || "Active",
+      Users: patient.Users, // Keep the joined user data
+    }));
+  } catch (err) {
+    console.error("Error fetching patients:", err);
+    patientsList.value = [];
   }
 };
 
@@ -102,59 +128,138 @@ const closeModals = () => {
 };
 
 const addPatient = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  loading.value = true;
+  error.value = null;
 
-    const newPatient = {
-      id: Math.max(...patientsList.value.map((p) => p.id), 0) + 1,
-      userId: Math.max(...patientsList.value.map((p) => p.userId), 0) + 1,
-      ...patientForm.value,
-      registrationDate: new Date().toISOString().split("T")[0],
-      lastVisit: null,
-      status: "Active",
+  try {
+    // Prepare patient data
+    const patientData = {
+      firstName: patientForm.value.firstName,
+      surname: patientForm.value.surname,
+      suffix: patientForm.value.suffix || null,
+      address: patientForm.value.address,
+      gender: patientForm.value.gender,
+      birthDate: patientForm.value.birthDate,
+      contactNumber: patientForm.value.contactNumber,
+      email: patientForm.value.email || null,
+      bloodType: patientForm.value.bloodType || null,
+      emergencyContact: patientForm.value.emergencyContact || null,
     };
 
-    patientsList.value.push(newPatient);
+    // Create patient via Supabase
+    const newPatient = await patientOps.createPatient(patientData);
+
+    // Add to list with formatted data
+    const formattedPatient = {
+      PatientID: newPatient.PatientID,
+      firstName: newPatient.firstName,
+      surname: newPatient.surname,
+      suffix: newPatient.suffix,
+      address: newPatient.address,
+      gender: newPatient.gender,
+      birthDate: newPatient.birthDate,
+      contactNumber: newPatient.contactNumber,
+      email: newPatient.email,
+      bloodType: newPatient.bloodType,
+      emergencyContact: newPatient.emergencyContact,
+      registrationDate: newPatient.created_at
+        ? new Date(newPatient.created_at).toISOString().split("T")[0]
+        : null,
+      lastVisit: newPatient.lastVisit,
+      status: newPatient.status || "Active",
+      Users: newPatient.Users, // Keep the joined user data
+    };
+
+    patientsList.value.unshift(formattedPatient);
+
     closeModals();
 
     console.log("Patient added successfully");
-  } catch (error) {
-    console.error("Error adding patient:", error);
+  } catch (err) {
+    console.error("Error adding patient:", err);
+    error.value = "Failed to add patient";
+  } finally {
+    loading.value = false;
   }
 };
 
 const updatePatient = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (!selectedPatient.value?.PatientID) {
+    error.value = "No patient selected for update";
+    return;
+  }
 
+  loading.value = true;
+  error.value = null;
+
+  try {
+    // Prepare patient data
+    const patientData = {
+      firstName: patientForm.value.firstName,
+      surname: patientForm.value.surname,
+      suffix: patientForm.value.suffix || null,
+      address: patientForm.value.address,
+      gender: patientForm.value.gender,
+      birthDate: patientForm.value.birthDate,
+      contactNumber: patientForm.value.contactNumber,
+      email: patientForm.value.email || null,
+      bloodType: patientForm.value.bloodType || null,
+      emergencyContact: patientForm.value.emergencyContact || null,
+    };
+
+    // Update patient via Supabase
+    const updatedPatient = await patientOps.updatePatient(
+      selectedPatient.value.PatientID,
+      patientData
+    );
+
+    // Update in list
     const index = patientsList.value.findIndex(
-      (p) => p.id === selectedPatient.value.id
+      (p) => p.PatientID === selectedPatient.value.PatientID
     );
     if (index !== -1) {
-      patientsList.value[index] = { ...patientForm.value };
+      patientsList.value[index] = {
+        ...patientsList.value[index],
+        ...updatedPatient,
+        Users: patientsList.value[index].Users, // Keep the joined user data
+      };
     }
 
     closeModals();
     console.log("Patient updated successfully");
-  } catch (error) {
-    console.error("Error updating patient:", error);
+  } catch (err) {
+    console.error("Error updating patient:", err);
+    error.value = "Failed to update patient";
+  } finally {
+    loading.value = false;
   }
 };
 
 const deletePatient = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (!selectedPatient.value?.PatientID) {
+    error.value = "No patient selected for deletion";
+    return;
+  }
 
+  loading.value = true;
+  error.value = null;
+
+  try {
+    // Delete patient via Supabase
+    await patientOps.deletePatient(selectedPatient.value.PatientID);
+
+    // Remove from list
     patientsList.value = patientsList.value.filter(
-      (p) => p.id !== selectedPatient.value.id
+      (p) => p.PatientID !== selectedPatient.value.PatientID
     );
+
     closeModals();
     console.log("Patient deleted successfully");
-  } catch (error) {
-    console.error("Error deleting patient:", error);
+  } catch (err) {
+    console.error("Error deleting patient:", err);
+    error.value = "Failed to delete patient";
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -167,6 +272,8 @@ const getGenderBadgeVariant = (gender) => {
 };
 
 const calculateAge = (birthDate) => {
+  if (!birthDate) return 0;
+
   const today = new Date();
   const birth = new Date(birthDate);
   let age = today.getFullYear() - birth.getFullYear();
@@ -179,8 +286,8 @@ const calculateAge = (birthDate) => {
   return age;
 };
 
-onMounted(() => {
-  fetchPatients();
+onMounted(async () => {
+  await fetchPatients();
 });
 </script>
 
@@ -218,7 +325,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="col-md-4">
-            <select class="form-select">
+            <select v-model="statusFilter" class="form-select">
               <option value="">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -228,8 +335,19 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error State -->
+    <div
+      v-if="error"
+      class="alert alert-danger alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ error }}
+      <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
+    <div v-if="loading && !error" class="text-center py-5">
       <div class="spinner-border text-primary animate-pulse" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -274,7 +392,7 @@ onMounted(() => {
             <tbody>
               <tr
                 v-for="patient in filteredPatients"
-                :key="patient.id"
+                :key="patient.PatientID"
                 class="animate-fade-in-up"
               >
                 <td>
@@ -286,7 +404,9 @@ onMounted(() => {
                       <div class="fw-medium">
                         {{ patient.firstName }} {{ patient.surname }}
                       </div>
-                      <small class="text-muted">{{ patient.suffix }}</small>
+                      <small class="text-muted">{{
+                        patient.suffix || ""
+                      }}</small>
                     </div>
                   </div>
                 </td>
@@ -675,10 +795,11 @@ onMounted(() => {
                   <div>
                     <h4 class="mb-1">
                       {{ selectedPatient.firstName }}
-                      {{ selectedPatient.surname }} {{ selectedPatient.suffix }}
+                      {{ selectedPatient.surname }}
+                      {{ selectedPatient.suffix || "" }}
                     </h4>
                     <p class="text-muted mb-0">
-                      Patient ID: {{ selectedPatient.id }}
+                      Patient ID: {{ selectedPatient.PatientID }}
                     </p>
                   </div>
                 </div>
@@ -818,7 +939,7 @@ onMounted(() => {
                 >{{ selectedPatient.firstName }}
                 {{ selectedPatient.surname }}</strong
               ><br />
-              <small>{{ selectedPatient.email }}</small>
+              <small>{{ selectedPatient.email || "No email provided" }}</small>
             </div>
             <p class="text-muted mb-0">
               This action cannot be undone and will remove all associated

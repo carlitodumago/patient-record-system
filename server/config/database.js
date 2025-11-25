@@ -9,6 +9,10 @@ const supabaseUrl =
   process.env.SUPABASE_URL || "https://your-project.supabase.co";
 const supabaseKey = process.env.SUPABASE_ANON_KEY || "your-anon-key";
 
+console.log("Initializing Supabase client...");
+console.log("Supabase URL:", supabaseUrl ? "Set" : "Not set");
+console.log("Supabase Key:", supabaseKey ? "Set" : "Not set");
+
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
@@ -17,9 +21,12 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
+console.log("Supabase client initialized successfully");
+
 // Test the connection
 export const testConnection = async () => {
   try {
+    console.log("Testing Supabase connection...");
     const { data, error } = await supabase
       .from("Role")
       .select("count")

@@ -1,9 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useSupabase } from "../../composables/useSupabase.js";
 
-// Store
-const store = useStore();
+const { consultationNotes: consultationNotesOps, user } = useSupabase();
 
 // Reactive data
 const loading = ref(false);
@@ -13,85 +12,9 @@ const showEditModal = ref(false);
 const showViewModal = ref(false);
 const selectedNote = ref(null);
 const filterType = ref("all");
-
-const consultationNotes = ref([
-  {
-    id: 1,
-    patientId: 1,
-    patientName: "John Doe",
-    appointmentId: 1,
-    enteredBy: 1,
-    staffName: "Dr. Sarah Johnson",
-    type: "Consultation",
-    subject: "Regular Check-up - October 2024",
-    content:
-      "Patient presented for routine check-up. Blood pressure readings: 135/85, 140/88. Patient reports occasional headaches but no chest pain or shortness of breath. Advised to continue current medication and monitor blood pressure at home. Diet counseling provided regarding low-sodium options.",
-    vitalSigns: {
-      bloodPressure: "140/90",
-      heartRate: "72 bpm",
-      temperature: "36.8°C",
-      weight: "70 kg",
-      height: "175 cm",
-    },
-    assessment:
-      "Blood pressure slightly elevated but stable. No acute concerns.",
-    plan: "Continue current antihypertensive medication. Follow-up in 2 weeks for repeat BP check.",
-    followUp: "2 weeks",
-    createdAt: "2024-10-10T10:30:00",
-    updatedAt: "2024-10-10T10:30:00",
-    status: "Final",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patientName: "Maria Santos",
-    appointmentId: 2,
-    enteredBy: 2,
-    staffName: "Dr. Sarah Johnson",
-    type: "Follow-up",
-    subject: "Diabetes Management Review",
-    content:
-      "Patient reports good compliance with medication and diet. Blood glucose readings have been within target range (80-140 mg/dL fasting). HbA1c results reviewed - showing improvement from 7.2% to 6.8%. No hypoglycemic episodes reported.",
-    vitalSigns: {
-      bloodPressure: "120/80",
-      heartRate: "68 bpm",
-      temperature: "36.5°C",
-      weight: "65 kg",
-      height: "160 cm",
-    },
-    assessment: "Diabetes well-controlled with current management plan.",
-    plan: "Continue current metformin dosage. Increase physical activity as tolerated.",
-    followUp: "3 months",
-    createdAt: "2024-10-14T14:00:00",
-    updatedAt: "2024-10-14T14:00:00",
-    status: "Final",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patientName: "Pedro Cruz",
-    appointmentId: 3,
-    enteredBy: 3,
-    staffName: "Maria Santos, RN",
-    type: "Vaccination",
-    subject: "COVID-19 Booster Vaccination",
-    content:
-      "Patient received Pfizer COVID-19 booster vaccination in left deltoid. No immediate adverse reactions observed. Patient instructed to monitor for common side effects including injection site pain, fatigue, headache, and muscle pain for the next 24-48 hours.",
-    vitalSigns: {
-      bloodPressure: "130/85",
-      heartRate: "75 bpm",
-      temperature: "36.6°C",
-      weight: "75 kg",
-      height: "168 cm",
-    },
-    assessment: "Vaccination administered successfully without complications.",
-    plan: "Monitor for post-vaccination symptoms. Next booster as per guidelines.",
-    followUp: "As needed for symptoms",
-    createdAt: "2024-09-28T09:00:00",
-    updatedAt: "2024-09-28T09:00:00",
-    status: "Final",
-  },
-]);
+const consultationNotes = ref([]);
+const error = ref(null);
+const operationError = ref(null);
 
 // Form data
 const noteForm = ref({
@@ -114,43 +37,80 @@ const noteForm = ref({
   status: "Draft",
 });
 
-// Computed properties
-const user = computed(() => store.state.user);
+// Helper function to get field values from either Supabase or mock data structure
+const getNoteField = (note, field) => {
+  const fieldMap = {
+    id: "NoteID",
+    patientName: "PatientName",
+    staffName: "StaffName",
+    type: "Type",
+    subject: "Subject",
+    content: "Content",
+    status: "Status",
+    createdAt: "CreatedAt",
+    updatedAt: "UpdatedAt",
+    patientId: "PatientID",
+    appointmentId: "AppointmentID",
+    enteredBy: "EnteredBy",
+    vitalSigns: "VitalSigns",
+    assessment: "Assessment",
+    plan: "Plan",
+    followUp: "FollowUp",
+  };
+
+  const supabaseField = fieldMap[field];
+  return note[supabaseField] !== undefined ? note[supabaseField] : note[field];
+};
+
 const filteredNotes = computed(() => {
   return consultationNotes.value.filter((note) => {
+    const patientName = getNoteField(note, "patientName");
+    const staffName = getNoteField(note, "staffName");
+    const subject = getNoteField(note, "subject");
+    const content = getNoteField(note, "content");
+    const type = getNoteField(note, "type");
+
     const matchesSearch =
-      note.patientName.toLowerCase().includes(search.value.toLowerCase()) ||
-      note.staffName.toLowerCase().includes(search.value.toLowerCase()) ||
-      note.subject.toLowerCase().includes(search.value.toLowerCase()) ||
-      note.content.toLowerCase().includes(search.value.toLowerCase());
+      patientName.toLowerCase().includes(search.value.toLowerCase()) ||
+      staffName.toLowerCase().includes(search.value.toLowerCase()) ||
+      subject.toLowerCase().includes(search.value.toLowerCase()) ||
+      content.toLowerCase().includes(search.value.toLowerCase());
 
     const matchesType =
-      filterType.value === "all" ||
-      note.type.toLowerCase() === filterType.value;
+      filterType.value === "all" || type.toLowerCase() === filterType.value;
 
     return matchesSearch && matchesType;
   });
 });
 
 const draftNotes = computed(() => {
-  return consultationNotes.value.filter((note) => note.status === "Draft");
+  return consultationNotes.value.filter((note) => {
+    const status = getNoteField(note, "status");
+    return status === "Draft";
+  });
 });
 
 const recentNotes = computed(() => {
   return consultationNotes.value
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => {
+      const aDate = getNoteField(a, "createdAt");
+      const bDate = getNoteField(b, "createdAt");
+      return new Date(bDate) - new Date(aDate);
+    })
     .slice(0, 5);
 });
 
 // Methods
 const fetchNotes = async () => {
   loading.value = true;
+  error.value = null;
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching notes:", error);
+    const notes = await consultationNotesOps.getAllConsultationNotes();
+    consultationNotes.value = notes || [];
+  } catch (err) {
+    console.error("Error fetching consultation notes:", err);
+    error.value = "Failed to load consultation notes. Please try again.";
+    consultationNotes.value = [];
   } finally {
     loading.value = false;
   }
@@ -187,17 +147,17 @@ const openAddModal = () => {
 const openEditModal = (note) => {
   selectedNote.value = note;
   noteForm.value = {
-    patientId: note.patientId,
-    patientName: note.patientName,
-    appointmentId: note.appointmentId,
-    type: note.type,
-    subject: note.subject,
-    content: note.content,
-    vitalSigns: { ...note.vitalSigns },
-    assessment: note.assessment,
-    plan: note.plan,
-    followUp: note.followUp,
-    status: note.status,
+    patientId: getNoteField(note, "patientId"),
+    patientName: getNoteField(note, "patientName"),
+    appointmentId: getNoteField(note, "appointmentId"),
+    type: getNoteField(note, "type"),
+    subject: getNoteField(note, "subject"),
+    content: getNoteField(note, "content"),
+    vitalSigns: { ...(getNoteField(note, "vitalSigns") || {}) },
+    assessment: getNoteField(note, "assessment"),
+    plan: getNoteField(note, "plan"),
+    followUp: getNoteField(note, "followUp"),
+    status: getNoteField(note, "status"),
   };
   showEditModal.value = true;
 };
@@ -216,52 +176,84 @@ const closeModals = () => {
 };
 
 const addNote = async () => {
+  operationError.value = null;
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const newNote = {
-      id: Math.max(...consultationNotes.value.map((n) => n.id)) + 1,
-      appointmentId: noteForm.value.appointmentId || null,
-      patientId: noteForm.value.patientId,
-      patientName: noteForm.value.patientName,
-      enteredBy: 1, // Current user ID
-      staffName:
+    const noteData = {
+      PatientID: noteForm.value.patientId,
+      PatientName: noteForm.value.patientName,
+      AppointmentID: noteForm.value.appointmentId || null,
+      EnteredBy: user.value?.id || 1, // Current user ID
+      StaffName:
         user.value?.fullName || user.value?.username || "Current Nurse",
-      ...noteForm.value,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      Type: noteForm.value.type,
+      Subject: noteForm.value.subject,
+      Content: noteForm.value.content,
+      VitalSigns: noteForm.value.vitalSigns,
+      Assessment: noteForm.value.assessment,
+      Plan: noteForm.value.plan,
+      FollowUp: noteForm.value.followUp,
+      Status: noteForm.value.status,
     };
 
-    consultationNotes.value.push(newNote);
-    closeModals();
+    const newNote = await consultationNotesOps.createConsultationNote(noteData);
 
-    console.log("Note added successfully");
+    if (newNote) {
+      consultationNotes.value.push(newNote);
+      closeModals();
+      console.log("Note added successfully");
+    } else {
+      operationError.value =
+        "Failed to create note. Please check your input and try again.";
+    }
   } catch (error) {
     console.error("Error adding note:", error);
+    operationError.value = "Failed to create note. Please try again.";
   }
 };
 
 const updateNote = async () => {
+  operationError.value = null;
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const noteData = {
+      PatientID: noteForm.value.patientId,
+      PatientName: noteForm.value.patientName,
+      AppointmentID: noteForm.value.appointmentId || null,
+      EnteredBy: user.value?.id || 1, // Current user ID
+      StaffName:
+        user.value?.fullName || user.value?.username || "Current Nurse",
+      Type: noteForm.value.type,
+      Subject: noteForm.value.subject,
+      Content: noteForm.value.content,
+      VitalSigns: noteForm.value.vitalSigns,
+      Assessment: noteForm.value.assessment,
+      Plan: noteForm.value.plan,
+      FollowUp: noteForm.value.followUp,
+      Status: noteForm.value.status,
+    };
 
-    const index = consultationNotes.value.findIndex(
-      (n) => n.id === selectedNote.value.id
+    const updatedNote = await consultationNotesOps.updateConsultationNote(
+      selectedNote.value.NoteID || selectedNote.value.id,
+      noteData
     );
-    if (index !== -1) {
-      consultationNotes.value[index] = {
-        ...consultationNotes.value[index],
-        ...noteForm.value,
-        updatedAt: new Date().toISOString(),
-      };
-    }
 
-    closeModals();
-    console.log("Note updated successfully");
+    if (updatedNote) {
+      const index = consultationNotes.value.findIndex(
+        (n) =>
+          (n.NoteID || n.id) ===
+          (selectedNote.value.NoteID || selectedNote.value.id)
+      );
+      if (index !== -1) {
+        consultationNotes.value[index] = updatedNote;
+      }
+      closeModals();
+      console.log("Note updated successfully");
+    } else {
+      operationError.value =
+        "Failed to update note. Please check your input and try again.";
+    }
   } catch (error) {
     console.error("Error updating note:", error);
+    operationError.value = "Failed to update note. Please try again.";
   }
 };
 
@@ -436,6 +428,27 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error Alert -->
+    <div
+      v-if="error"
+      class="alert alert-danger animate-fade-in-up"
+      role="alert"
+    >
+      <div class="d-flex align-items-center">
+        <div class="alert-icon me-3">
+          <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h6 class="alert-heading mb-1">Error Loading Notes</h6>
+          <p class="mb-0">{{ error }}</p>
+        </div>
+        <button class="btn btn-danger btn-sm" @click="fetchNotes">
+          <i class="bi bi-arrow-clockwise me-1"></i>
+          Retry
+        </button>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-5">
       <div class="spinner-border text-primary animate-pulse" role="status">
@@ -482,7 +495,7 @@ onMounted(() => {
             <tbody>
               <tr
                 v-for="note in filteredNotes"
-                :key="note.id"
+                :key="getNoteField(note, 'id')"
                 class="animate-fade-in-up"
               >
                 <td>
@@ -491,40 +504,60 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <div class="fw-medium">{{ note.patientName }}</div>
-                      <small class="text-muted">ID: {{ note.patientId }}</small>
+                      <div class="fw-medium">
+                        {{ getNoteField(note, "patientName") }}
+                      </div>
+                      <small class="text-muted"
+                        >ID: {{ getNoteField(note, "patientId") }}</small
+                      >
                     </div>
                   </div>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ note.staffName }}</div>
+                  <div class="fw-medium">
+                    {{ getNoteField(note, "staffName") }}
+                  </div>
                   <small class="text-muted">{{
-                    formatDateTime(note.createdAt)
+                    formatDateTime(getNoteField(note, "createdAt"))
                   }}</small>
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getTypeBadgeVariant(note.type)}`"
+                    :class="`bg-${getTypeBadgeVariant(
+                      getNoteField(note, 'type')
+                    )}`"
                   >
-                    {{ note.type }}
+                    {{ getNoteField(note, "type") }}
                   </span>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ note.subject }}</div>
+                  <div class="fw-medium">
+                    {{ getNoteField(note, "subject") }}
+                  </div>
                   <small class="text-muted"
-                    >{{ note.content.substring(0, 60) }}...</small
+                    >{{
+                      getNoteField(note, "content").substring(0, 60)
+                    }}...</small
                   >
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getStatusBadgeVariant(note.status)}`"
+                    :class="`bg-${getStatusBadgeVariant(
+                      getNoteField(note, 'status')
+                    )}`"
                   >
-                    {{ note.status }}
+                    {{ getNoteField(note, "status") }}
                   </span>
                 </td>
-                <td>{{ new Date(note.createdAt).toLocaleDateString() }}</td>
+                <td>
+                  {{
+                    new Date(
+                      getNoteField(note, "createdAt")
+                    ).toLocaleDateString()
+                  }}
+                </td>
                 <td class="text-center">
                   <div class="btn-group" role="group">
                     <button
@@ -587,7 +620,11 @@ onMounted(() => {
       </div>
       <div class="card-body">
         <div class="row g-3">
-          <div v-for="note in recentNotes" :key="note.id" class="col-md-12">
+          <div
+            v-for="note in recentNotes"
+            :key="getNoteField(note, 'id')"
+            class="col-md-12"
+          >
             <div class="recent-note-card p-3 border rounded animate-fade-in-up">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
@@ -596,26 +633,32 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <strong>{{ note.patientName }}</strong>
+                      <strong>{{ getNoteField(note, "patientName") }}</strong>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getStatusBadgeVariant(note.status)}`"
+                        :class="`bg-${getStatusBadgeVariant(
+                          getNoteField(note, 'status')
+                        )}`"
                       >
-                        {{ note.status }}
+                        {{ getNoteField(note, "status") }}
                       </span>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getTypeBadgeVariant(note.type)}`"
+                        :class="`bg-${getTypeBadgeVariant(
+                          getNoteField(note, 'type')
+                        )}`"
                       >
-                        {{ note.type }}
+                        {{ getNoteField(note, "type") }}
                       </span>
                     </div>
                   </div>
-                  <h6 class="mb-2">{{ note.subject }}</h6>
-                  <p class="mb-2">{{ note.content.substring(0, 150) }}...</p>
+                  <h6 class="mb-2">{{ getNoteField(note, "subject") }}</h6>
+                  <p class="mb-2">
+                    {{ getNoteField(note, "content").substring(0, 150) }}...
+                  </p>
                   <small class="text-muted">
-                    Created by {{ note.staffName }} on
-                    {{ formatDateTime(note.createdAt) }}
+                    Created by {{ getNoteField(note, "staffName") }} on
+                    {{ formatDateTime(getNoteField(note, "createdAt")) }}
                   </small>
                 </div>
                 <div class="text-end">
@@ -662,6 +705,21 @@ onMounted(() => {
           </div>
           <form @submit.prevent="addNote">
             <div class="modal-body">
+              <!-- Operation Error Alert -->
+              <div
+                v-if="operationError"
+                class="alert alert-danger alert-dismissible fade show"
+                role="alert"
+              >
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                {{ operationError }}
+                <button
+                  type="button"
+                  class="btn-close"
+                  @click="operationError = null"
+                ></button>
+              </div>
+
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Patient Name *</label>
@@ -825,6 +883,21 @@ onMounted(() => {
           </div>
           <form @submit.prevent="updateNote">
             <div class="modal-body">
+              <!-- Operation Error Alert -->
+              <div
+                v-if="operationError"
+                class="alert alert-danger alert-dismissible fade show"
+                role="alert"
+              >
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                {{ operationError }}
+                <button
+                  type="button"
+                  class="btn-close"
+                  @click="operationError = null"
+                ></button>
+              </div>
+
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Patient Name *</label>
@@ -988,12 +1061,14 @@ onMounted(() => {
                     <i class="bi bi-person-circle"></i>
                   </div>
                   <div>
-                    <h4 class="mb-1">{{ selectedNote.patientName }}</h4>
+                    <h4 class="mb-1">
+                      {{ getNoteField(selectedNote, "patientName") }}
+                    </h4>
                     <p class="text-muted mb-1">
-                      Patient ID: {{ selectedNote.patientId }}
+                      Patient ID: {{ getNoteField(selectedNote, "patientId") }}
                     </p>
                     <p class="text-muted mb-0">
-                      Note ID: {{ selectedNote.id }}
+                      Note ID: {{ getNoteField(selectedNote, "id") }}
                     </p>
                   </div>
                 </div>
@@ -1004,34 +1079,40 @@ onMounted(() => {
                 <div class="info-group">
                   <div class="info-item">
                     <strong>Healthcare Provider:</strong>
-                    {{ selectedNote.staffName }}
+                    {{ getNoteField(selectedNote, "staffName") }}
                   </div>
                   <div class="info-item">
                     <strong>Note Type:</strong>
                     <span
                       class="badge ms-2"
-                      :class="`bg-${getTypeBadgeVariant(selectedNote.type)}`"
+                      :class="`bg-${getTypeBadgeVariant(
+                        getNoteField(selectedNote, 'type')
+                      )}`"
                     >
-                      {{ selectedNote.type }}
+                      {{ getNoteField(selectedNote, "type") }}
                     </span>
                   </div>
                   <div class="info-item">
                     <strong>Created:</strong>
-                    {{ formatDateTime(selectedNote.createdAt) }}
+                    {{
+                      formatDateTime(getNoteField(selectedNote, "createdAt"))
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Last Updated:</strong>
-                    {{ formatDateTime(selectedNote.updatedAt) }}
+                    {{
+                      formatDateTime(getNoteField(selectedNote, "updatedAt"))
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Status:</strong>
                     <span
                       class="badge ms-2"
                       :class="`bg-${getStatusBadgeVariant(
-                        selectedNote.status
+                        getNoteField(selectedNote, 'status')
                       )}`"
                     >
-                      {{ selectedNote.status }}
+                      {{ getNoteField(selectedNote, "status") }}
                     </span>
                   </div>
                 </div>
@@ -1043,24 +1124,37 @@ onMounted(() => {
                   <div class="info-item">
                     <strong>Blood Pressure:</strong>
                     {{
-                      selectedNote.vitalSigns.bloodPressure || "Not recorded"
+                      getNoteField(selectedNote, "vitalSigns").bloodPressure ||
+                      "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Heart Rate:</strong>
-                    {{ selectedNote.vitalSigns.heartRate || "Not recorded" }}
+                    {{
+                      getNoteField(selectedNote, "vitalSigns").heartRate ||
+                      "Not recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Temperature:</strong>
-                    {{ selectedNote.vitalSigns.temperature || "Not recorded" }}
+                    {{
+                      getNoteField(selectedNote, "vitalSigns").temperature ||
+                      "Not recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Weight:</strong>
-                    {{ selectedNote.vitalSigns.weight || "Not recorded" }}
+                    {{
+                      getNoteField(selectedNote, "vitalSigns").weight ||
+                      "Not recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Height:</strong>
-                    {{ selectedNote.vitalSigns.height || "Not recorded" }}
+                    {{
+                      getNoteField(selectedNote, "vitalSigns").height ||
+                      "Not recorded"
+                    }}
                   </div>
                 </div>
               </div>
@@ -1069,22 +1163,32 @@ onMounted(() => {
                 <label class="form-label fw-medium">Consultation Details</label>
                 <div class="info-group">
                   <div class="info-item">
-                    <strong>Subject:</strong> {{ selectedNote.subject }}
+                    <strong>Subject:</strong>
+                    {{ getNoteField(selectedNote, "subject") }}
                   </div>
                   <div class="info-item">
-                    <strong>Content:</strong> {{ selectedNote.content }}
+                    <strong>Content:</strong>
+                    {{ getNoteField(selectedNote, "content") }}
                   </div>
                   <div class="info-item">
                     <strong>Assessment:</strong>
-                    {{ selectedNote.assessment || "No assessment recorded" }}
+                    {{
+                      getNoteField(selectedNote, "assessment") ||
+                      "No assessment recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Plan:</strong>
-                    {{ selectedNote.plan || "No plan recorded" }}
+                    {{
+                      getNoteField(selectedNote, "plan") || "No plan recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Follow-up:</strong>
-                    {{ selectedNote.followUp || "No follow-up scheduled" }}
+                    {{
+                      getNoteField(selectedNote, "followUp") ||
+                      "No follow-up scheduled"
+                    }}
                   </div>
                 </div>
               </div>

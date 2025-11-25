@@ -1,182 +1,159 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useSupabase } from "../../composables/useSupabase.js";
 
-// Store
-const store = useStore();
+// Initialize composables
+const { notifications: notificationOps } = useSupabase();
 
 // Reactive data
 const loading = ref(false);
+const error = ref(null);
 const search = ref("");
 const filterType = ref("all");
 const filterStatus = ref("all");
-
-const notifications = ref([
-  {
-    id: 1,
-    type: "appointment_reminder",
-    title: "Upcoming Appointment Reminder",
-    message:
-      "You have an appointment scheduled for tomorrow, October 16, 2024 at 10:30 AM with Dr. Sarah Johnson.",
-    priority: "normal",
-    status: "unread",
-    createdAt: "2024-10-14T10:00:00",
-    relatedAppointment: 1,
-    actionRequired: true,
-    actionText: "View Appointment",
-  },
-  {
-    id: 2,
-    type: "appointment_reminder",
-    title: "Appointment Confirmation",
-    message:
-      "Your follow-up appointment with Dr. Sarah Johnson has been confirmed for October 18, 2024 at 2:00 PM.",
-    priority: "normal",
-    status: "read",
-    createdAt: "2024-10-15T08:00:00",
-    relatedAppointment: 2,
-    actionRequired: false,
-    actionText: "View Details",
-  },
-  {
-    id: 3,
-    type: "medical_record",
-    title: "Medical Record Updated",
-    message:
-      "Your medical record has been updated by Dr. Sarah Johnson following your recent consultation.",
-    priority: "normal",
-    status: "unread",
-    createdAt: "2024-10-14T15:00:00",
-    relatedRecord: 1,
-    actionRequired: true,
-    actionText: "View Record",
-  },
-  {
-    id: 4,
-    type: "system_alert",
-    title: "Vaccination Due",
-    message:
-      "You are due for your annual flu vaccination. Please schedule an appointment at your earliest convenience.",
-    priority: "high",
-    status: "unread",
-    createdAt: "2024-10-13T09:00:00",
-    relatedAppointment: null,
-    actionRequired: true,
-    actionText: "Book Appointment",
-  },
-  {
-    id: 5,
-    type: "appointment_reminder",
-    title: "Appointment Completed",
-    message:
-      "Your COVID-19 booster vaccination appointment has been completed successfully.",
-    priority: "low",
-    status: "read",
-    createdAt: "2024-09-28T16:00:00",
-    relatedAppointment: 3,
-    actionRequired: false,
-    actionText: "View Record",
-  },
-  {
-    id: 6,
-    type: "system_alert",
-    title: "Health Reminder",
-    message:
-      "Remember to take your blood pressure medication daily and monitor your readings regularly.",
-    priority: "normal",
-    status: "read",
-    createdAt: "2024-10-15T07:00:00",
-    relatedAppointment: null,
-    actionRequired: false,
-    actionText: "View Medications",
-  },
-]);
+const notifications = ref([]);
 
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredNotifications = computed(() => {
   return notifications.value.filter((notification) => {
     const matchesSearch =
-      notification.title.toLowerCase().includes(search.value.toLowerCase()) ||
-      notification.message.toLowerCase().includes(search.value.toLowerCase());
+      notification.Title.toLowerCase().includes(search.value.toLowerCase()) ||
+      notification.Message.toLowerCase().includes(search.value.toLowerCase());
 
     const matchesType =
-      filterType.value === "all" || notification.type === filterType.value;
+      filterType.value === "all" || notification.Type === filterType.value;
     const matchesStatus =
       filterStatus.value === "all" ||
-      notification.status === filterStatus.value;
+      (filterStatus.value === "unread"
+        ? !notification.IsRead
+        : notification.IsRead);
 
     return matchesSearch && matchesType && matchesStatus;
   });
 });
 
 const unreadCount = computed(() => {
-  return notifications.value.filter((n) => n.status === "unread").length;
+  return notifications.value.filter((n) => !n.IsRead).length;
 });
 
 const highPriorityCount = computed(() => {
-  return notifications.value.filter(
-    (n) => n.priority === "high" && n.status === "unread"
-  ).length;
+  return notifications.value.filter((n) => n.Priority === "high" && !n.IsRead)
+    .length;
 });
 
 const actionRequiredCount = computed(() => {
-  return notifications.value.filter(
-    (n) => n.actionRequired && n.status === "unread"
-  ).length;
+  return notifications.value.filter((n) => n.ActionRequired && !n.IsRead)
+    .length;
 });
 
 // Methods
 const fetchNotifications = async () => {
   loading.value = true;
+  error.value = null;
+
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
+    const result = await notificationOps.getMyNotifications();
+    if (result.success) {
+      notifications.value = result.data || [];
+      console.log(
+        `Successfully loaded ${notifications.value.length} notifications`
+      );
+    } else {
+      throw new Error(result.error || "Failed to fetch notifications");
+    }
+  } catch (err) {
+    console.error("Error fetching notifications:", err);
+    error.value =
+      err.message || "Failed to load notifications. Please try again.";
+    notifications.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const markAsRead = (notification) => {
-  notification.status = "read";
+const markAsRead = async (notification) => {
+  try {
+    const result = await notificationOps.markAsRead(
+      notification.NotificationID
+    );
+    if (result.success) {
+      notification.IsRead = true;
+      console.log("Notification marked as read:", notification.NotificationID);
+    } else {
+      throw new Error(result.error || "Failed to mark notification as read");
+    }
+  } catch (err) {
+    console.error("Error marking notification as read:", err);
+    error.value = "Failed to mark notification as read";
+  }
 };
 
-const markAllAsRead = () => {
-  notifications.value.forEach((n) => (n.status = "read"));
+const markAllAsRead = async () => {
+  try {
+    const result = await notificationOps.markAllAsRead();
+    if (result.success) {
+      notifications.value.forEach((n) => (n.IsRead = true));
+      console.log("All notifications marked as read");
+    } else {
+      throw new Error(
+        result.error || "Failed to mark all notifications as read"
+      );
+    }
+  } catch (err) {
+    console.error("Error marking all notifications as read:", err);
+    error.value = "Failed to mark all notifications as read";
+  }
 };
 
-const deleteNotification = (notification) => {
-  const index = notifications.value.findIndex((n) => n.id === notification.id);
-  if (index !== -1) {
-    notifications.value.splice(index, 1);
+const deleteNotification = async (notification) => {
+  try {
+    const result = await notificationOps.deleteNotification(
+      notification.NotificationID
+    );
+    if (result.success) {
+      const index = notifications.value.findIndex(
+        (n) => n.NotificationID === notification.NotificationID
+      );
+      if (index !== -1) {
+        notifications.value.splice(index, 1);
+        console.log("Notification deleted:", notification.NotificationID);
+      }
+    } else {
+      throw new Error(result.error || "Failed to delete notification");
+    }
+  } catch (err) {
+    console.error("Error deleting notification:", err);
+    error.value = "Failed to delete notification";
   }
 };
 
 const performAction = (notification) => {
-  if (notification.relatedAppointment) {
-    console.log("Viewing appointment:", notification.relatedAppointment);
+  if (notification.RelatedAppointmentID) {
+    console.log("Viewing appointment:", notification.RelatedAppointmentID);
     // In a real application, this would navigate to the appointment
     alert(
-      `View appointment ${notification.relatedAppointment} would be implemented here`
+      `View appointment ${notification.RelatedAppointmentID} would be implemented here`
     );
-  } else if (notification.relatedRecord) {
-    console.log("Viewing medical record:", notification.relatedRecord);
+  } else if (notification.RelatedRecordID) {
+    console.log("Viewing medical record:", notification.RelatedRecordID);
     // In a real application, this would navigate to the medical record
     alert(
-      `View medical record ${notification.relatedRecord} would be implemented here`
+      `View medical record ${notification.RelatedRecordID} would be implemented here`
     );
   } else {
-    console.log("Performing general action for notification:", notification.id);
+    console.log(
+      "Performing general action for notification:",
+      notification.NotificationID
+    );
     // In a real application, this would perform the appropriate action
-    alert(`Action "${notification.actionText}" would be implemented here`);
+    alert(
+      `Action "${notification.ActionText || "View"}" would be implemented here`
+    );
   }
 };
 
-const getStatusBadgeVariant = (status) => {
-  return status === "read" ? "success" : "warning";
+const getStatusBadgeVariant = (isRead) => {
+  return isRead ? "success" : "warning";
 };
 
 const getPriorityBadgeVariant = (priority) => {
@@ -227,8 +204,12 @@ const formatTimeAgo = (dateTime) => {
   }
 };
 
-onMounted(() => {
-  fetchNotifications();
+onMounted(async () => {
+  try {
+    await fetchNotifications();
+  } catch (err) {
+    console.error("Error initializing notifications:", err);
+  }
 });
 </script>
 
@@ -269,6 +250,25 @@ onMounted(() => {
 
     <!-- Quick Stats -->
     <div class="row g-4 mb-4">
+      <!-- Error Alert -->
+      <div v-if="error" class="col-12">
+        <div class="alert alert-danger animate-fade-in-up">
+          <div class="d-flex align-items-center">
+            <div class="alert-icon me-3">
+              <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="alert-heading mb-1">Error Loading Notifications</h6>
+              <p class="mb-0">{{ error }}</p>
+            </div>
+            <button class="btn btn-danger btn-sm" @click="fetchNotifications">
+              <i class="bi bi-arrow-clockwise me-1"></i>
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="col-md-3">
         <div class="card stats-card animate-fade-in-up">
           <div class="card-body text-center">
@@ -428,19 +428,19 @@ onMounted(() => {
         <div class="notifications-list">
           <div
             v-for="notification in filteredNotifications"
-            :key="notification.id"
+            :key="notification.NotificationID"
             class="notification-item p-4 border-bottom animate-fade-in-up"
             :class="{
-              unread: notification.status === 'unread',
-              'bg-light': notification.status === 'unread',
+              unread: !notification.IsRead,
+              'bg-light': !notification.IsRead,
             }"
           >
             <div class="d-flex align-items-start">
               <div class="notification-icon me-3">
                 <i
                   :class="`${getNotificationIcon(
-                    notification.type
-                  )} text-${getTypeBadgeVariant(notification.type)} fs-4`"
+                    notification.Type
+                  )} text-${getTypeBadgeVariant(notification.Type)} fs-4`"
                 ></i>
               </div>
 
@@ -449,29 +449,29 @@ onMounted(() => {
                   class="d-flex justify-content-between align-items-start mb-2"
                 >
                   <div>
-                    <h6 class="mb-1">{{ notification.title }}</h6>
+                    <h6 class="mb-1">{{ notification.Title }}</h6>
                   </div>
                   <div class="text-end">
                     <span
                       class="badge me-2"
                       :class="`bg-${getPriorityBadgeVariant(
-                        notification.priority
+                        notification.Priority
                       )}`"
                     >
-                      {{ notification.priority }}
+                      {{ notification.Priority }}
                     </span>
                     <span
                       class="badge"
                       :class="`bg-${getStatusBadgeVariant(
-                        notification.status
+                        notification.IsRead
                       )}`"
                     >
-                      {{ notification.status }}
+                      {{ notification.IsRead ? "read" : "unread" }}
                     </span>
                   </div>
                 </div>
 
-                <p class="mb-3">{{ notification.message }}</p>
+                <p class="mb-3">{{ notification.Message }}</p>
 
                 <div
                   class="notification-meta d-flex justify-content-between align-items-center"
@@ -479,13 +479,13 @@ onMounted(() => {
                   <div class="text-muted">
                     <small>
                       <i class="bi bi-clock me-1"></i>
-                      {{ formatTimeAgo(notification.createdAt) }}
+                      {{ formatTimeAgo(notification.CreatedAt) }}
                     </small>
                   </div>
 
                   <div class="notification-actions">
                     <button
-                      v-if="notification.status === 'unread'"
+                      v-if="!notification.IsRead"
                       class="btn btn-sm btn-outline-primary me-2"
                       @click="markAsRead(notification)"
                     >
@@ -494,12 +494,12 @@ onMounted(() => {
                     </button>
 
                     <button
-                      v-if="notification.actionRequired"
+                      v-if="notification.ActionRequired"
                       class="btn btn-sm btn-primary me-2"
                       @click="performAction(notification)"
                     >
                       <i class="bi bi-cursor me-1"></i>
-                      {{ notification.actionText }}
+                      {{ notification.ActionText || "View" }}
                     </button>
 
                     <button

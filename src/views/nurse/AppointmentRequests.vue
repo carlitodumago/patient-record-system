@@ -1,21 +1,20 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useAppointmentRequestsStore } from "../../stores/appointmentRequests";
 
 // Store
-const store = useStore();
+const appointmentStore = useAppointmentRequestsStore();
 
 // Reactive data
-const loading = ref(false);
 const search = ref("");
 const showScheduleModal = ref(false);
 const showRescheduleModal = ref(false);
 const showCancelModal = ref(false);
 const showViewModal = ref(false);
+const showDenyModal = ref(false);
 const selectedAppointment = ref(null);
 const filterStatus = ref("all");
-
-const appointmentsList = ref([]);
+const denyReason = ref("");
 
 // Form data
 const appointmentForm = ref({
@@ -31,9 +30,13 @@ const appointmentForm = ref({
 });
 
 // Computed properties
-const user = computed(() => store.state.user);
+const isNurse = computed(() => true); // Mock nurse role
+
+const loading = computed(() => appointmentStore.loading);
+const error = computed(() => appointmentStore.error);
+
 const filteredAppointments = computed(() => {
-  return appointmentsList.value.filter((appointment) => {
+  return appointmentStore.appointmentRequests.filter((appointment) => {
     const matchesSearch =
       appointment.patientName
         .toLowerCase()
@@ -49,31 +52,22 @@ const filteredAppointments = computed(() => {
   });
 });
 
-const pendingAppointments = computed(() => {
-  return appointmentsList.value.filter(
-    (appointment) => appointment.status === "Pending"
-  );
-});
+const pendingAppointments = computed(() =>
+  appointmentStore.pendingRequests
+);
 
-const todayAppointments = computed(() => {
-  const today = new Date().toDateString();
-  return appointmentsList.value.filter(
-    (appointment) => new Date(appointment.dateTime).toDateString() === today
-  );
-});
+const todayAppointments = computed(() =>
+  appointmentStore.todayRequests
+);
+
+const upcomingRequests = computed(() =>
+  appointmentStore.upcomingRequests
+);
 
 // Methods
+
 const fetchAppointments = async () => {
-  loading.value = true;
-  try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching appointments:", error);
-  } finally {
-    loading.value = false;
-  }
+  await appointmentStore.fetchAppointmentRequests();
 };
 
 const resetForm = () => {
@@ -88,6 +82,7 @@ const resetForm = () => {
     priority: "",
     symptoms: "",
   };
+  denyReason.value = "";
 };
 
 const openScheduleModal = () => {
@@ -101,7 +96,7 @@ const openRescheduleModal = (appointment) => {
   appointmentForm.value = {
     patientName: appointment.patientName,
     patientContact: appointment.patientContact,
-    dateTime: appointment.dateTime,
+    dateTime: appointment.requestedDate,
     reason: appointment.reason,
     notes: appointment.notes,
     type: appointment.type,
@@ -117,6 +112,12 @@ const openCancelModal = (appointment) => {
   showCancelModal.value = true;
 };
 
+const openDenyModal = (appointment) => {
+  selectedAppointment.value = appointment;
+  denyReason.value = "";
+  showDenyModal.value = true;
+};
+
 const openViewModal = (appointment) => {
   selectedAppointment.value = appointment;
   showViewModal.value = true;
@@ -126,27 +127,32 @@ const closeModals = () => {
   showScheduleModal.value = false;
   showRescheduleModal.value = false;
   showCancelModal.value = false;
+  showDenyModal.value = false;
   showViewModal.value = false;
   selectedAppointment.value = null;
   resetForm();
 };
 
 const scheduleAppointment = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (!isNurse.value) {
+    console.warn("Access denied: Nurse role required");
+    return;
+  }
 
+  try {
     const newAppointment = {
-      id: Math.max(...appointmentsList.value.map((a) => a.id), 0) + 1,
-      patientId:
-        Math.max(...appointmentsList.value.map((a) => a.patientId), 0) + 1,
-      ...appointmentForm.value,
-      status: "Pending",
-      requestedBy: "System",
-      requestedAt: new Date().toISOString(),
+      patientName: appointmentForm.value.patientName,
+      patientContact: appointmentForm.value.patientContact,
+      requestedDate: appointmentForm.value.dateTime,
+      reason: appointmentForm.value.reason,
+      notes: appointmentForm.value.notes,
+      type: appointmentForm.value.type,
+      duration: appointmentForm.value.duration,
+      priority: appointmentForm.value.priority,
+      symptoms: appointmentForm.value.symptoms,
     };
 
-    appointmentsList.value.push(newAppointment);
+    await appointmentStore.createAppointmentRequest(newAppointment);
     closeModals();
 
     console.log("Appointment scheduled successfully");
@@ -155,26 +161,63 @@ const scheduleAppointment = async () => {
   }
 };
 
-const approveAppointment = (appointment) => {
-  appointment.status = "Approved";
-  console.log("Appointment approved:", appointment.id);
+const approveAppointment = async (appointment) => {
+  if (!isNurse.value) {
+    console.warn("Access denied: Nurse role required");
+    return;
+  }
+
+  try {
+    await appointmentStore.approveRequest(appointment.id);
+    console.log("Appointment approved:", appointment.id);
+  } catch (error) {
+    console.error("Error approving appointment:", error);
+  }
+};
+
+const denyAppointment = async () => {
+  if (!isNurse.value) {
+    console.warn("Access denied: Nurse role required");
+    return;
+  }
+
+  if (!selectedAppointment.value || !denyReason.value.trim()) {
+    return;
+  }
+
+  try {
+    await appointmentStore.denyRequest(
+      selectedAppointment.value.id,
+      denyReason.value
+    );
+    closeModals();
+    console.log("Appointment denied:", selectedAppointment.value.id);
+  } catch (error) {
+    console.error("Error denying appointment:", error);
+  }
 };
 
 const rescheduleAppointment = async () => {
+  if (!isNurse.value) {
+    console.warn("Access denied: Nurse role required");
+    return;
+  }
+
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const updateData = {
+      requestedDate: appointmentForm.value.dateTime,
+      reason: appointmentForm.value.reason,
+      notes: appointmentForm.value.notes,
+      type: appointmentForm.value.type,
+      duration: appointmentForm.value.duration,
+      priority: appointmentForm.value.priority,
+      symptoms: appointmentForm.value.symptoms,
+    };
 
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
+    await appointmentStore.updateRequest(
+      selectedAppointment.value.id,
+      updateData
     );
-    if (index !== -1) {
-      appointmentsList.value[index] = {
-        ...appointmentsList.value[index],
-        ...appointmentForm.value,
-      };
-    }
-
     closeModals();
     console.log("Appointment rescheduled successfully");
   } catch (error) {
@@ -183,17 +226,16 @@ const rescheduleAppointment = async () => {
 };
 
 const cancelAppointment = async () => {
+  if (!isNurse.value) {
+    console.warn("Access denied: Nurse role required");
+    return;
+  }
+
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
+    await appointmentStore.denyRequest(
+      selectedAppointment.value.id,
+      "Cancelled by nurse"
     );
-    if (index !== -1) {
-      appointmentsList.value[index].status = "Cancelled";
-    }
-
     closeModals();
     console.log("Appointment cancelled successfully");
   } catch (error) {
@@ -205,6 +247,7 @@ const getStatusBadgeVariant = (status) => {
   const variants = {
     Pending: "warning",
     Approved: "success",
+    Denied: "danger",
     Cancelled: "danger",
     Completed: "info",
   };
@@ -244,8 +287,16 @@ const isUpcoming = (dateTime) => {
   return new Date(dateTime) > now;
 };
 
-onMounted(() => {
-  fetchAppointments();
+// Lifecycle hooks
+onMounted(async () => {
+  if (isNurse.value) {
+    await fetchAppointments();
+    appointmentStore.setupRealtimeSubscription();
+  }
+});
+
+onUnmounted(() => {
+  appointmentStore.reset();
 });
 </script>
 
@@ -260,22 +311,56 @@ onMounted(() => {
         </p>
       </div>
       <div class="animate-fade-in-right">
-        <button class="btn btn-primary" @click="openScheduleModal">
+        <button
+          v-if="isNurse"
+          class="btn btn-primary"
+          @click="openScheduleModal"
+          :disabled="appointmentStore.loading"
+        >
           <i class="bi bi-calendar-plus me-2"></i>
           Schedule Appointment
         </button>
       </div>
     </div>
 
+    <!-- Error Alert -->
+    <div
+      v-if="error"
+      class="alert alert-danger animate-fade-in-up"
+      role="alert"
+    >
+      <div class="d-flex align-items-center">
+        <div class="alert-icon me-3">
+          <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h6 class="alert-heading mb-1">Error Loading Appointments</h6>
+          <p class="mb-0">{{ error }}</p>
+        </div>
+        <button
+          class="btn btn-danger btn-sm"
+          @click="
+            appointmentStore.clearError();
+            fetchAppointments();
+          "
+        >
+          <i class="bi bi-arrow-clockwise me-1"></i>
+          Retry
+        </button>
+      </div>
+    </div>
+
     <!-- Quick Stats -->
-    <div class="row g-4 mb-4">
+    <div v-if="isNurse" class="row g-4 mb-4">
       <div class="col-md-3">
         <div class="card stats-card animate-fade-in-up">
           <div class="card-body text-center">
             <div class="stats-icon mb-2">
               <i class="bi bi-calendar text-primary fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ appointmentsList.length }}</h4>
+            <h4 class="mb-1">
+              {{ appointmentStore.appointmentRequests.length }}
+            </h4>
             <small class="text-muted">Total Appointments</small>
           </div>
         </div>
@@ -309,13 +394,25 @@ onMounted(() => {
               <i class="bi bi-calendar-week text-info fs-2"></i>
             </div>
             <h4 class="mb-1">
-              {{
-                filteredAppointments.filter((a) => isUpcoming(a.dateTime))
-                  .length
-              }}
+              {{ upcomingRequests.length }}
             </h4>
             <small class="text-muted">Upcoming This Week</small>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Denied Message -->
+    <div v-else class="alert alert-warning animate-fade-in-up" role="alert">
+      <div class="d-flex align-items-center">
+        <div class="alert-icon me-3">
+          <i class="bi bi-shield-exclamation text-warning fs-4"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h6 class="alert-heading mb-1">Access Restricted</h6>
+          <p class="mb-0">
+            You need nurse privileges to manage appointment requests.
+          </p>
         </div>
       </div>
     </div>
@@ -382,7 +479,10 @@ onMounted(() => {
     </div>
 
     <!-- Appointments Table -->
-    <div v-else class="card animate-fade-in-up animation-delay-400">
+    <div
+      v-if="isNurse && !loading"
+      class="card animate-fade-in-up animation-delay-400"
+    >
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
@@ -435,14 +535,14 @@ onMounted(() => {
                   </div>
                 </td>
                 <td>
-                  <div>{{ formatDateTime(appointment.dateTime) }}</div>
+                  <div>{{ formatDateTime(appointment.requestedDate) }}</div>
                   <small
-                    v-if="isToday(appointment.dateTime)"
+                    v-if="isToday(appointment.requestedDate)"
                     class="badge bg-primary"
                     >Today</small
                   >
                   <small
-                    v-else-if="isUpcoming(appointment.dateTime)"
+                    v-else-if="isUpcoming(appointment.requestedDate)"
                     class="badge bg-info"
                     >Upcoming</small
                   >
@@ -483,21 +583,36 @@ onMounted(() => {
                       class="btn btn-sm btn-success"
                       @click="approveAppointment(appointment)"
                       title="Approve"
+                      :disabled="loading"
                     >
                       <i class="bi bi-check"></i>
+                    </button>
+                    <button
+                      v-if="appointment.status === 'Pending'"
+                      class="btn btn-sm btn-danger"
+                      @click="openDenyModal(appointment)"
+                      title="Deny"
+                      :disabled="loading"
+                    >
+                      <i class="bi bi-x-circle"></i>
                     </button>
                     <button
                       class="btn btn-sm btn-outline-warning"
                       @click="openRescheduleModal(appointment)"
                       title="Reschedule"
+                      :disabled="loading"
                     >
                       <i class="bi bi-arrow-repeat"></i>
                     </button>
                     <button
-                      v-if="appointment.status !== 'Cancelled'"
+                      v-if="
+                        appointment.status !== 'Denied' &&
+                        appointment.status !== 'Cancelled'
+                      "
                       class="btn btn-sm btn-outline-danger"
                       @click="openCancelModal(appointment)"
                       title="Cancel"
+                      :disabled="loading"
                     >
                       <i class="bi bi-x"></i>
                     </button>
@@ -939,12 +1054,80 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Deny Confirmation Modal -->
+    <div
+      class="modal fade"
+      :class="{ show: showDenyModal }"
+      :style="{ display: showDenyModal ? 'block' : 'none' }"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title text-danger">
+              <i class="bi bi-x-circle me-2"></i>
+              Deny Appointment Request
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="closeModals"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to deny this appointment request?</p>
+            <div v-if="selectedAppointment" class="alert alert-warning">
+              <strong>{{ selectedAppointment.patientName }}</strong
+              ><br />
+              <small>{{
+                formatDateTime(selectedAppointment.requestedDate)
+              }}</small
+              ><br />
+              <small>{{ selectedAppointment.reason }}</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Reason for Denial *</label>
+              <textarea
+                v-model="denyReason"
+                class="form-control"
+                rows="3"
+                placeholder="Please provide a reason for denying this request"
+                required
+              ></textarea>
+            </div>
+            <p class="text-muted mb-0">
+              This action will notify the patient and mark the appointment as
+              denied.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="closeModals"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              @click="denyAppointment"
+              :disabled="!denyReason.trim()"
+            >
+              <i class="bi bi-x-circle me-2"></i>
+              Deny Appointment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Backdrop -->
     <div
       v-if="
         showScheduleModal ||
         showRescheduleModal ||
         showCancelModal ||
+        showDenyModal ||
         showViewModal
       "
       class="modal-backdrop fade show"

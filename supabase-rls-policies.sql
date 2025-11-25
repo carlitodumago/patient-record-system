@@ -19,26 +19,26 @@ CREATE POLICY "Role is viewable by everyone" ON "Role"
 
 -- Users table policies
 CREATE POLICY "Users can view their own profile" ON "Users"
-    FOR SELECT USING (auth.uid()::text = "UserID");
+    FOR SELECT USING (auth.uid() = "UserID"::uuid);
 
 CREATE POLICY "Admins can view all users" ON "Users"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
             JOIN "Role" r ON u."RoleID" = r."RoleID"
-            WHERE u."UserID" = auth.uid()::text AND r."RoleName" = 'admin'
+            WHERE u."UserID" = auth.uid() AND r."RoleName" = 'admin'
         )
     );
 
 CREATE POLICY "Users can update their own profile" ON "Users"
-    FOR UPDATE USING (auth.uid()::text = "UserID");
+    FOR UPDATE USING (auth.uid() = "UserID"::uuid);
 
 CREATE POLICY "Admins can manage all users" ON "Users"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
             JOIN "Role" r ON u."RoleID" = r."RoleID"
-            WHERE u."UserID" = auth.uid()::text AND r."RoleName" = 'admin'
+            WHERE u."UserID" = auth.uid() AND r."RoleName" = 'admin'
         )
     );
 
@@ -48,7 +48,7 @@ CREATE POLICY "Staff can view staff profiles" ON "Staff"
         EXISTS (
             SELECT 1 FROM "Users" u
             WHERE u."UserID" = "Staff"."UserID"
-            AND (u."UserID" = auth.uid()::text OR u."RoleID" IN (1, 2)) -- admin or nurse
+            AND (u."UserID" = auth.uid() OR u."RoleID" IN (1, 2)) -- admin or nurse
         )
     );
 
@@ -57,7 +57,7 @@ CREATE POLICY "Admins can manage staff" ON "Staff"
         EXISTS (
             SELECT 1 FROM "Users" u
             JOIN "Role" r ON u."RoleID" = r."RoleID"
-            WHERE u."UserID" = auth.uid()::text AND r."RoleName" = 'admin'
+            WHERE u."UserID" = auth.uid() AND r."RoleName" = 'admin'
         )
     );
 
@@ -66,7 +66,7 @@ CREATE POLICY "Patients can view their own records" ON "Patients"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = "Patients"."UserID" AND u."UserID" = auth.uid()::text
+            WHERE u."UserID" = "Patients"."UserID" AND u."UserID" = auth.uid()
         )
     );
 
@@ -74,7 +74,7 @@ CREATE POLICY "Staff can view all patient records" ON "Patients"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -82,7 +82,7 @@ CREATE POLICY "Staff can manage patient records" ON "Patients"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -92,14 +92,14 @@ CREATE POLICY "Users can view their own appointments" ON "Appointment"
         EXISTS (
             SELECT 1 FROM "Patients" p
             WHERE p."PatientID" = "Appointment"."PatientID"
-            AND p."UserID" = auth.uid()::text
+            AND p."UserID" = auth.uid()
         ) OR EXISTS (
             SELECT 1 FROM "Staff" s
             WHERE s."StaffID" = "Appointment"."ScheduledBy"
-            AND s."UserID" = auth.uid()::text
+            AND s."UserID" = auth.uid()
         ) OR EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" = 1 -- admin
+            WHERE u."UserID" = auth.uid() AND u."RoleID" = 1 -- admin
         )
     );
 
@@ -107,7 +107,7 @@ CREATE POLICY "Staff can manage appointments" ON "Appointment"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -118,7 +118,7 @@ CREATE POLICY "Patients can view their own medical records" ON "MedicalRecord"
             SELECT 1 FROM "Appointment" a
             JOIN "Patients" p ON a."PatientID" = p."PatientID"
             WHERE a."AppointmentID" = "MedicalRecord"."AppointmentID"
-            AND p."UserID" = auth.uid()::text
+            AND p."UserID" = auth.uid()
         )
     );
 
@@ -126,7 +126,7 @@ CREATE POLICY "Staff can view all medical records" ON "MedicalRecord"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -134,19 +134,19 @@ CREATE POLICY "Staff can manage medical records" ON "MedicalRecord"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
 -- Notification table policies
 CREATE POLICY "Users can view their own notifications" ON "Notification"
-    FOR SELECT USING ("UserID" = auth.uid()::text);
+    FOR SELECT USING ("UserID" = auth.uid());
 
 CREATE POLICY "Staff can view all notifications" ON "Notification"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -154,7 +154,7 @@ CREATE POLICY "Staff can manage notifications" ON "Notification"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -163,7 +163,7 @@ CREATE POLICY "Diagnosis is viewable by staff" ON "Diagnosis"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -171,7 +171,7 @@ CREATE POLICY "Staff can manage diagnosis" ON "Diagnosis"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -179,7 +179,7 @@ CREATE POLICY "Treatment is viewable by staff" ON "Treatment"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -187,7 +187,7 @@ CREATE POLICY "Staff can manage treatment" ON "Treatment"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -195,7 +195,7 @@ CREATE POLICY "Notes is viewable by staff" ON "Notes"
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -203,7 +203,7 @@ CREATE POLICY "Staff can manage notes" ON "Notes"
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM "Users" u
-            WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+            WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
         )
     );
 
@@ -215,7 +215,7 @@ BEGIN
         SELECT r."RoleName"
         FROM "Users" u
         JOIN "Role" r ON u."RoleID" = r."RoleID"
-        WHERE u."UserID" = auth.uid()::text
+        WHERE u."UserID" = auth.uid()
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -227,7 +227,7 @@ BEGIN
     RETURN EXISTS (
         SELECT 1 FROM "Users" u
         JOIN "Role" r ON u."RoleID" = r."RoleID"
-        WHERE u."UserID" = auth.uid()::text AND r."RoleName" = 'admin'
+        WHERE u."UserID" = auth.uid() AND r."RoleName" = 'admin'
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -238,7 +238,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM "Users" u
-        WHERE u."UserID" = auth.uid()::text AND u."RoleID" IN (1, 2) -- admin or nurse
+        WHERE u."UserID" = auth.uid() AND u."RoleID" IN (1, 2) -- admin or nurse
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -249,7 +249,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM "Users" u
-        WHERE u."UserID" = auth.uid()::text AND u."RoleID" = 3 -- patient
+        WHERE u."UserID" = auth.uid() AND u."RoleID" = 3 -- patient
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

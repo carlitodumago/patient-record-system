@@ -1,13 +1,17 @@
 import express from "express";
-import DatabaseService from "../services/databaseService.js";
+import { appointmentService } from "../services/supabaseService.js";
 
 const router = express.Router();
 
 // Get all appointments
 router.get("/", async (req, res) => {
   try {
-    const appointments = await DatabaseService.getAppointments();
-    res.status(200).json(appointments);
+    const { data, error } = await appointmentService.getAllAppointments();
+    if (error) {
+      console.error("Error fetching appointments:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching appointments:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -17,13 +21,20 @@ router.get("/", async (req, res) => {
 // Get appointment by ID
 router.get("/:id", async (req, res) => {
   try {
-    const appointment = await DatabaseService.getAppointmentById(req.params.id);
+    const { data, error } = await appointmentService.getAppointmentById(
+      req.params.id
+    );
 
-    if (!appointment) {
+    if (error) {
+      console.error("Error fetching appointment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (!data) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    res.status(200).json(appointment);
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching appointment:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -35,7 +46,7 @@ router.post("/", async (req, res) => {
   try {
     const { scheduledBy, patientId, dateTime, reason, status } = req.body;
 
-    const newAppointment = await DatabaseService.createAppointment({
+    const { data, error } = await appointmentService.createAppointment({
       ScheduledBy: scheduledBy,
       PatientID: patientId,
       DateTime: dateTime,
@@ -43,7 +54,12 @@ router.post("/", async (req, res) => {
       Status: status || "pending",
     });
 
-    res.status(201).json(newAppointment);
+    if (error) {
+      console.error("Error creating appointment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(201).json(data);
   } catch (error) {
     console.error("Error creating appointment:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -55,7 +71,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { scheduledBy, patientId, dateTime, reason, status } = req.body;
 
-    const updatedAppointment = await DatabaseService.updateAppointment(
+    const { data, error } = await appointmentService.updateAppointment(
       req.params.id,
       {
         ScheduledBy: scheduledBy,
@@ -66,7 +82,12 @@ router.put("/:id", async (req, res) => {
       }
     );
 
-    res.status(200).json(updatedAppointment);
+    if (error) {
+      console.error("Error updating appointment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error updating appointment:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -76,7 +97,13 @@ router.put("/:id", async (req, res) => {
 // Delete appointment
 router.delete("/:id", async (req, res) => {
   try {
-    await DatabaseService.deleteAppointment(req.params.id);
+    const { error } = await appointmentService.deleteAppointment(req.params.id);
+
+    if (error) {
+      console.error("Error deleting appointment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
     res.status(200).json({ message: "Appointment deleted successfully" });
   } catch (error) {
     console.error("Error deleting appointment:", error);
@@ -87,10 +114,16 @@ router.delete("/:id", async (req, res) => {
 // Get appointments by patient ID
 router.get("/patient/:patientId", async (req, res) => {
   try {
-    const appointments = await DatabaseService.getAppointmentsByPatient(
+    const { data, error } = await appointmentService.getAppointmentsByPatient(
       req.params.patientId
     );
-    res.status(200).json(appointments);
+
+    if (error) {
+      console.error("Error fetching patient appointments:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching patient appointments:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -100,10 +133,16 @@ router.get("/patient/:patientId", async (req, res) => {
 // Get appointments by staff ID
 router.get("/staff/:staffId", async (req, res) => {
   try {
-    const appointments = await DatabaseService.getAppointmentsByStaff(
+    const { data, error } = await appointmentService.getAppointmentsByStaff(
       req.params.staffId
     );
-    res.status(200).json(appointments);
+
+    if (error) {
+      console.error("Error fetching staff appointments:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching staff appointments:", error);
     res.status(500).json({ message: "Internal server error" });

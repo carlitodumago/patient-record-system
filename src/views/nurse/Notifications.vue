@@ -1,115 +1,123 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
-
-// Store
-const store = useStore();
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { notificationService } from "../../services/notificationService.js";
+import { useRealtime } from "../../composables/useRealtime.js";
+import { useNotify } from "../../composables/useNotify.js";
 
 // Reactive data
+const notifications = ref([]);
 const loading = ref(false);
+const error = ref(null);
 const search = ref("");
 const filterType = ref("all");
 const filterStatus = ref("all");
 
-const notifications = ref([
-  {
-    id: 1,
-    type: "appointment_reminder",
-    title: "Upcoming Appointment",
-    message:
-      "You have an appointment with John Doe scheduled for tomorrow at 10:30 AM.",
-    status: "unread",
-    createdAt: "2024-10-14T10:00:00",
-    relatedPatient: "John Doe",
-    relatedAppointment: 1,
-  },
-  {
-    id: 2,
-    type: "appointment_reminder",
-    title: "Appointment Confirmation",
-    message:
-      "Your appointment with Maria Santos has been confirmed for October 15, 2024 at 2:00 PM.",
-    status: "read",
-    createdAt: "2024-10-15T08:00:00",
-    relatedPatient: "Maria Santos",
-    relatedAppointment: 2,
-  },
-  {
-    id: 4,
-    type: "medical_record",
-    title: "Medical Record Updated",
-    message:
-      "Medical record for patient Pedro Cruz has been updated by Dr. Sarah Johnson.",
-    status: "read",
-    createdAt: "2024-10-15T14:00:00",
-    relatedPatient: "Pedro Cruz",
-    relatedAppointment: null,
-  },
-  {
-    id: 5,
-    type: "appointment_reminder",
-    title: "Appointment Completed",
-    message:
-      "Vaccination appointment for Luis Mendoza has been completed successfully.",
-    status: "read",
-    createdAt: "2024-10-15T15:30:00",
-    relatedPatient: "Luis Mendoza",
-    relatedAppointment: 3,
-  },
-]);
+// Real-time subscription
+const { subscribeToUserNotifications, unsubscribe } = useRealtime();
+let notificationSubscription = null;
+
+// Initialize notifications
+const fetchNotifications = async () => {
+  try {
+    loading.value = true;
+    error.value = null;
+    const data = await notificationService.getMyNotifications();
+    notifications.value = data || [];
+  } catch (err) {
+    error.value = "Failed to load notifications";
+    console.error("Error fetching notifications:", err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Subscribe to real-time updates
+const setupRealtimeSubscription = () => {
+  notificationSubscription = subscribeToUserNotifications(async (payload) => {
+    console.log("Real-time notification update:", payload);
+    // Refresh notifications when new ones arrive
+    await fetchNotifications();
+  });
+};
+
+// Lifecycle hooks
+onMounted(async () => {
+  await fetchNotifications();
+  setupRealtimeSubscription();
+});
+
+onUnmounted(() => {
+  if (notificationSubscription) {
+    unsubscribe(notificationSubscription);
+  }
+});
 
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredNotifications = computed(() => {
   return notifications.value.filter((notification) => {
     const matchesSearch =
-      notification.title.toLowerCase().includes(search.value.toLowerCase()) ||
-      notification.message.toLowerCase().includes(search.value.toLowerCase()) ||
+      notification.Title.toLowerCase().includes(search.value.toLowerCase()) ||
+      notification.Message.toLowerCase().includes(search.value.toLowerCase()) ||
       (notification.relatedPatient &&
         notification.relatedPatient
           .toLowerCase()
           .includes(search.value.toLowerCase()));
 
     const matchesType =
-      filterType.value === "all" || notification.type === filterType.value;
+      filterType.value === "all" || notification.Type === filterType.value;
     const matchesStatus =
       filterStatus.value === "all" ||
-      notification.status === filterStatus.value;
+      (filterStatus.value === "read"
+        ? notification.IsRead
+        : !notification.IsRead);
 
     return matchesSearch && matchesType && matchesStatus;
   });
 });
 
 const unreadCount = computed(() => {
-  return notifications.value.filter((n) => n.status === "unread").length;
+  return notifications.value.filter((n) => !n.IsRead).length;
 });
 
 // Methods
-const fetchNotifications = async () => {
-  loading.value = true;
+const markAsRead = async (notification) => {
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-  } finally {
-    loading.value = false;
+    await notificationService.markAsRead(notification.NotificationID);
+    notification.IsRead = true;
+    useNotify().success("Notification marked as read");
+  } catch (err) {
+    console.error("Error marking notification as read:", err);
+    useNotify().error("Failed to mark notification as read");
   }
 };
 
-const markAsRead = (notification) => {
-  notification.status = "read";
+const markAllAsRead = async () => {
+  try {
+    const unreadNotifications = notifications.value.filter((n) => !n.IsRead);
+    for (const notification of unreadNotifications) {
+      await notificationService.markAsRead(notification.NotificationID);
+      notification.IsRead = true;
+    }
+    useNotify().success("All notifications marked as read");
+  } catch (err) {
+    console.error("Error marking all notifications as read:", err);
+    useNotify().error("Failed to mark all notifications as read");
+  }
 };
 
-const markAllAsRead = () => {
-  notifications.value.forEach((n) => (n.status = "read"));
-};
-
-const deleteNotification = (notification) => {
-  const index = notifications.value.findIndex((n) => n.id === notification.id);
-  if (index !== -1) {
-    notifications.value.splice(index, 1);
+const deleteNotification = async (notification) => {
+  try {
+    await notificationService.deleteNotification(notification.NotificationID);
+    const index = notifications.value.findIndex(
+      (n) => n.NotificationID === notification.NotificationID
+    );
+    if (index !== -1) {
+      notifications.value.splice(index, 1);
+    }
+    useNotify().success("Notification deleted successfully");
+  } catch (err) {
+    console.error("Error deleting notification:", err);
+    useNotify().error("Failed to delete notification");
   }
 };
 
@@ -143,19 +151,13 @@ const formatDateTime = (dateTime) => {
 
 const viewPatientRecord = (patientName) => {
   console.log("Viewing patient record for:", patientName);
-  // In a real application, this would navigate to the patient's record
   alert(`View patient record for ${patientName} would be implemented here`);
 };
 
 const viewAppointment = (appointmentId) => {
   console.log("Viewing appointment:", appointmentId);
-  // In a real application, this would navigate to the appointment details
   alert(`View appointment ${appointmentId} would be implemented here`);
 };
-
-onMounted(() => {
-  fetchNotifications();
-});
 </script>
 
 <template>
@@ -178,15 +180,8 @@ onMounted(() => {
             <i class="bi bi-check-all me-2"></i>
             Mark All Read
           </button>
-          <button
-            class="btn btn-primary"
-            @click="fetchNotifications"
-            :disabled="loading"
-          >
-            <i
-              class="bi bi-arrow-clockwise me-2"
-              :class="{ 'animate-spin': loading }"
-            ></i>
+          <button class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise me-2"></i>
             Refresh
           </button>
         </div>
@@ -226,7 +221,7 @@ onMounted(() => {
             <h4 class="mb-1">
               {{
                 filteredNotifications.filter(
-                  (n) => n.type === "appointment_reminder"
+                  (n) => n.Type === "appointment_reminder"
                 ).length
               }}
             </h4>
@@ -271,16 +266,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary animate-pulse" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-3 text-muted">Loading notifications...</p>
-    </div>
-
     <!-- Notifications List -->
-    <div v-else class="card animate-fade-in-up animation-delay-400">
+    <div class="card animate-fade-in-up animation-delay-400">
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
@@ -293,19 +280,19 @@ onMounted(() => {
         <div class="notifications-list">
           <div
             v-for="notification in filteredNotifications"
-            :key="notification.id"
+            :key="notification.NotificationID"
             class="notification-item p-4 border-bottom animate-fade-in-up"
             :class="{
-              unread: notification.status === 'unread',
-              'bg-light': notification.status === 'unread',
+              unread: !notification.IsRead,
+              'bg-light': !notification.IsRead,
             }"
           >
             <div class="d-flex align-items-start">
               <div class="notification-icon me-3">
                 <i
                   :class="`${getNotificationIcon(
-                    notification.type
-                  )} text-${getTypeBadgeVariant(notification.type)} fs-4`"
+                    notification.Type
+                  )} text-${getTypeBadgeVariant(notification.Type)} fs-4`"
                 ></i>
               </div>
 
@@ -314,7 +301,7 @@ onMounted(() => {
                   class="d-flex justify-content-between align-items-start mb-2"
                 >
                   <div>
-                    <h6 class="mb-1">{{ notification.title }}</h6>
+                    <h6 class="mb-1">{{ notification.Title }}</h6>
                     <div v-if="notification.relatedPatient" class="mb-1">
                       <span class="badge bg-info me-2"
                         >Patient: {{ notification.relatedPatient }}</span
@@ -325,15 +312,15 @@ onMounted(() => {
                     <span
                       class="badge"
                       :class="`bg-${getStatusBadgeVariant(
-                        notification.status
+                        notification.IsRead ? 'read' : 'unread'
                       )}`"
                     >
-                      {{ notification.status }}
+                      {{ notification.IsRead ? "read" : "unread" }}
                     </span>
                   </div>
                 </div>
 
-                <p class="mb-3">{{ notification.message }}</p>
+                <p class="mb-3">{{ notification.Message }}</p>
 
                 <div
                   class="notification-meta d-flex justify-content-between align-items-center"
@@ -341,13 +328,13 @@ onMounted(() => {
                   <div class="text-muted">
                     <small>
                       <i class="bi bi-clock me-1"></i>
-                      {{ formatDateTime(notification.createdAt) }}
+                      {{ formatDateTime(notification.CreatedAt) }}
                     </small>
                   </div>
 
                   <div class="notification-actions">
                     <button
-                      v-if="notification.status === 'unread'"
+                      v-if="!notification.IsRead"
                       class="btn btn-sm btn-outline-primary me-2"
                       @click="markAsRead(notification)"
                     >
@@ -407,99 +394,6 @@ onMounted(() => {
                 : "You have no notifications at this time."
             }}
           </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notification Categories -->
-    <div class="row g-4 mt-4">
-      <!-- Today's Reminders -->
-      <div class="col-md-6">
-        <div class="card animate-fade-in-up animation-delay-500">
-          <div class="card-header">
-            <h6 class="mb-0">
-              <i class="bi bi-calendar-check me-2"></i>
-              Today's Appointment Reminders
-            </h6>
-          </div>
-          <div class="card-body">
-            <div
-              class="reminder-item d-flex align-items-center p-2 mb-2 border rounded"
-            >
-              <div class="reminder-icon me-3">
-                <i class="bi bi-clock text-primary"></i>
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-medium">John Doe - 10:30 AM</div>
-                <small class="text-muted">Regular check-up</small>
-              </div>
-              <div class="text-end">
-                <small class="text-muted">in 2 hours</small>
-              </div>
-            </div>
-
-            <div
-              class="reminder-item d-flex align-items-center p-2 mb-2 border rounded"
-            >
-              <div class="reminder-icon me-3">
-                <i class="bi bi-clock text-success"></i>
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-medium">Maria Santos - 2:00 PM</div>
-                <small class="text-muted">Follow-up consultation</small>
-              </div>
-              <div class="text-end">
-                <small class="text-muted">in 6 hours</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- System Alerts -->
-      <div class="col-md-6">
-        <div class="card animate-fade-in-up animation-delay-600">
-          <div class="card-header">
-            <h6 class="mb-0">
-              <i class="bi bi-exclamation-triangle me-2"></i>
-              System Alerts
-            </h6>
-          </div>
-          <div class="card-body">
-            <div
-              class="alert-item d-flex align-items-center p-2 mb-2 border rounded"
-            >
-              <div class="alert-icon-small me-3">
-                <i class="bi bi-person-plus text-info"></i>
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-medium">New Patient Assigned</div>
-                <small class="text-muted"
-                  >Ana Reyes has been assigned to your care</small
-                >
-              </div>
-              <div class="text-end">
-                <small class="text-muted">2 hours ago</small>
-              </div>
-            </div>
-
-            <div
-              class="alert-item d-flex align-items-center p-2 mb-2 border rounded"
-            >
-              <div class="alert-icon-small me-3">
-                <i class="bi bi-file-medical text-success"></i>
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-medium">Record Updated</div>
-                <small class="text-muted"
-                  >Medical record updated for Pedro Cruz</small
-                >
-              </div>
-              <div class="text-end">
-                <small class="text-muted">30 min ago</small>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

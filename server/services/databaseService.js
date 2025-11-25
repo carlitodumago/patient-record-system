@@ -612,6 +612,20 @@ class DatabaseService {
     return handleSupabaseResponse(response);
   }
 
+  static async getNotificationById(notificationId) {
+    const response = await supabase
+      .from("Notification")
+      .select(
+        `
+        *,
+        Users:UserID(*)
+      `
+      )
+      .eq("NotificationID", notificationId)
+      .single();
+    return handleSupabaseResponse(response);
+  }
+
   static async createNotification(notificationData) {
     const response = await supabase
       .from("Notification")

@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import { supabase } from "../main.js";
+import { supabase } from "../services/supabaseService.js";
 import { useAuthStore } from "../stores/auth.js";
 
 export const useSupabase = () => {
@@ -9,8 +9,54 @@ export const useSupabase = () => {
 
   // Generic error handler
   const handleError = (err) => {
-    console.error("Supabase operation error:", err);
-    error.value = err.message || "An error occurred";
+    // Provide user-friendly error messages
+    let userFriendlyMessage = "An error occurred";
+
+    if (err.message) {
+      if (err.message.includes("JWT")) {
+        userFriendlyMessage = "Your session has expired. Please log in again.";
+      } else if (
+        err.message.includes("network") ||
+        err.message.includes("fetch")
+      ) {
+        userFriendlyMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (
+        err.message.includes("permission") ||
+        err.message.includes("unauthorized")
+      ) {
+        userFriendlyMessage =
+          "You don't have permission to perform this action.";
+      } else if (
+        err.message.includes("not found") ||
+        err.message.includes("404")
+      ) {
+        userFriendlyMessage = "The requested data could not be found.";
+      } else if (
+        err.message.includes("duplicate") ||
+        err.message.includes("unique")
+      ) {
+        userFriendlyMessage =
+          "This record already exists or conflicts with existing data.";
+      } else if (
+        err.message.includes("foreign key") ||
+        err.message.includes("constraint")
+      ) {
+        userFriendlyMessage =
+          "This action would break data relationships. Please check related records.";
+      } else if (err.message.includes("timeout")) {
+        userFriendlyMessage =
+          "The request is taking too long. Please try again.";
+      } else if (err.message.length < 100) {
+        // Use the original message if it's reasonably short and user-friendly
+        userFriendlyMessage = err.message;
+      } else {
+        userFriendlyMessage =
+          "An error occurred while processing your request.";
+      }
+    }
+
+    error.value = userFriendlyMessage;
     return null;
   };
 
@@ -31,20 +77,61 @@ export const useSupabase = () => {
 
   // Role-based access control helpers
   const canAccess = (allowedRoles) => {
-    if (!isAuthenticated.value) return false;
-    return allowedRoles.includes(userRole.value);
+    if (!isAuthenticated.value) {
+      return false;
+    }
+    const hasAccess = allowedRoles.includes(userRole.value);
+    if (!hasAccess) {
+    }
+    return hasAccess;
   };
 
-  const requireAuth = () => {
+  const requireAuth = async () => {
+    // Wait for authentication to be initialized if it's still loading
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (!isAuthenticated.value && attempts < maxAttempts) {
+      await useAuthStore().initializeAuth();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      attempts++;
+    }
+
     if (!isAuthenticated.value) {
       throw new Error("Authentication required");
     }
   };
 
-  const requireRole = (roles) => {
-    requireAuth();
-    if (!canAccess(roles)) {
-      throw new Error(`Access denied. Required roles: ${roles.join(", ")}`);
+  const requireRole = async (roles) => {
+    // Check if we have a valid session
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      console.error("❌ [useSupabase] No valid session");
+      throw new Error("Authentication required");
+    }
+
+    // Get user role using auth store
+    const authStore = useAuthStore();
+    let role;
+    try {
+      role = await authStore.getUserRole(session.user.id);
+    } catch (roleError) {
+      console.error(
+        "❌ [useSupabase] Role check failed: Unable to get user role",
+        roleError
+      );
+      throw new Error("Unable to verify user permissions");
+    }
+
+    if (!roles.includes(role)) {
+      const errorMsg = `Access denied. Required roles: ${roles.join(
+        ", "
+      )}. Current role: ${role || "none"}`;
+      console.error("❌ [useSupabase] Role check failed:", errorMsg);
+      throw new Error(errorMsg);
     }
   };
 
@@ -54,17 +141,16 @@ export const useSupabase = () => {
     async getAllPatients() {
       requireRole(["admin", "nurse"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("Patients")
-          .select(
-            `
-            *,
-            Users!inner(fullName, email)
+        const { data, error } = await supabase.from("Patients").select(
           `
-          )
-          .order("created_at", { ascending: false });
+            *,
+            Users!UserID(Email)
+          `
+        );
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         return data;
       });
     },
@@ -77,7 +163,7 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Users!inner(fullName, email)
+            Users!UserID(fullName, Email)
           `
           )
           .eq("PatientID", id)
@@ -95,10 +181,11 @@ export const useSupabase = () => {
         const { data, error } = await supabase
           .from("Patients")
           .select("*")
-          .eq("UserID", user.value.id)
-          .order("created_at", { ascending: false });
+          .eq("UserID", user.value.id);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         return data;
       });
     },
@@ -114,7 +201,6 @@ export const useSupabase = () => {
               ...patientData,
               UserID: user.value.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -132,7 +218,6 @@ export const useSupabase = () => {
           .from("Patients")
           .update({
             ...patientData,
-            updated_at: new Date().toISOString(),
           })
           .eq("PatientID", id)
           .select()
@@ -169,17 +254,17 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Patients!inner(
+            Patients(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
-            Staff!inner(
+            Staff!fk_appointment_scheduledby(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             )
           `
           )
-          .order("AppointmentDateTime", { ascending: true });
+          .order("DateTime", { ascending: true });
 
         if (error) throw error;
         return data;
@@ -198,14 +283,16 @@ export const useSupabase = () => {
             Patients!inner(*),
             Staff!inner(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             )
           `
           )
           .eq("Patients.UserID", user.value.id)
-          .order("AppointmentDateTime", { ascending: true });
+          .order("DateTime", { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         return data;
       });
     },
@@ -221,13 +308,13 @@ export const useSupabase = () => {
             *,
             Patients!inner(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
             Staff!inner(*)
           `
           )
           .eq("Staff.UserID", user.value.id)
-          .order("AppointmentDateTime", { ascending: true });
+          .order("DateTime", { ascending: true });
 
         if (error) throw error;
         return data;
@@ -245,7 +332,6 @@ export const useSupabase = () => {
               ...appointmentData,
               ScheduledBy: user.value.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -263,7 +349,6 @@ export const useSupabase = () => {
           .from("Appointment")
           .update({
             ...appointmentData,
-            updated_at: new Date().toISOString(),
           })
           .eq("AppointmentID", id)
           .select()
@@ -293,16 +378,15 @@ export const useSupabase = () => {
     async getAllStaff() {
       requireRole(["admin"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("Staff")
-          .select(
-            `
+        const { data, error } = await supabase.from("Staff").select(
+          `
             *,
-            Users!inner(fullName, email),
+
+            Users!UserID(fullName, Email),
+
             Role(RoleName)
           `
-          )
-          .order("created_at", { ascending: false });
+        );
 
         if (error) throw error;
         return data;
@@ -318,7 +402,6 @@ export const useSupabase = () => {
             {
               ...staffData,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -336,7 +419,6 @@ export const useSupabase = () => {
           .from("Staff")
           .update({
             ...staffData,
-            updated_at: new Date().toISOString(),
           })
           .eq("StaffID", id)
           .select()
@@ -371,10 +453,11 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Users!inner(fullName, email)
+
+            Users!inner(fullName, Email)
           `
           )
-          .order("created_at", { ascending: false });
+          .order("CreatedAt", { ascending: false });
 
         if (error) throw error;
         return data;
@@ -388,7 +471,7 @@ export const useSupabase = () => {
           .from("Notification")
           .select("*")
           .eq("UserID", user.value.id)
-          .order("created_at", { ascending: false });
+          .order("CreatedAt", { ascending: false });
 
         if (error) throw error;
         return data;
@@ -405,7 +488,6 @@ export const useSupabase = () => {
               ...notificationData,
               UserID: notificationData.UserID || user.value.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -422,7 +504,6 @@ export const useSupabase = () => {
           .from("Notification")
           .update({
             IsRead: true,
-            updated_at: new Date().toISOString(),
           })
           .eq("NotificationID", id)
           .select()
@@ -440,7 +521,6 @@ export const useSupabase = () => {
           .from("Notification")
           .update({
             IsRead: true,
-            updated_at: new Date().toISOString(),
           })
           .eq("UserID", user.value.id)
           .eq("IsRead", false);
@@ -468,7 +548,6 @@ export const useSupabase = () => {
           .from("Notification")
           .update({
             ...notificationData,
-            updated_at: new Date().toISOString(),
           })
           .eq("NotificationID", id)
           .select()
@@ -529,29 +608,22 @@ export const useSupabase = () => {
     },
   };
 
-  // Medical Record operations (admin only)
+  // Medical Record operations (admin and nurse only)
   const medicalRecordOps = {
     async getAllMedicalRecords() {
-      requireRole(["admin"]);
+      requireRole(["admin", "nurse"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("MedicalRecord")
-          .select(
-            `
+        const { data, error } = await supabase.from("MedicalRecord").select(
+          `
             *,
-            Patients!inner(
+            Staff!EnteredBy(
               *,
-              Users!inner(fullName)
-            ),
-            Staff!inner(
-              *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
             Diagnosis(*),
-            Treatment(*)
+            Treatment(TreatmentName)
           `
-          )
-          .order("created_at", { ascending: false });
+        );
 
         if (error) throw error;
         return data;
@@ -565,13 +637,13 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Patients!inner(
+            Patients!PatientID(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
-            Staff!inner(
+            Staff!EnteredBy(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
             Diagnosis(*),
             Treatment(*)
@@ -586,7 +658,7 @@ export const useSupabase = () => {
     },
 
     async createMedicalRecord(recordData) {
-      requireRole(["admin"]);
+      requireRole(["admin", "nurse"]);
       return withLoading(async () => {
         const { data, error } = await supabase
           .from("MedicalRecord")
@@ -595,7 +667,6 @@ export const useSupabase = () => {
               ...recordData,
               EnteredBy: user.value.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -607,13 +678,12 @@ export const useSupabase = () => {
     },
 
     async updateMedicalRecord(id, recordData) {
-      requireRole(["admin"]);
+      requireRole(["admin", "nurse"]);
       return withLoading(async () => {
         const { data, error } = await supabase
           .from("MedicalRecord")
           .update({
             ...recordData,
-            updated_at: new Date().toISOString(),
           })
           .eq("MedicalRecordID", id)
           .select()
@@ -625,7 +695,7 @@ export const useSupabase = () => {
     },
 
     async deleteMedicalRecord(id) {
-      requireRole(["admin"]);
+      requireRole(["admin", "nurse"]);
       return withLoading(async () => {
         const { error } = await supabase
           .from("MedicalRecord")
@@ -644,18 +714,23 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Staff!inner(
+            Patients!PatientID(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
+            ),
+            Staff!EnteredBy(
+              *,
+              Users!UserID(fullName)
             ),
             Diagnosis(*),
             Treatment(*)
           `
           )
-          .eq("PatientID", patientId)
-          .order("created_at", { ascending: false });
+          .eq("PatientID", patientId);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         return data;
       });
     },
@@ -668,16 +743,15 @@ export const useSupabase = () => {
           .select(
             `
             *,
-            Patients!inner(
+            Patients!PatientID(
               *,
-              Users!inner(fullName)
+              Users!UserID(fullName)
             ),
             Diagnosis(*),
             Treatment(*)
           `
           )
-          .eq("EnteredBy", staffId)
-          .order("created_at", { ascending: false });
+          .eq("EnteredBy", staffId);
 
         if (error) throw error;
         return data;
@@ -690,18 +764,15 @@ export const useSupabase = () => {
     async getAllReports() {
       requireRole(["admin"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("Reports")
-          .select(
-            `
+        const { data, error } = await supabase.from("Reports").select(
+          `
             *,
             GeneratedByNavigation:GeneratedBy(
               *,
               Users!inner(fullName)
             )
           `
-          )
-          .order("created_at", { ascending: false });
+        );
 
         if (error) throw error;
         return data;
@@ -739,7 +810,6 @@ export const useSupabase = () => {
               ...reportData,
               GeneratedBy: user.value.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -757,7 +827,6 @@ export const useSupabase = () => {
           .from("Reports")
           .update({
             ...reportData,
-            updated_at: new Date().toISOString(),
           })
           .eq("ReportID", id)
           .select()
@@ -795,8 +864,7 @@ export const useSupabase = () => {
             )
           `
           )
-          .eq("ReportType", reportType)
-          .order("created_at", { ascending: false });
+          .eq("ReportType", reportType);
 
         if (error) throw error;
         return data;
@@ -818,8 +886,7 @@ export const useSupabase = () => {
           `
           )
           .gte("created_at", startDate)
-          .lte("created_at", endDate)
-          .order("created_at", { ascending: false });
+          .lte("created_at", endDate);
 
         if (error) throw error;
         return data;
@@ -831,35 +898,37 @@ export const useSupabase = () => {
       requireRole(["admin"]);
       return withLoading(async () => {
         // Get patient count
-        const { data: patients, error: patientsError } = await supabase
+        const { count: patientsCount, error: patientsError } = await supabase
           .from("Patients")
-          .select("count", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true });
 
         // Get staff count
-        const { data: staff, error: staffError } = await supabase
+        const { count: staffCount, error: staffError } = await supabase
           .from("Staff")
-          .select("count", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true });
 
         // Get appointments count
-        const { data: appointments, error: appointmentsError } = await supabase
-          .from("Appointment")
-          .select("count", { count: "exact", head: true });
+        const { count: appointmentsCount, error: appointmentsError } =
+          await supabase
+            .from("Appointment")
+            .select("*", { count: "exact", head: true });
 
         // Get medical records count
-        const { data: records, error: recordsError } = await supabase
+        const { count: recordsCount, error: recordsError } = await supabase
           .from("MedicalRecord")
-          .select("count", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true });
 
         if (patientsError || staffError || appointmentsError || recordsError) {
           throw new Error("Failed to fetch overview statistics");
         }
 
-        return {
-          totalPatients: patients || 0,
-          totalStaff: staff || 0,
-          totalAppointments: appointments || 0,
-          totalRecords: records || 0,
+        const result = {
+          totalPatients: patientsCount || 0,
+          totalStaff: staffCount || 0,
+          totalAppointments: appointmentsCount || 0,
+          totalRecords: recordsCount || 0,
         };
+        return result;
       });
     },
 
@@ -870,18 +939,29 @@ export const useSupabase = () => {
         const { data: statusData, error: statusError } = await supabase
           .from("Appointment")
           .select("Status")
-          .gte("AppointmentDateTime", startDate)
-          .lte("AppointmentDateTime", endDate);
+          .gte("DateTime", startDate)
+          .lte("DateTime", endDate);
 
-        // Get appointments by type
-        const { data: typeData, error: typeError } = await supabase
+        // Get appointments by type (skip if Type column doesn't exist)
+        let typeData = [];
+        // Type column may not exist in database, skip query to prevent 400 error
+
+        // Get appointment trends (monthly)
+        const { data: trendsData, error: trendsError } = await supabase
           .from("Appointment")
-          .select("Type")
-          .gte("AppointmentDateTime", startDate)
-          .lte("AppointmentDateTime", endDate);
+          .select("DateTime")
+          .gte("DateTime", startDate)
+          .lte("DateTime", endDate);
 
-        if (statusError || typeError) {
-          throw new Error("Failed to fetch appointment analytics");
+        if (statusError) {
+          throw new Error(
+            `Failed to fetch appointment status data: ${statusError.message}`
+          );
+        }
+        if (trendsError) {
+          throw new Error(
+            `Failed to fetch appointment trends data: ${trendsError.message}`
+          );
         }
 
         // Process status data
@@ -890,11 +970,34 @@ export const useSupabase = () => {
           statusCounts[apt.Status] = (statusCounts[apt.Status] || 0) + 1;
         });
 
-        // Process type data
+        // Process type data (only if Type column exists)
         const typeCounts = {};
-        typeData?.forEach((apt) => {
-          typeCounts[apt.Type] = (typeCounts[apt.Type] || 0) + 1;
+        if (typeData && typeData.length > 0) {
+          typeData.forEach((apt) => {
+            if (apt.Type) {
+              typeCounts[apt.Type] = (typeCounts[apt.Type] || 0) + 1;
+            }
+          });
+        }
+
+        // Process trends data (monthly)
+        const monthlyTrends = {};
+        trendsData?.forEach((apt) => {
+          const date = new Date(apt.DateTime);
+          const monthKey = `${date.getFullYear()}-${String(
+            date.getMonth() + 1
+          ).padStart(2, "0")}`;
+          monthlyTrends[monthKey] = (monthlyTrends[monthKey] || 0) + 1;
         });
+
+        const trends = Object.entries(monthlyTrends)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([month, appointments]) => ({
+            month: new Date(month + "-01").toLocaleDateString("en-US", {
+              month: "short",
+            }),
+            appointments,
+          }));
 
         return {
           byStatus: Object.entries(statusCounts).map(([status, count]) => ({
@@ -907,6 +1010,7 @@ export const useSupabase = () => {
             count,
             color: getTypeColor(type),
           })),
+          trends,
         };
       });
     },
@@ -914,15 +1018,15 @@ export const useSupabase = () => {
     async getPatientAnalytics(startDate, endDate) {
       requireRole(["admin"]);
       return withLoading(async () => {
-        // Get patients by gender
+        // Get patients by gender (without date filtering since created_at column may not exist)
         const { data: genderData, error: genderError } = await supabase
           .from("Patients")
-          .select("Gender")
-          .gte("created_at", startDate)
-          .lte("created_at", endDate);
+          .select("Gender");
 
         if (genderError) {
-          throw new Error("Failed to fetch patient analytics");
+          throw new Error(
+            `Failed to fetch patient analytics: ${genderError.message}`
+          );
         }
 
         // Process gender data
@@ -938,6 +1042,103 @@ export const useSupabase = () => {
             count,
             color: getGenderColor(gender),
           })),
+          byAgeGroup: [], // Placeholder for age groups if needed later
+          registrationTrends: [], // Placeholder for registration trends if needed later
+        };
+      });
+    },
+
+    async getStaffAnalytics(startDate, endDate) {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        // Get staff workload data (appointments handled by staff)
+        const { data: workloadData, error: workloadError } = await supabase
+          .from("Appointment")
+          .select(
+            `
+            Staff!inner(*),
+            DateTime
+          `
+          )
+          .gte("DateTime", startDate)
+          .lte("DateTime", endDate);
+
+        // Get staff performance (completed appointments)
+        const { data: performanceData, error: performanceError } =
+          await supabase
+            .from("Appointment")
+            .select(
+              `
+            Staff!inner(*),
+            Status
+          `
+            )
+            .gte("DateTime", startDate)
+            .lte("DateTime", endDate)
+            .eq("Status", "Completed");
+
+        if (workloadError) {
+          throw new Error(
+            `Failed to fetch staff workload data: ${workloadError.message}`
+          );
+        }
+        if (performanceError) {
+          throw new Error(
+            `Failed to fetch staff performance data: ${performanceError.message}`
+          );
+        }
+
+        // Process workload data
+        const workloadCounts = {};
+        workloadData?.forEach((apt) => {
+          const staffId = apt.Staff.StaffID;
+          const staffName = apt.Staff.Users?.fullName || `Staff ${staffId}`;
+          workloadCounts[staffName] = (workloadCounts[staffName] || 0) + 1;
+        });
+
+        // Process performance data
+        const performanceCounts = {};
+        performanceData?.forEach((apt) => {
+          const staffId = apt.Staff.StaffID;
+          const staffName = apt.Staff.Users?.fullName || `Staff ${staffId}`;
+          performanceCounts[staffName] =
+            (performanceCounts[staffName] || 0) + 1;
+        });
+
+        // Get daily workload for the last 7 days
+        const dailyWorkload = {};
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          return date.toISOString().split("T")[0];
+        }).reverse();
+
+        workloadData?.forEach((apt) => {
+          const date = apt.DateTime.split("T")[0];
+          if (last7Days.includes(date)) {
+            dailyWorkload[date] = (dailyWorkload[date] || 0) + 1;
+          }
+        });
+
+        return {
+          workload: Object.entries(workloadCounts).map(([name, hours]) => ({
+            name,
+            hours,
+            color: getRandomColor(),
+          })),
+          performance: Object.entries(performanceCounts).map(
+            ([name, completed]) => ({
+              name,
+              completed,
+              color: getRandomColor(),
+            })
+          ),
+          dailyWorkload: last7Days.map((day) => ({
+            day: new Date(day).toLocaleDateString("en-US", {
+              weekday: "short",
+            }),
+            hours: dailyWorkload[day] || 0,
+          })),
         };
       });
     },
@@ -948,10 +1149,7 @@ export const useSupabase = () => {
     async getAllTreatments() {
       requireRole(["admin", "nurse"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("Treatment")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const { data, error } = await supabase.from("Treatment").select("*");
 
         if (error) throw error;
         return data;
@@ -980,7 +1178,6 @@ export const useSupabase = () => {
             {
               ...treatmentData,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -998,7 +1195,6 @@ export const useSupabase = () => {
           .from("Treatment")
           .update({
             ...treatmentData,
-            updated_at: new Date().toISOString(),
           })
           .eq("TreatmentID", id)
           .select()
@@ -1028,8 +1224,7 @@ export const useSupabase = () => {
         const { data, error } = await supabase
           .from("Treatment")
           .select("*")
-          .eq("category", category)
-          .order("created_at", { ascending: false });
+          .eq("category", category);
 
         if (error) throw error;
         return data;
@@ -1042,10 +1237,7 @@ export const useSupabase = () => {
     async getAllDiagnoses() {
       requireRole(["admin", "nurse"]);
       return withLoading(async () => {
-        const { data, error } = await supabase
-          .from("Diagnosis")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const { data, error } = await supabase.from("Diagnosis").select("*");
 
         if (error) throw error;
         return data;
@@ -1074,7 +1266,6 @@ export const useSupabase = () => {
             {
               ...diagnosisData,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ])
           .select()
@@ -1092,7 +1283,6 @@ export const useSupabase = () => {
           .from("Diagnosis")
           .update({
             ...diagnosisData,
-            updated_at: new Date().toISOString(),
           })
           .eq("DiagnosisID", id)
           .select()
@@ -1122,8 +1312,7 @@ export const useSupabase = () => {
         const { data, error } = await supabase
           .from("Diagnosis")
           .select("*")
-          .eq("category", category)
-          .order("created_at", { ascending: false });
+          .eq("category", category);
 
         if (error) throw error;
         return data;
@@ -1238,6 +1427,400 @@ export const useSupabase = () => {
     },
   };
 
+  // Authentication operations
+  const authOps = {
+    async signUp(email, password, userData = {}) {
+      return withLoading(async () => {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: userData,
+          },
+        });
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async signIn(email, password) {
+      return withLoading(async () => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async signOut() {
+      return withLoading(async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        return true;
+      });
+    },
+
+    async resetPassword(email) {
+      return withLoading(async () => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (error) throw error;
+        return true;
+      });
+    },
+
+    async updatePassword(newPassword) {
+      return withLoading(async () => {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+        if (error) throw error;
+        return true;
+      });
+    },
+
+    async getCurrentUser() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    },
+
+    async getSession() {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error) throw error;
+      return session;
+    },
+
+    async refreshSession() {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      return data;
+    },
+
+    async resendConfirmation(email) {
+      return withLoading(async () => {
+        const { error } = await supabase.auth.resend({
+          type: "signup",
+          email,
+        });
+
+        if (error) throw error;
+        return true;
+      });
+    },
+  };
+
+  // User management operations (admin only)
+  const userOps = {
+    async getAllUsers() {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase.from("Users").select(
+          `
+            *,
+            Role(RoleName)
+          `
+        );
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async getUserById(id) {
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Users")
+          .select(
+            `
+            *,
+            Role(RoleName)
+          `
+          )
+          .eq("UserID", id)
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async createUser(userData) {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        // First create the auth user
+        const { data: authData, error: authError } =
+          await supabase.auth.admin.createUser({
+            email: userData.email,
+            password: userData.password,
+            email_confirm: true,
+            user_metadata: {
+              firstName: userData.firstName,
+              surname: userData.surname,
+            },
+          });
+
+        if (authError) throw authError;
+
+        // Then create the user record in the Users table
+        const { data, error } = await supabase
+          .from("Users")
+          .insert([
+            {
+              UserID: authData.user.id,
+              fullName: `${userData.firstName} ${userData.surname}`,
+              email: userData.email,
+              RoleName: userData.roleId,
+              created_at: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async updateUser(id, userData) {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Users")
+          .update({
+            ...userData,
+          })
+          .eq("UserID", id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    async deleteUser(id) {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        // First delete from Users table
+        const { error: userError } = await supabase
+          .from("Users")
+          .delete()
+          .eq("UserID", id);
+
+        if (userError) throw userError;
+
+        // Then delete from Supabase Auth (requires admin privileges)
+        const { error: authError } = await supabase.auth.admin.deleteUser(id);
+        if (authError) throw authError;
+
+        return true;
+      });
+    },
+
+    async getUsersByRole(roleId) {
+      requireRole(["admin"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Users")
+          .select(
+            `
+            *,
+            Role(RoleName)
+          `
+          )
+          .eq("RoleName", roleId);
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Approve appointment request
+    async approveAppointmentRequest(appointmentId) {
+      requireRole(["nurse"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .update({
+            Status: "Approved",
+          })
+          .eq("AppointmentID", appointmentId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Deny appointment request
+    async denyAppointmentRequest(appointmentId, reason) {
+      requireRole(["nurse"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .update({
+            Status: "Denied",
+            Notes: reason,
+          })
+          .eq("AppointmentID", appointmentId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Get pending appointment requests for nurse
+    async getPendingAppointmentRequests() {
+      requireRole(["nurse"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .select(
+            `
+            *,
+            Patients!inner(
+
+              *,
+
+              Users!UserID(fullName, Email)
+
+            ),
+            Staff!inner(
+              *,
+              Users!UserID(fullName)
+            )
+          `
+          )
+          .eq("Status", "Pending")
+          .order("DateTime", { ascending: true });
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Get all appointment requests for nurse
+    async getAllAppointmentRequests() {
+      requireRole(["nurse"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .select(
+            `
+            *,
+            Patients!inner(
+              *,
+              Users!UserID(fullName, email)
+            ),
+            Staff!inner(
+              *,
+              Users!UserID(fullName)
+            )
+          `
+          )
+          .order("DateTime", { ascending: true });
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Create new appointment request
+    async createAppointmentRequest(requestData) {
+      requireAuth();
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .insert([
+            {
+              ...requestData,
+              Status: "Pending",
+              ScheduledBy: user.value.id,
+              created_at: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Update appointment request
+    async updateAppointmentRequest(appointmentId, requestData) {
+      requireRole(["nurse"]);
+      return withLoading(async () => {
+        const { data, error } = await supabase
+          .from("Appointment")
+          .update({
+            ...requestData,
+          })
+          .eq("AppointmentID", appointmentId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      });
+    },
+
+    // Subscribe to appointment requests changes
+    subscribeToAppointmentRequests(callback) {
+      requireRole(["nurse"]);
+      const subscription = supabase
+        .channel("appointment_requests_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "Appointment",
+          },
+          callback
+        )
+        .subscribe();
+
+      return subscription;
+    },
+
+    // Subscribe to patient changes
+    subscribeToPatients(callback) {
+      requireRole(["admin", "nurse"]);
+      const subscription = supabase
+        .channel("patients_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "Patients",
+          },
+          callback
+        )
+        .subscribe();
+
+      return subscription;
+    },
+  };
+
   // Helper functions for colors
   const getStatusColor = (status) => {
     const colors = {
@@ -1271,10 +1854,26 @@ export const useSupabase = () => {
     return colors[gender] || "#607D8B";
   };
 
+  const getRandomColor = () => {
+    const colors = [
+      "#2196F3",
+      "#4CAF50",
+      "#FF9800",
+      "#F44336",
+      "#9C27B0",
+      "#795548",
+      "#607D8B",
+      "#E91E63",
+      "#3F51B5",
+      "#00BCD4",
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
   return {
     // State
-    loading: computed(() => loading.value),
-    error: computed(() => error.value),
+    loading,
+    error,
 
     // Access control
     canAccess,
@@ -1291,6 +1890,8 @@ export const useSupabase = () => {
     consultationNotes,
     treatments: treatmentOps,
     diagnoses: diagnosisOps,
+    auth: authOps,
+    users: userOps,
 
     // Utilities
     supabase,

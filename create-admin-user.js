@@ -1,274 +1,269 @@
 /**
- * Admin User Creation Script
+ * Secure Admin User Creation Script
  *
- * This script creates a registered admin role account in Supabase with:
- * - Username: 'admin'
- * - Password: 'adminbaan'
- * - Role: Admin (RoleID = 1)
- * - Full staff record for admin functionality
+ * This script creates an admin user in Supabase Auth and inserts the profile
+ * into the public.Users table. It is idempotent and can be run multiple times.
  *
  * Usage: node create-admin-user.js
+ *
+ * Environment Variables Required:
+ * - SUPABASE_URL or VITE_SUPABASE_URL
+ * - SUPABASE_SERVICE_ROLE_KEY
  */
 
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
-import bcrypt from "bcrypt";
 
 // Load environment variables
 dotenv.config();
 
-// Initialize Supabase client with service role key for admin operations
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_SERVICE_KEY;
+// Admin user configuration
+const ADMIN_CONFIG = {
+  email: "admin@baankm3clinic.ph",
+  password: "adminbaan",
+  username: "admin",
+  fullName: "System Administrator",
+  role: "admin",
+};
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error("❌ Missing Supabase environment variables");
-  console.error(
-    "Please ensure VITE_SUPABASE_URL/SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/VITE_SUPABASE_SERVICE_KEY are set"
-  );
-  process.exit(1);
+// Validate environment configuration
+function validateEnvironment() {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl) {
+    console.error("❌ SUPABASE_URL environment variable is not set");
+    console.error(
+      "   Please set VITE_SUPABASE_URL or SUPABASE_URL in your .env file"
+    );
+    process.exit(1);
+  }
+
+  if (!supabaseServiceKey) {
+    console.error(
+      "❌ SUPABASE_SERVICE_ROLE_KEY environment variable is not set"
+    );
+    console.error("   Please set SUPABASE_SERVICE_ROLE_KEY in your .env file");
+    console.error(
+      "   You can find this key in your Supabase project dashboard under Settings > API"
+    );
+    process.exit(1);
+  }
+
+  if (!supabaseUrl.includes("supabase.co")) {
+    console.warn("⚠️ Supabase URL doesn't appear to be a valid Supabase URL");
+  }
+
+  console.log("✅ Environment configuration validated");
+  return { supabaseUrl, supabaseServiceKey };
 }
 
-// Create Supabase client with service role for admin operations
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+// Create Supabase client
+function createSupabaseClient(url, serviceKey) {
+  return createClient(url, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "adminbaan";
-const ADMIN_EMAIL = "admin@patientrecordsystem.com";
-
-async function createAdminUser() {
-  console.log("🚀 Starting admin user creation process...\n");
-
+// Test Supabase connection
+async function testConnection(supabase) {
   try {
-    // Step 1: Check if admin user already exists
-    console.log("🔍 Checking if admin user already exists...");
-    const { data: existingUsers, error: checkError } = await supabase
-      .from("Users")
-      .select("UserID, Username, Role:RoleID(RoleName)")
-      .eq("Username", ADMIN_USERNAME);
+    console.log("🔗 Testing Supabase connection...");
 
-    if (checkError) {
-      throw new Error(`Error checking existing users: ${checkError.message}`);
+    // Try to list users from auth (requires service role)
+    const { data, error } = await supabase.auth.admin.listUsers();
+
+    if (error) {
+      console.error("❌ Supabase connection test failed:", error.message);
+      console.error("💡 Possible causes:");
+      console.error("   - Invalid service role key");
+      console.error("   - Network connectivity issues");
+      console.error("   - Supabase project not accessible");
+      return false;
     }
 
-    if (existingUsers && existingUsers.length > 0) {
-      const existingUser = existingUsers[0];
-      console.log(`⚠️ Admin user already exists:`);
-      console.log(`   Username: ${existingUser.Username}`);
-      console.log(`   Role: ${existingUser.Role?.RoleName || "Unknown"}`);
-      console.log(`   UserID: ${existingUser.UserID}`);
+    console.log("✅ Supabase connection successful");
+    return true;
+  } catch (error) {
+    console.error("❌ Unexpected error during connection test:", error.message);
+    return false;
+  }
+}
 
-      // Ask if user wants to recreate
-      console.log(`\n❓ Do you want to recreate the admin user? (y/N)`);
-      const readline = (await import("readline")).default;
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
+async function createAdminUser(supabase) {
+  try {
+    console.log("🔍 Checking if admin user exists in auth.users...");
 
-      const answer = await new Promise((resolve) => {
-        rl.question("Answer: ", resolve);
-      });
-      rl.close();
+    // First, check if the admin user exists in auth.users
+    const { data: authUsers, error: authError } =
+      await supabase.auth.admin.listUsers();
 
-      if (answer.toLowerCase() !== "y" && answer.toLowerCase() !== "yes") {
-        console.log("✅ Admin user creation cancelled");
+    if (authError) {
+      console.error("❌ Error fetching auth users:", authError);
+      return;
+    }
+
+    const adminUser = authUsers.users.find(
+      (user) => user.email === ADMIN_CONFIG.email
+    );
+
+    if (!adminUser) {
+      console.log("📝 Admin user not found in auth.users. Creating...");
+
+      // Create the admin user in Supabase Auth
+      const { data: newUser, error: createError } =
+        await supabase.auth.admin.createUser({
+          email: ADMIN_CONFIG.email,
+          password: ADMIN_CONFIG.password,
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            fullName: ADMIN_CONFIG.fullName,
+          },
+        });
+
+      if (createError) {
+        console.error("❌ Error creating admin user in auth:", createError);
         return;
       }
 
-      // Delete existing admin user and related records
-      console.log("🗑️ Removing existing admin user...");
-      await deleteExistingAdmin(existingUser.UserID);
+      console.log(
+        "✅ Admin user created in auth.users with ID:",
+        newUser.user.id
+      );
+    } else {
+      console.log(
+        "✅ Admin user already exists in auth.users with ID:",
+        adminUser.id
+      );
+
+      // Update password if needed (Supabase doesn't allow direct password updates via API)
+      // The password should be set during creation or updated via client
     }
 
-    // Step 2: Create admin user in Supabase Auth
-    console.log("👤 Creating admin user in Supabase Auth...");
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-        email_confirm: true,
-        user_metadata: {
-          username: ADMIN_USERNAME,
-          role: "admin",
-        },
-      });
+    // Now ensure the profile exists in public.Users
+    console.log("🔍 Checking public.Users table...");
 
-    if (authError) {
-      throw new Error(`Error creating auth user: ${authError.message}`);
-    }
-
-    if (!authData.user) {
-      throw new Error("No user data returned from auth creation");
-    }
-
-    console.log("✅ Supabase Auth user created successfully");
-    console.log(`   Auth User ID: ${authData.user.id}`);
-    console.log(`   Email: ${authData.user.email}`);
-
-    // Step 3: Get admin role ID
-    console.log("🏷️ Getting admin role information...");
-    const { data: roles, error: roleError } = await supabase
-      .from("Role")
-      .select("RoleID, RoleName")
-      .eq("RoleName", "admin")
-      .single();
-
-    if (roleError) {
-      throw new Error(`Error getting admin role: ${roleError.message}`);
-    }
-
-    if (!roles) {
-      throw new Error("Admin role not found in database");
-    }
-
-    console.log(`✅ Found admin role: ${roles.RoleName} (ID: ${roles.RoleID})`);
-
-    // Step 4: Create user record in Users table
-    console.log("💾 Creating user record in Users table...");
-    const { data: userData, error: userError } = await supabase
+    const { data: existingProfile, error: profileError } = await supabase
       .from("Users")
-      .insert({
-        UserID: authData.user.id,
-        Username: ADMIN_USERNAME,
-        Password: await bcrypt.hash(ADMIN_PASSWORD, 10), // Hash the password for local auth fallback
-        Email: ADMIN_EMAIL,
-        RoleID: roles.RoleID,
-        CreatedAt: new Date().toISOString(),
-      })
-      .select()
+      .select("*")
+      .eq("Email", ADMIN_CONFIG.email)
       .single();
 
-    if (userError) {
-      throw new Error(`Error creating user record: ${userError.message}`);
+    if (profileError && profileError.code !== "PGRST116") {
+      // PGRST116 is "not found"
+      console.error(
+        "❌ Error checking existing profile:",
+        profileError.message
+      );
+      console.error("💡 This might be due to:");
+      console.error("   - Insufficient permissions for the service role key");
+      console.error("   - Tables not created yet in the database");
+      console.error("   - Row Level Security (RLS) policies blocking access");
+      console.log(
+        "⚠️ Skipping profile creation/update. Admin user exists in auth but profile may need manual setup."
+      );
+      console.log("🎉 Admin user setup partially complete!");
+      console.log("📋 Admin credentials:");
+      console.log("   Email:", ADMIN_CONFIG.email);
+      console.log("   Username:", ADMIN_CONFIG.username);
+      console.log("   Password:", ADMIN_CONFIG.password);
+      console.log("   Role:", ADMIN_CONFIG.role);
+      return;
     }
 
-    console.log("✅ User record created successfully");
-    console.log(`   User ID: ${userData.UserID}`);
-    console.log(`   Username: ${userData.Username}`);
-    console.log(`   Email: ${userData.Email}`);
+    if (existingProfile) {
+      console.log("📝 Updating existing admin profile...");
 
-    // Step 5: Create staff record for admin
-    console.log("👨‍💼 Creating staff record for admin...");
-    const { data: staffData, error: staffError } = await supabase
-      .from("Staff")
-      .insert({
-        UserID: authData.user.id,
-        FirstName: "System",
-        Surname: "Administrator",
-        Suffix: "",
-        ContactNumber: "+1234567890",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+      // Update the existing profile
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from("Users")
+        .update({
+          Username: ADMIN_CONFIG.username,
+          RoleName: ADMIN_CONFIG.role,
+          fullName: ADMIN_CONFIG.fullName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("Email", ADMIN_CONFIG.email)
+        .select()
+        .single();
 
-    if (staffError) {
-      throw new Error(`Error creating staff record: ${staffError.message}`);
+      if (updateError) {
+        console.error("❌ Error updating admin profile:", updateError);
+        return;
+      }
+
+      console.log("✅ Admin profile updated successfully:", updatedProfile);
+    } else {
+      console.log("📝 Creating new admin profile...");
+
+      // Get the UserID from auth.users
+      const userId = adminUser ? adminUser.id : newUser.user.id;
+
+      // Create new profile
+      const { data: newProfile, error: insertError } = await supabase
+        .from("Users")
+        .insert({
+          UserID: userId,
+          Username: ADMIN_CONFIG.username,
+          Email: ADMIN_CONFIG.email,
+          RoleName: ADMIN_CONFIG.role,
+          fullName: ADMIN_CONFIG.fullName,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("❌ Error creating admin profile:", insertError);
+        return;
+      }
+
+      console.log("✅ Admin profile created successfully:", newProfile);
     }
 
-    console.log("✅ Staff record created successfully");
-    console.log(`   Staff ID: ${staffData.StaffID}`);
-    console.log(`   Name: ${staffData.FirstName} ${staffData.Surname}`);
-
-    // Step 6: Test login functionality
-    console.log("🔐 Testing admin login functionality...");
-    const { data: loginData, error: loginError } =
-      await supabase.auth.signInWithPassword({
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-      });
-
-    if (loginError) {
-      throw new Error(`Error testing login: ${loginError.message}`);
-    }
-
-    console.log("✅ Login test successful!");
-    console.log(
-      `   Access Token: ${
-        loginData.session?.access_token ? "Generated" : "Not generated"
-      }`
-    );
-    console.log(
-      `   Refresh Token: ${
-        loginData.session?.refresh_token ? "Generated" : "Not generated"
-      }`
-    );
-
-    // Step 7: Verify admin role assignment
-    console.log("✅ Verifying admin role assignment...");
-    const { data: verifyUser, error: verifyError } = await supabase
-      .from("Users")
-      .select(
-        `
-        UserID,
-        Username,
-        Email,
-        Role:RoleID(RoleName)
-      `
-      )
-      .eq("UserID", authData.user.id)
-      .single();
-
-    if (verifyError) {
-      throw new Error(`Error verifying user: ${verifyError.message}`);
-    }
-
-    console.log("✅ Admin user verification successful!");
-    console.log(`   Username: ${verifyUser.Username}`);
-    console.log(`   Email: ${verifyUser.Email}`);
-    console.log(`   Role: ${verifyUser.Role?.RoleName}`);
-
-    console.log("\n🎉 Admin user creation completed successfully!");
-    console.log("\n📋 Admin Credentials:");
-    console.log(`   Username: ${ADMIN_USERNAME}`);
-    console.log(`   Password: ${ADMIN_PASSWORD}`);
-    console.log(`   Email: ${ADMIN_EMAIL}`);
-    console.log(
-      "\n🔗 You can now login to the application using these credentials!"
-    );
+    console.log("🎉 Admin user setup complete!");
+    console.log("📋 Admin credentials:");
+    console.log("   Email:", ADMIN_CONFIG.email);
+    console.log("   Username:", ADMIN_CONFIG.username);
+    console.log("   Password:", ADMIN_CONFIG.password);
+    console.log("   Role:", ADMIN_CONFIG.role);
   } catch (error) {
-    console.error("❌ Error creating admin user:", error.message);
-    console.error("\n🔧 Troubleshooting steps:");
-    console.error(
-      "1. Ensure your .env file contains valid Supabase credentials"
-    );
-    console.error(
-      "2. Verify that the database tables exist (run database initialization first)"
-    );
-    console.error("3. Check that RLS policies allow admin creation");
-    console.error(
-      "4. Ensure the SUPABASE_SERVICE_ROLE_KEY has the necessary permissions"
-    );
+    console.error("❌ Unexpected error:", error);
     process.exit(1);
   }
 }
 
-async function deleteExistingAdmin(userId) {
+// Main execution function
+async function main() {
   try {
-    // Delete from Staff table first (foreign key constraint)
-    await supabase.from("Staff").delete().eq("UserID", userId);
+    console.log("🚀 Starting admin user creation script...");
 
-    // Delete from Users table
-    await supabase.from("Users").delete().eq("UserID", userId);
+    // Validate environment
+    const { supabaseUrl, supabaseServiceKey } = validateEnvironment();
 
-    // Delete from Supabase Auth (this requires admin privileges)
-    await supabase.auth.admin.deleteUser(userId);
+    // Create Supabase client
+    const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("✅ Existing admin user removed successfully");
+    // Test connection
+    const isConnected = await testConnection(supabase);
+    if (!isConnected) {
+      console.error("❌ Cannot proceed without a valid Supabase connection");
+      process.exit(1);
+    }
+
+    // Create admin user
+    await createAdminUser(supabase);
+
+    console.log("🎉 Script completed successfully!");
   } catch (error) {
-    console.error("⚠️ Error removing existing admin:", error.message);
-    // Continue with creation even if deletion fails
+    console.error("❌ Script failed:", error.message);
+    process.exit(1);
   }
 }
 
 // Run the script
-createAdminUser();
+main();

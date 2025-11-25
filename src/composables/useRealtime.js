@@ -1,11 +1,6 @@
 import { ref, onMounted, onUnmounted } from "vue";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../services/supabaseService.js";
 import { useAuthStore } from "../stores/auth.js";
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const useRealtime = () => {
   const subscriptions = ref(new Map());

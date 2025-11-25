@@ -1,99 +1,44 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useSupabase } from "@/composables/useSupabase.js";
 
-// Store
-const store = useStore();
+// Initialize Supabase composable
+const {
+  medicalRecords: medicalRecordOps,
+  patients: patientOps,
+  diagnoses: diagnosisOps,
+  treatments: treatmentOps,
+  loading,
+  error,
+} = useSupabase();
 
-// Reactive data
-const loading = ref(false);
+// Reactive data from Supabase
+const medicalRecords = ref([]);
+const patients = ref([]);
+const diagnoses = ref([]);
+const treatments = ref([]);
+
+// Reactive state
 const search = ref("");
+const filterStatus = ref("all");
+const filterType = ref("all");
+const selectedRecord = ref(null);
+
+// Modal states
 const showViewModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
-const selectedRecord = ref(null);
-const filterStatus = ref("all");
-const filterType = ref("all");
+const showCreateModal = ref(false);
 
-const medicalRecords = ref([
-  {
-    id: 1,
-    appointmentId: 1,
-    patientId: 1,
-    patientName: "John Doe",
-    enteredBy: 1,
-    staffName: "Dr. Sarah Johnson",
-    diagnosisId: 1,
-    diagnosis: "Hypertension",
-    treatmentId: 1,
-    treatment: "Lisinopril 10mg daily",
-    notes:
-      "Patient advised to monitor blood pressure regularly and maintain low-sodium diet.",
-    vitalSigns: {
-      bloodPressure: "140/90",
-      heartRate: "72 bpm",
-      temperature: "36.8°C",
-      weight: "70 kg",
-      height: "175 cm",
-    },
-    createdAt: "2024-10-10T10:30:00",
-    updatedAt: "2024-10-10T10:30:00",
-    status: "Final",
-  },
-  {
-    id: 2,
-    appointmentId: 2,
-    patientId: 2,
-    patientName: "Maria Santos",
-    enteredBy: 2,
-    staffName: "Dr. Sarah Johnson",
-    diagnosisId: 2,
-    diagnosis: "Diabetes Type 2",
-    treatmentId: 2,
-    treatment: "Metformin 500mg twice daily",
-    notes:
-      "Blood sugar levels are well controlled. Continue current medication and diet plan.",
-    vitalSigns: {
-      bloodPressure: "120/80",
-      heartRate: "68 bpm",
-      temperature: "36.5°C",
-      weight: "65 kg",
-      height: "160 cm",
-    },
-    createdAt: "2024-10-14T14:00:00",
-    updatedAt: "2024-10-14T14:00:00",
-    status: "Final",
-  },
-  {
-    id: 3,
-    appointmentId: 3,
-    patientId: 3,
-    patientName: "Pedro Cruz",
-    enteredBy: 3,
-    staffName: "Maria Santos, RN",
-    diagnosisId: 3,
-    diagnosis: "Vaccination",
-    treatmentId: 3,
-    treatment: "COVID-19 Booster Vaccination",
-    notes:
-      "Patient received Pfizer COVID-19 booster shot. No immediate adverse reactions observed.",
-    vitalSigns: {
-      bloodPressure: "130/85",
-      heartRate: "75 bpm",
-      temperature: "36.6°C",
-      weight: "75 kg",
-      height: "168 cm",
-    },
-    createdAt: "2024-09-28T09:00:00",
-    updatedAt: "2024-09-28T09:00:00",
-    status: "Final",
-  },
-]);
+// Pagination
+const currentPage = ref(1);
+const recordsPerPage = ref(10);
 
 // Form data
 const recordForm = ref({
-  diagnosis: "",
-  treatment: "",
+  patientId: "",
+  diagnosisId: "",
+  treatmentId: "",
   notes: "",
   vitalSigns: {
     bloodPressure: "",
@@ -105,51 +50,202 @@ const recordForm = ref({
   status: "Draft",
 });
 
+// Validation
+const formErrors = ref({});
+
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredRecords = computed(() => {
-  return medicalRecords.value.filter((record) => {
-    const matchesSearch =
-      record.patientName.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.staffName.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.diagnosis.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.treatment.toLowerCase().includes(search.value.toLowerCase());
+  let filtered = medicalRecords.value;
 
-    const matchesStatus =
-      filterStatus.value === "all" ||
-      record.status.toLowerCase() === filterStatus.value;
-    const matchesType =
-      filterType.value === "all" ||
-      record.diagnosis.toLowerCase().includes(filterType.value);
+  // Apply search filter
+  if (search.value) {
+    const searchLower = search.value.toLowerCase();
+    filtered = filtered.filter((record) => {
+      const patientName = getPatientName(record).toLowerCase();
+      const staffName = getStaffName(record).toLowerCase();
+      const diagnosis = getDiagnosisName(record).toLowerCase();
+      const treatment = getTreatmentName(record).toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      return (
+        patientName.includes(searchLower) ||
+        staffName.includes(searchLower) ||
+        diagnosis.includes(searchLower) ||
+        treatment.includes(searchLower)
+      );
+    });
+  }
+
+  // Apply status filter
+  if (filterStatus.value !== "all") {
+    filtered = filtered.filter(
+      (record) => record.Status === filterStatus.value
+    );
+  }
+
+  // Apply type filter
+  if (filterType.value !== "all") {
+    filtered = filtered.filter((record) => {
+      const diagnosis = getDiagnosisName(record);
+      return diagnosis.toLowerCase().includes(filterType.value.toLowerCase());
+    });
+  }
+
+  return filtered;
+});
+
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * recordsPerPage.value;
+  const end = start + recordsPerPage.value;
+  return filteredRecords.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredRecords.value.length / recordsPerPage.value);
 });
 
 const recentRecords = computed(() => {
   return medicalRecords.value
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 5);
 });
 
-// Methods
-const fetchMedicalRecords = async () => {
-  loading.value = true;
+const stats = computed(() => {
+  const total = medicalRecords.value.length;
+  const drafts = medicalRecords.value.filter(
+    (r) => r.Status === "Draft"
+  ).length;
+  const finals = medicalRecords.value.filter(
+    (r) => r.Status === "Final"
+  ).length;
+  const amended = medicalRecords.value.filter(
+    (r) => r.Status === "Amended"
+  ).length;
+
+  return { total, drafts, finals, amended };
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i);
+    }
+  } else {
+    if (current <= 4) {
+      pages.push(1, 2, 3, 4, 5, 6, total);
+    } else if (current >= total - 3) {
+      pages.push(
+        1,
+        total - 5,
+        total - 4,
+        total - 3,
+        total - 2,
+        total - 1,
+        total
+      );
+    } else {
+      pages.push(
+        1,
+        current - 2,
+        current - 1,
+        current,
+        current + 1,
+        current + 2,
+        total
+      );
+    }
+  }
+
+  return pages;
+});
+
+// CRUD operations with backend integration
+const createMedicalRecord = async () => {
+  if (!validateForm()) {
+    return;
+  }
+
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching medical records:", error);
-  } finally {
-    loading.value = false;
+    const result = await medicalRecordOps.createMedicalRecord(recordForm.value);
+    if (result.success) {
+      // Refresh data
+      const recordsResult = await medicalRecordOps.getAllMedicalRecords();
+      if (recordsResult.success) {
+        medicalRecords.value = recordsResult.data;
+      }
+      closeCreateModal();
+      alert("Record created successfully");
+    } else {
+      alert("Failed to create record: " + (result.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error creating medical record:", err);
+    alert(
+      "Error creating record: " + (err.message || "Unknown error occurred")
+    );
   }
 };
 
+const updateMedicalRecord = async () => {
+  if (!validateForm()) {
+    return;
+  }
+
+  try {
+    await medicalRecordOps.updateMedicalRecord(
+      selectedRecord.value.MedicalRecordID,
+      recordForm.value
+    );
+    // Refresh data
+    const data = await medicalRecordOps.getAllMedicalRecords();
+    medicalRecords.value = data;
+    closeEditModal();
+    alert("Record updated successfully");
+  } catch (err) {
+    console.error("Error updating medical record:", err);
+    alert(
+      "Error updating record: " + (err.message || "Unknown error occurred")
+    );
+  }
+};
+
+const deleteMedicalRecord = () => {
+  medicalRecords.value = medicalRecords.value.filter(
+    (record) => record.MedicalRecordID !== selectedRecord.value.MedicalRecordID
+  );
+
+  closeDeleteModal();
+  alert("Record deleted successfully (mock)");
+};
+
+// Form validation
+const validateForm = () => {
+  formErrors.value = {};
+
+  if (!recordForm.value.patientId) {
+    formErrors.value.patientId = "Patient is required";
+  }
+
+  if (!recordForm.value.diagnosisId) {
+    formErrors.value.diagnosisId = "Diagnosis is required";
+  }
+
+  if (!recordForm.value.treatmentId) {
+    formErrors.value.treatmentId = "Treatment is required";
+  }
+
+  return Object.keys(formErrors.value).length === 0;
+};
+
+// Modal management
 const resetForm = () => {
   recordForm.value = {
-    diagnosis: "",
-    treatment: "",
+    patientId: "",
+    diagnosisId: "",
+    treatmentId: "",
     notes: "",
     vitalSigns: {
       bloodPressure: "",
@@ -160,6 +256,7 @@ const resetForm = () => {
     },
     status: "Draft",
   };
+  formErrors.value = {};
 };
 
 const openViewModal = (record) => {
@@ -170,13 +267,25 @@ const openViewModal = (record) => {
 const openEditModal = (record) => {
   selectedRecord.value = record;
   recordForm.value = {
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: { ...record.vitalSigns },
-    status: record.status,
+    patientId: record.PatientID || "",
+    diagnosisId: record.DiagnosisID || "",
+    treatmentId: record.TreatmentID || "",
+    notes: record.Notes || "",
+    vitalSigns: {
+      bloodPressure: record.VitalSigns?.bloodPressure || "",
+      heartRate: record.VitalSigns?.heartRate || "",
+      temperature: record.VitalSigns?.temperature || "",
+      weight: record.VitalSigns?.weight || "",
+      height: record.VitalSigns?.height || "",
+    },
+    status: record.Status || "Draft",
   };
   showEditModal.value = true;
+};
+
+const openCreateModal = () => {
+  resetForm();
+  showCreateModal.value = true;
 };
 
 const openDeleteModal = (record) => {
@@ -188,46 +297,52 @@ const closeModals = () => {
   showViewModal.value = false;
   showEditModal.value = false;
   showDeleteModal.value = false;
+  showCreateModal.value = false;
   selectedRecord.value = null;
   resetForm();
 };
 
-const updateRecord = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const index = medicalRecords.value.findIndex(
-      (r) => r.id === selectedRecord.value.id
-    );
-    if (index !== -1) {
-      medicalRecords.value[index] = {
-        ...medicalRecords.value[index],
-        ...recordForm.value,
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    closeModals();
-    console.log("Record updated successfully");
-  } catch (error) {
-    console.error("Error updating record:", error);
-  }
+const closeViewModal = () => {
+  showViewModal.value = false;
+  selectedRecord.value = null;
 };
 
-const deleteRecord = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+const closeEditModal = () => {
+  showEditModal.value = false;
+  selectedRecord.value = null;
+  resetForm();
+};
 
-    medicalRecords.value = medicalRecords.value.filter(
-      (r) => r.id !== selectedRecord.value.id
-    );
-    closeModals();
-    console.log("Record deleted successfully");
-  } catch (error) {
-    console.error("Error deleting record:", error);
-  }
+const closeCreateModal = () => {
+  showCreateModal.value = false;
+  resetForm();
+};
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false;
+  selectedRecord.value = null;
+};
+
+// Helper functions
+const getPatientName = (record) => {
+  const patient = patients.value.find((p) => p.PatientID === record.PatientID);
+  return patient?.Users?.fullName || "Unknown Patient";
+};
+
+const getStaffName = (record) => {
+  return record.Staff?.Users?.fullName || "Unknown Staff";
+};
+
+const getDiagnosisName = (record) => {
+  return (
+    record.Diagnosis?.DiagnosisName || record.Diagnosis || "Unknown Diagnosis"
+  );
+};
+
+const getTreatmentName = (record) => {
+  return (
+    record.Treatment?.TreatmentName || record.Treatment || "Unknown Treatment"
+  );
 };
 
 const getStatusBadgeVariant = (status) => {
@@ -243,16 +358,39 @@ const formatDateTime = (dateTime) => {
   return new Date(dateTime).toLocaleString();
 };
 
+// Pagination methods
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+};
+
+// Removed real-time subscription as Supabase is no longer used
+
+// Removed loading and error states as they are no longer needed
+
+// Export functionality
 const exportRecord = (record) => {
-  // Simulate export functionality
   const exportData = {
-    patientName: record.patientName,
-    date: formatDateTime(record.createdAt),
-    diagnosis: record.diagnosis,
-    treatment: record.treatment,
-    notes: record.notes,
-    vitalSigns: record.vitalSigns,
-    staffName: record.staffName,
+    patientName: getPatientName(record),
+    date: formatDateTime(record.created_at),
+    diagnosis: getDiagnosisName(record),
+    treatment: getTreatmentName(record),
+    notes: record.Notes,
+    vitalSigns: record.VitalSigns,
+    staffName: getStaffName(record),
   };
 
   console.log("Exporting record:", exportData);
@@ -266,8 +404,45 @@ const printRecord = (record) => {
   alert("Print functionality would be implemented here");
 };
 
-onMounted(() => {
-  fetchMedicalRecords();
+// Removed watch as it's no longer necessary with mock data
+
+// Initialize component
+onMounted(async () => {
+  try {
+    // Fetch medical records
+    const recordsResult = await medicalRecordOps.getAllMedicalRecords();
+    if (recordsResult.success) {
+      medicalRecords.value = recordsResult.data;
+    }
+
+    // Fetch patients
+    const patientsResult = await patientOps.getAllPatients();
+    if (patientsResult.success) {
+      patients.value = patientsResult.data;
+    }
+
+    // Fetch diagnoses
+    const diagnosesResult = await diagnosisOps.getAllDiagnoses();
+    if (diagnosesResult.success) {
+      diagnoses.value = diagnosesResult.data;
+    }
+
+    // Fetch treatments
+    const treatmentsResult = await treatmentOps.getAllTreatments();
+    if (treatmentsResult.success) {
+      treatments.value = treatmentsResult.data;
+    }
+  } catch (err) {
+    console.error("Error initializing medical records:", err);
+    alert(
+      "Failed to load medical records data. Please refresh the page or contact support if the problem persists."
+    );
+    // Set data to empty arrays to prevent further errors and maintain component stability
+    medicalRecords.value = [];
+    patients.value = [];
+    diagnoses.value = [];
+    treatments.value = [];
+  }
 });
 </script>
 
@@ -282,25 +457,31 @@ onMounted(() => {
         </p>
       </div>
       <div class="animate-fade-in-right">
+        <button class="btn btn-primary me-2" @click="openCreateModal">
+          <i class="bi bi-plus-lg me-2"></i>
+          Add Record (Mock)
+        </button>
         <div class="btn-group">
           <button
             class="btn btn-outline-primary dropdown-toggle"
             type="button"
             data-bs-toggle="dropdown"
+            disabled
           >
             <i class="bi bi-download me-2"></i>
-            Export
+            Export (Disabled)
           </button>
           <ul class="dropdown-menu">
             <li>
-              <a class="dropdown-item" href="#" @click="exportAllRecords"
+              <a class="dropdown-item" href="#" @click.prevent
                 ><i class="bi bi-file-earmark-spreadsheet me-2"></i>Export All
-                (CSV)</a
+                (CSV) - Disabled</a
               >
             </li>
             <li>
-              <a class="dropdown-item" href="#" @click="exportAllRecords"
-                ><i class="bi bi-file-earmark-pdf me-2"></i>Export All (PDF)</a
+              <a class="dropdown-item" href="#" @click.prevent
+                ><i class="bi bi-file-earmark-pdf me-2"></i>Export All (PDF) -
+                Disabled</a
               >
             </li>
           </ul>
@@ -316,7 +497,7 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-file-medical text-primary fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ medicalRecords.length }}</h4>
+            <h4 class="mb-1">{{ stats.total }}</h4>
             <small class="text-muted">Total Records</small>
           </div>
         </div>
@@ -327,9 +508,7 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-clock text-warning fs-2"></i>
             </div>
-            <h4 class="mb-1">
-              {{ filteredRecords.filter((r) => r.status === "Draft").length }}
-            </h4>
+            <h4 class="mb-1">{{ stats.drafts }}</h4>
             <small class="text-muted">Draft Records</small>
           </div>
         </div>
@@ -340,9 +519,7 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-check-circle text-success fs-2"></i>
             </div>
-            <h4 class="mb-1">
-              {{ filteredRecords.filter((r) => r.status === "Final").length }}
-            </h4>
+            <h4 class="mb-1">{{ stats.finals }}</h4>
             <small class="text-muted">Final Records</small>
           </div>
         </div>
@@ -396,34 +573,13 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary animate-pulse" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-3 text-muted">Loading medical records...</p>
-    </div>
-
     <!-- Records Table -->
-    <div v-else class="card animate-fade-in-up animation-delay-300">
-      <div
-        class="card-header d-flex justify-content-between align-items-center"
-      >
+    <div class="card animate-fade-in-up animation-delay-300">
+      <div class="card-header">
         <h5 class="mb-0">
           <i class="bi bi-file-medical-fill me-2"></i>
           Medical Records ({{ filteredRecords.length }})
         </h5>
-        <button
-          class="btn btn-sm btn-outline-primary"
-          @click="fetchMedicalRecords"
-          :disabled="loading"
-        >
-          <i
-            class="bi bi-arrow-clockwise me-1"
-            :class="{ 'animate-spin': loading }"
-          ></i>
-          Refresh
-        </button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -440,8 +596,8 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr
-                v-for="record in filteredRecords"
-                :key="record.id"
+                v-for="record in paginatedRecords"
+                :key="record.MedicalRecordID"
                 class="animate-fade-in-up"
               >
                 <td>
@@ -450,37 +606,37 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <div class="fw-medium">{{ record.patientName }}</div>
+                      <div class="fw-medium">{{ getPatientName(record) }}</div>
                       <small class="text-muted"
-                        >ID: {{ record.patientId }}</small
+                        >ID: {{ record.PatientID }}</small
                       >
                     </div>
                   </div>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ record.diagnosis }}</div>
+                  <div class="fw-medium">{{ getDiagnosisName(record) }}</div>
                   <small
-                    v-if="record.vitalSigns.bloodPressure"
+                    v-if="record.VitalSigns?.bloodPressure"
                     class="text-muted"
                   >
-                    BP: {{ record.vitalSigns.bloodPressure }}
+                    BP: {{ record.VitalSigns.bloodPressure }}
                   </small>
                 </td>
                 <td>
-                  <div>{{ record.treatment }}</div>
-                  <small v-if="record.notes" class="text-muted"
-                    >{{ record.notes.substring(0, 50) }}...</small
+                  <div>{{ getTreatmentName(record) }}</div>
+                  <small v-if="record.Notes" class="text-muted"
+                    >{{ record.Notes.substring(0, 50) }}...</small
                   >
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getStatusBadgeVariant(record.status)}`"
+                    :class="`bg-${getStatusBadgeVariant(record.Status)}`"
                   >
-                    {{ record.status }}
+                    {{ record.Status }}
                   </span>
                 </td>
-                <td>{{ new Date(record.createdAt).toLocaleDateString() }}</td>
+                <td>{{ new Date(record.created_at).toLocaleDateString() }}</td>
                 <td class="text-center">
                   <div class="btn-group" role="group">
                     <button
@@ -493,21 +649,21 @@ onMounted(() => {
                     <button
                       class="btn btn-sm btn-outline-primary"
                       @click="openEditModal(record)"
-                      title="Edit Record"
+                      title="Edit Record (Mock)"
                     >
                       <i class="bi bi-pencil"></i>
                     </button>
                     <button
                       class="btn btn-sm btn-outline-success"
                       @click="exportRecord(record)"
-                      title="Export Record"
+                      title="Export Record (Mock)"
                     >
                       <i class="bi bi-download"></i>
                     </button>
                     <button
                       class="btn btn-sm btn-outline-danger"
                       @click="openDeleteModal(record)"
-                      title="Delete Record"
+                      title="Delete Record (Mock)"
                     >
                       <i class="bi bi-trash"></i>
                     </button>
@@ -518,13 +674,67 @@ onMounted(() => {
           </table>
         </div>
 
+        <!-- Pagination -->
+        <div v-if="filteredRecords.length > recordsPerPage" class="card-footer">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <small class="text-muted">
+                Showing {{ (currentPage - 1) * recordsPerPage + 1 }} to
+                {{
+                  Math.min(currentPage * recordsPerPage, filteredRecords.length)
+                }}
+                of {{ filteredRecords.length }} records
+              </small>
+            </div>
+            <nav aria-label="Medical records pagination">
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                  <button
+                    class="page-link"
+                    @click="prevPage"
+                    :disabled="currentPage === 1"
+                  >
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                </li>
+
+                <li
+                  v-for="page in visiblePages"
+                  :key="page"
+                  class="page-item"
+                  :class="{ active: currentPage === page }"
+                >
+                  <button class="page-link" @click="goToPage(page)">
+                    {{ page }}
+                  </button>
+                </li>
+
+                <li
+                  class="page-item"
+                  :class="{ disabled: currentPage === totalPages }"
+                >
+                  <button
+                    class="page-link"
+                    @click="nextPage"
+                    :disabled="currentPage === totalPages"
+                  >
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
         <!-- Empty State -->
         <div v-if="filteredRecords.length === 0" class="text-center py-5">
           <i class="bi bi-file-medical text-muted fs-1 mb-3"></i>
           <h5 class="text-muted">No medical records found</h5>
           <p class="text-muted mb-3">
             {{
-              search || filterStatus !== "all" || filterType !== "all"
+              search.value ||
+              filterStatus.value !== "all" ||
+              filterType.value !== "all"
                 ? "Try adjusting your search or filter criteria."
                 : "No medical records have been created yet."
             }}
@@ -548,7 +758,7 @@ onMounted(() => {
         <div class="row g-3">
           <div
             v-for="record in recentRecords"
-            :key="record.id"
+            :key="record.MedicalRecordID"
             class="col-md-12"
           >
             <div
@@ -561,24 +771,24 @@ onMounted(() => {
                       <i class="bi bi-person-circle"></i>
                     </div>
                     <div>
-                      <strong>{{ record.patientName }}</strong>
+                      <strong>{{ getPatientName(record) }}</strong>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getStatusBadgeVariant(record.status)}`"
+                        :class="`bg-${getStatusBadgeVariant(record.Status)}`"
                       >
-                        {{ record.status }}
+                        {{ record.Status }}
                       </span>
                     </div>
                   </div>
                   <p class="mb-2">
-                    <strong>Diagnosis:</strong> {{ record.diagnosis }}
+                    <strong>Diagnosis:</strong> {{ getDiagnosisName(record) }}
                   </p>
                   <p class="mb-2">
-                    <strong>Treatment:</strong> {{ record.treatment }}
+                    <strong>Treatment:</strong> {{ getTreatmentName(record) }}
                   </p>
                   <small class="text-muted">
-                    Created by {{ record.staffName }} on
-                    {{ formatDateTime(record.createdAt) }}
+                    Created by {{ getStaffName(record) }} on
+                    {{ formatDateTime(record.created_at) }}
                   </small>
                 </div>
                 <div class="text-end">
@@ -587,14 +797,14 @@ onMounted(() => {
                     @click="openViewModal(record)"
                   >
                     <i class="bi bi-eye me-1"></i>
-                    View
+                    View (Mock)
                   </button>
                   <button
                     class="btn btn-sm btn-outline-secondary"
                     @click="printRecord(record)"
                   >
                     <i class="bi bi-printer me-1"></i>
-                    Print
+                    Print (Mock)
                   </button>
                 </div>
               </div>
@@ -633,12 +843,12 @@ onMounted(() => {
                     <i class="bi bi-person-circle"></i>
                   </div>
                   <div>
-                    <h4 class="mb-1">{{ selectedRecord.patientName }}</h4>
+                    <h4 class="mb-1">{{ getPatientName(selectedRecord) }}</h4>
                     <p class="text-muted mb-1">
-                      Patient ID: {{ selectedRecord.patientId }}
+                      Patient ID: {{ selectedRecord.PatientID }}
                     </p>
                     <p class="text-muted mb-0">
-                      Record ID: {{ selectedRecord.id }}
+                      Record ID: {{ selectedRecord.MedicalRecordID }}
                     </p>
                   </div>
                 </div>
@@ -649,25 +859,25 @@ onMounted(() => {
                 <div class="info-group">
                   <div class="info-item">
                     <strong>Healthcare Provider:</strong>
-                    {{ selectedRecord.staffName }}
+                    {{ getStaffName(selectedRecord) }}
                   </div>
                   <div class="info-item">
                     <strong>Created:</strong>
-                    {{ formatDateTime(selectedRecord.createdAt) }}
+                    {{ formatDateTime(selectedRecord.created_at) }}
                   </div>
                   <div class="info-item">
                     <strong>Last Updated:</strong>
-                    {{ formatDateTime(selectedRecord.updatedAt) }}
+                    {{ formatDateTime(selectedRecord.updated_at) }}
                   </div>
                   <div class="info-item">
                     <strong>Status:</strong>
                     <span
                       class="badge ms-2"
                       :class="`bg-${getStatusBadgeVariant(
-                        selectedRecord.status
+                        selectedRecord.Status
                       )}`"
                     >
-                      {{ selectedRecord.status }}
+                      {{ selectedRecord.Status }}
                     </span>
                   </div>
                 </div>
@@ -679,26 +889,26 @@ onMounted(() => {
                   <div class="info-item">
                     <strong>Blood Pressure:</strong>
                     {{
-                      selectedRecord.vitalSigns.bloodPressure || "Not recorded"
+                      selectedRecord.VitalSigns?.bloodPressure || "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Heart Rate:</strong>
-                    {{ selectedRecord.vitalSigns.heartRate || "Not recorded" }}
+                    {{ selectedRecord.VitalSigns?.heartRate || "Not recorded" }}
                   </div>
                   <div class="info-item">
                     <strong>Temperature:</strong>
                     {{
-                      selectedRecord.vitalSigns.temperature || "Not recorded"
+                      selectedRecord.VitalSigns?.temperature || "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Weight:</strong>
-                    {{ selectedRecord.vitalSigns.weight || "Not recorded" }}
+                    {{ selectedRecord.VitalSigns?.weight || "Not recorded" }}
                   </div>
                   <div class="info-item">
                     <strong>Height:</strong>
-                    {{ selectedRecord.vitalSigns.height || "Not recorded" }}
+                    {{ selectedRecord.VitalSigns?.height || "Not recorded" }}
                   </div>
                 </div>
               </div>
@@ -707,14 +917,16 @@ onMounted(() => {
                 <label class="form-label fw-medium">Medical Information</label>
                 <div class="info-group">
                   <div class="info-item">
-                    <strong>Diagnosis:</strong> {{ selectedRecord.diagnosis }}
+                    <strong>Diagnosis:</strong>
+                    {{ getDiagnosisName(selectedRecord) }}
                   </div>
                   <div class="info-item">
-                    <strong>Treatment:</strong> {{ selectedRecord.treatment }}
+                    <strong>Treatment:</strong>
+                    {{ getTreatmentName(selectedRecord) }}
                   </div>
                   <div class="info-item">
                     <strong>Notes:</strong>
-                    {{ selectedRecord.notes || "No additional notes" }}
+                    {{ selectedRecord.Notes || "No additional notes" }}
                   </div>
                 </div>
               </div>
@@ -734,7 +946,7 @@ onMounted(() => {
               @click="openEditModal(selectedRecord)"
             >
               <i class="bi bi-pencil me-2"></i>
-              Edit Record
+              Edit Record (Mock)
             </button>
             <button
               type="button"
@@ -742,7 +954,7 @@ onMounted(() => {
               @click="exportRecord(selectedRecord)"
             >
               <i class="bi bi-download me-2"></i>
-              Export
+              Export (Mock)
             </button>
           </div>
         </div>
@@ -768,7 +980,7 @@ onMounted(() => {
               @click="closeModals"
             ></button>
           </div>
-          <form @submit.prevent="updateRecord">
+          <form @submit.prevent="updateMedicalRecord">
             <div class="modal-body">
               <div class="row g-3">
                 <div class="col-md-12">
@@ -874,6 +1086,180 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Create Record Modal -->
+    <div
+      class="modal fade"
+      :class="{ show: showCreateModal }"
+      :style="{ display: showCreateModal ? 'block' : 'none' }"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-plus-lg me-2"></i>
+              Create Medical Record
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="closeCreateModal"
+            ></button>
+          </div>
+          <form @submit.prevent="createMedicalRecord">
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-md-12">
+                  <label class="form-label">Patient *</label>
+                  <select
+                    v-model="recordForm.patientId"
+                    class="form-select"
+                    :class="{ 'is-invalid': formErrors.patientId }"
+                    required
+                  >
+                    <option value="">Select Patient</option>
+                    <option
+                      v-for="patient in patients"
+                      :key="patient.PatientID"
+                      :value="patient.PatientID"
+                    >
+                      {{ patient.Users?.fullName || "Unknown Patient" }}
+                    </option>
+                  </select>
+                  <div v-if="formErrors.patientId" class="invalid-feedback">
+                    {{ formErrors.patientId }}
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">Diagnosis *</label>
+                  <select
+                    v-model="recordForm.diagnosisId"
+                    class="form-select"
+                    :class="{ 'is-invalid': formErrors.diagnosisId }"
+                    required
+                  >
+                    <option value="">Select Diagnosis</option>
+                    <option
+                      v-for="diagnosis in diagnoses"
+                      :key="diagnosis.DiagnosisID"
+                      :value="diagnosis.DiagnosisID"
+                    >
+                      {{ diagnosis.DiagnosisName }}
+                    </option>
+                  </select>
+                  <div v-if="formErrors.diagnosisId" class="invalid-feedback">
+                    {{ formErrors.diagnosisId }}
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">Treatment *</label>
+                  <select
+                    v-model="recordForm.treatmentId"
+                    class="form-select"
+                    :class="{ 'is-invalid': formErrors.treatmentId }"
+                    required
+                  >
+                    <option value="">Select Treatment</option>
+                    <option
+                      v-for="treatment in treatments"
+                      :key="treatment.TreatmentID"
+                      :value="treatment.TreatmentID"
+                    >
+                      {{ treatment.TreatmentName }}
+                    </option>
+                  </select>
+                  <div v-if="formErrors.treatmentId" class="invalid-feedback">
+                    {{ formErrors.treatmentId }}
+                  </div>
+                </div>
+
+                <div class="col-md-12">
+                  <label class="form-label">Notes</label>
+                  <textarea
+                    v-model="recordForm.notes"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Additional notes about the medical record..."
+                  ></textarea>
+                </div>
+
+                <div class="col-md-12">
+                  <label class="form-label">Vital Signs</label>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Blood Pressure</label>
+                  <input
+                    v-model="recordForm.vitalSigns.bloodPressure"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 120/80"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Heart Rate (bpm)</label>
+                  <input
+                    v-model="recordForm.vitalSigns.heartRate"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 72"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Temperature (°C)</label>
+                  <input
+                    v-model="recordForm.vitalSigns.temperature"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 36.8"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Weight (kg)</label>
+                  <input
+                    v-model="recordForm.vitalSigns.weight"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 70"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Height (cm)</label>
+                  <input
+                    v-model="recordForm.vitalSigns.height"
+                    type="text"
+                    class="form-control"
+                    placeholder="e.g., 175"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Status</label>
+                  <select v-model="recordForm.status" class="form-select">
+                    <option value="Draft">Draft</option>
+                    <option value="Final">Final</option>
+                    <option value="Amended">Amended</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="closeCreateModal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-2"></i>
+                Create Record (Mock)
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div
       class="modal fade"
@@ -915,9 +1301,13 @@ onMounted(() => {
             >
               Cancel
             </button>
-            <button type="submit" class="btn btn-danger" @click="deleteRecord">
+            <button
+              type="button"
+              class="btn btn-danger"
+              @click="deleteMedicalRecord"
+            >
               <i class="bi bi-trash me-2"></i>
-              Delete Record
+              Delete Record (Mock)
             </button>
           </div>
         </div>
@@ -926,7 +1316,9 @@ onMounted(() => {
 
     <!-- Modal Backdrop -->
     <div
-      v-if="showViewModal || showEditModal || showDeleteModal"
+      v-if="
+        showViewModal || showEditModal || showDeleteModal || showCreateModal
+      "
       class="modal-backdrop fade show"
       @click="closeModals"
     ></div>

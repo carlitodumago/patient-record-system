@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useNotify } from "@/composables/useNotify.js";
+import { useSupabase } from "../../composables/useSupabase.js";
+import { useAuthStore } from "../../stores/auth.js";
 
-// Store
-const store = useStore();
+// Composables
+const { showSuccess, showError } = useNotify();
+const { appointments: appointmentOps, patients: patientOps } = useSupabase();
 
 // Reactive data
 const loading = ref(false);
@@ -13,6 +16,7 @@ const showRescheduleModal = ref(false);
 const showCancelModal = ref(false);
 const selectedAppointment = ref(null);
 const filterStatus = ref("all");
+const error = ref(null);
 
 const appointmentsList = ref([]);
 
@@ -26,16 +30,17 @@ const appointmentForm = ref({
 });
 
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredAppointments = computed(() => {
   return appointmentsList.value.filter((appointment) => {
     const matchesSearch =
-      appointment.reason.toLowerCase().includes(search.value.toLowerCase()) ||
-      appointment.type.toLowerCase().includes(search.value.toLowerCase());
+      appointment.Reason?.toLowerCase().includes(search.value.toLowerCase()) ||
+      false ||
+      appointment.Type?.toLowerCase().includes(search.value.toLowerCase()) ||
+      false;
 
     const matchesStatus =
       filterStatus.value === "all" ||
-      appointment.status.toLowerCase() === filterStatus.value;
+      appointment.Status?.toLowerCase() === filterStatus.value;
 
     return matchesSearch && matchesStatus;
   });
@@ -45,7 +50,7 @@ const upcomingAppointments = computed(() => {
   const now = new Date();
   return appointmentsList.value.filter(
     (appointment) =>
-      new Date(appointment.dateTime) > now && appointment.status !== "Cancelled"
+      new Date(appointment.DateTime) > now && appointment.Status !== "Cancelled"
   );
 });
 
@@ -53,20 +58,23 @@ const pastAppointments = computed(() => {
   const now = new Date();
   return appointmentsList.value.filter(
     (appointment) =>
-      new Date(appointment.dateTime) <= now ||
-      appointment.status === "Completed"
+      new Date(appointment.DateTime) <= now ||
+      appointment.Status === "Completed"
   );
 });
 
 // Methods
 const fetchAppointments = async () => {
   loading.value = true;
+  error.value = null;
+
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching appointments:", error);
+    const data = await appointmentOps.getMyAppointments();
+    appointmentsList.value = data || [];
+  } catch (err) {
+    error.value = err.message || "Failed to fetch appointments";
+    showError(error.value);
+    console.error("Error fetching appointments:", err);
   } finally {
     loading.value = false;
   }
@@ -91,11 +99,11 @@ const openBookModal = () => {
 const openRescheduleModal = (appointment) => {
   selectedAppointment.value = appointment;
   appointmentForm.value = {
-    dateTime: appointment.dateTime,
-    type: appointment.type,
-    reason: appointment.reason,
-    symptoms: appointment.symptoms,
-    notes: appointment.notes,
+    dateTime: appointment.DateTime,
+    type: appointment.Type,
+    reason: appointment.Reason,
+    symptoms: appointment.Symptoms,
+    notes: appointment.Notes,
   };
   showRescheduleModal.value = true;
 };
@@ -114,69 +122,105 @@ const closeModals = () => {
 };
 
 const bookAppointment = async () => {
-  try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  loading.value = true;
+  error.value = null;
 
-    const newAppointment = {
-      id: Math.max(...appointmentsList.value.map((a) => a.id)) + 1,
-      patientId: 1, // Current patient ID
-      patientName:
-        user.value?.fullName || user.value?.username || "Current Patient",
-      ...appointmentForm.value,
-      status: "Pending",
-      bookedAt: new Date().toISOString(),
-      confirmedAt: null,
+  try {
+    // Get current user's patient record first
+    const patientData = await patientOps.getMyPatients();
+    if (!patientData || patientData.length === 0) {
+      throw new Error("Patient record not found. Please contact support.");
+    }
+
+    const appointmentData = {
+      PatientID: patientData[0].PatientID,
+      DateTime: appointmentForm.value.dateTime,
+      Type: appointmentForm.value.type,
+      Reason: appointmentForm.value.reason,
+      Symptoms: appointmentForm.value.symptoms,
+      Notes: appointmentForm.value.notes,
+      Status: "Pending",
     };
 
-    appointmentsList.value.push(newAppointment);
+    await appointmentOps.createAppointment(appointmentData);
+    await fetchAppointments();
     closeModals();
 
-    console.log("Appointment booked successfully");
-  } catch (error) {
-    console.error("Error booking appointment:", error);
+    showSuccess("Appointment booked successfully!");
+  } catch (err) {
+    error.value = err.message || "Failed to book appointment";
+    showError(error.value);
+    console.error("Error booking appointment:", err);
+  } finally {
+    loading.value = false;
   }
 };
 
 const rescheduleAppointment = async () => {
+  if (!selectedAppointment.value) {
+    showError("No appointment selected");
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const updateData = {
+      DateTime: appointmentForm.value.dateTime,
+      Type: appointmentForm.value.type,
+      Reason: appointmentForm.value.reason,
+      Symptoms: appointmentForm.value.symptoms,
+      Notes: appointmentForm.value.notes,
+      Status: "Pending", // Reset to pending when rescheduled
+    };
 
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
+    // Mock updating appointment
+    console.log(
+      "Rescheduling appointment:",
+      selectedAppointment.value.AppointmentID,
+      updateData
     );
-    if (index !== -1) {
-      appointmentsList.value[index] = {
-        ...appointmentsList.value[index],
-        ...appointmentForm.value,
-        status: "Pending", // Reset to pending when rescheduled
-      };
-    }
 
+    await fetchAppointments();
     closeModals();
-    console.log("Appointment rescheduled successfully");
-  } catch (error) {
-    console.error("Error rescheduling appointment:", error);
+
+    showSuccess("Appointment rescheduled successfully!");
+  } catch (err) {
+    error.value = err.message || "Failed to reschedule appointment";
+    showError(error.value);
+    console.error("Error rescheduling appointment:", err);
+  } finally {
+    loading.value = false;
   }
 };
 
 const cancelAppointment = async () => {
+  if (!selectedAppointment.value) {
+    showError("No appointment selected");
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
+    // Mock cancelling appointment
+    console.log(
+      "Cancelling appointment:",
+      selectedAppointment.value.AppointmentID
     );
-    if (index !== -1) {
-      appointmentsList.value[index].status = "Cancelled";
-    }
 
+    await fetchAppointments();
     closeModals();
-    console.log("Appointment cancelled successfully");
-  } catch (error) {
-    console.error("Error cancelling appointment:", error);
+
+    showSuccess("Appointment cancelled successfully!");
+  } catch (err) {
+    error.value = err.message || "Failed to cancel appointment";
+    showError(error.value);
+    console.error("Error cancelling appointment:", err);
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -215,17 +259,23 @@ const isToday = (dateTime) => {
 };
 
 const canModify = (appointment) => {
-  return appointment.status === "Confirmed" || appointment.status === "Pending";
+  return appointment.Status === "Confirmed" || appointment.Status === "Pending";
 };
 
 const canCancel = (appointment) => {
   return (
-    appointment.status !== "Completed" && appointment.status !== "Cancelled"
+    appointment.Status !== "Completed" && appointment.Status !== "Cancelled"
   );
 };
 
-onMounted(() => {
-  fetchAppointments();
+// Initialization
+onMounted(async () => {
+  await fetchAppointments();
+});
+
+// Cleanup on unmount
+onUnmounted(() => {
+  // Any cleanup if needed
 });
 </script>
 
@@ -255,7 +305,7 @@ onMounted(() => {
             <div class="stats-icon mb-2">
               <i class="bi bi-calendar text-primary fs-2"></i>
             </div>
-            <h4 class="mb-1">{{ appointmentsList.length }}</h4>
+            <h4 class="mb-1">{{ appointmentsList.length || 0 }}</h4>
             <small class="text-muted">Total Appointments</small>
           </div>
         </div>
@@ -279,7 +329,7 @@ onMounted(() => {
             </div>
             <h4 class="mb-1">
               {{
-                pastAppointments.filter((a) => a.status === "Completed").length
+                pastAppointments.filter((a) => a.Status === "Completed").length
               }}
             </h4>
             <small class="text-muted">Completed</small>
@@ -294,7 +344,7 @@ onMounted(() => {
             </div>
             <h4 class="mb-1">
               {{
-                pastAppointments.filter((a) => a.status === "Pending").length
+                pastAppointments.filter((a) => a.Status === "Pending").length
               }}
             </h4>
             <small class="text-muted">Pending</small>
@@ -331,8 +381,19 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error State -->
+    <div
+      v-if="error"
+      class="alert alert-danger alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ error }}
+      <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
+    <div v-if="loading && !error" class="text-center py-5">
       <div class="spinner-border text-primary animate-pulse" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -379,14 +440,16 @@ onMounted(() => {
                 class="animate-fade-in-up"
               >
                 <td>
-                  <div>{{ formatDateTime(appointment.dateTime) }}</div>
+                  <div>
+                    {{ formatDateTime(appointment.DateTime) }}
+                  </div>
                   <small
-                    v-if="isToday(appointment.dateTime)"
+                    v-if="isToday(appointment.DateTime)"
                     class="badge bg-primary"
                     >Today</small
                   >
                   <small
-                    v-else-if="isUpcoming(appointment.dateTime)"
+                    v-else-if="isUpcoming(appointment.DateTime)"
                     class="badge bg-info"
                     >Upcoming</small
                   >
@@ -395,23 +458,23 @@ onMounted(() => {
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getTypeBadgeVariant(appointment.type)}`"
+                    :class="`bg-${getTypeBadgeVariant(appointment.Type)}`"
                   >
-                    {{ appointment.type }}
+                    {{ appointment.Type }}
                   </span>
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getStatusBadgeVariant(appointment.status)}`"
+                    :class="`bg-${getStatusBadgeVariant(appointment.Status)}`"
                   >
-                    {{ appointment.status }}
+                    {{ appointment.Status }}
                   </span>
                 </td>
                 <td>
-                  <div>{{ appointment.reason }}</div>
-                  <small v-if="appointment.symptoms" class="text-muted">{{
-                    appointment.symptoms
+                  <div>{{ appointment.Reason }}</div>
+                  <small v-if="appointment.Symptoms" class="text-muted">{{
+                    appointment.Symptoms
                   }}</small>
                 </td>
                 <td class="text-center">
@@ -492,18 +555,22 @@ onMounted(() => {
                       <i class="bi bi-calendar-check text-primary"></i>
                     </div>
                     <div>
-                      <strong>{{ appointment.type }}</strong>
+                      <strong>{{ appointment.Type }}</strong>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getTypeBadgeVariant(appointment.type)}`"
+                        :class="`bg-${getTypeBadgeVariant(appointment.Type)}`"
                       >
-                        {{ appointment.type }}
+                        {{ appointment.Type }}
                       </span>
                     </div>
                   </div>
-                  <h6 class="mb-2">{{ appointment.reason }}</h6>
-                  <p class="mb-1">{{ formatDateTime(appointment.dateTime) }}</p>
-                  <small class="text-muted">{{ appointment.location }}</small>
+                  <h6 class="mb-2">{{ appointment.Reason }}</h6>
+                  <p class="mb-1">
+                    {{ formatDateTime(appointment.DateTime) }}
+                  </p>
+                  <small class="text-muted">{{
+                    appointment.Notes || "No additional notes"
+                  }}</small>
                 </div>
                 <div class="text-end">
                   <button
@@ -610,9 +677,12 @@ onMounted(() => {
               >
                 Cancel
               </button>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-calendar-plus me-2"></i>
-                Book Appointment
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                <i
+                  class="bi bi-calendar-plus me-2"
+                  :class="{ 'animate-spin': loading }"
+                ></i>
+                {{ loading ? "Booking..." : "Book Appointment" }}
               </button>
             </div>
           </form>
@@ -646,8 +716,8 @@ onMounted(() => {
                 class="current-appointment mb-4 p-3 bg-light rounded"
               >
                 <h6 class="mb-2">Current Appointment:</h6>
-                <strong>{{ selectedAppointment.type }}</strong> -
-                {{ formatDateTime(selectedAppointment.dateTime) }}
+                <strong>{{ selectedAppointment.Type }}</strong> -
+                {{ formatDateTime(selectedAppointment.DateTime) }}
               </div>
 
               <div class="row g-3">
@@ -679,9 +749,12 @@ onMounted(() => {
               >
                 Cancel
               </button>
-              <button type="submit" class="btn btn-warning">
-                <i class="bi bi-arrow-repeat me-2"></i>
-                Reschedule Appointment
+              <button type="submit" class="btn btn-warning" :disabled="loading">
+                <i
+                  class="bi bi-arrow-repeat me-2"
+                  :class="{ 'animate-spin': loading }"
+                ></i>
+                {{ loading ? "Rescheduling..." : "Reschedule Appointment" }}
               </button>
             </div>
           </form>
@@ -711,11 +784,11 @@ onMounted(() => {
           <div class="modal-body">
             <p>Are you sure you want to cancel this appointment?</p>
             <div v-if="selectedAppointment" class="alert alert-warning">
-              <strong>{{ selectedAppointment.type }}</strong
+              <strong>{{ selectedAppointment.Type }}</strong
               ><br />
-              <small>{{ formatDateTime(selectedAppointment.dateTime) }}</small
+              <small>{{ formatDateTime(selectedAppointment.DateTime) }}</small
               ><br />
-              <small>{{ selectedAppointment.reason }}</small>
+              <small>{{ selectedAppointment.Reason }}</small>
             </div>
             <p class="text-muted mb-0">
               This action cannot be undone. You'll need to book a new
@@ -734,9 +807,13 @@ onMounted(() => {
               type="submit"
               class="btn btn-danger"
               @click="cancelAppointment"
+              :disabled="loading"
             >
-              <i class="bi bi-x-circle me-2"></i>
-              Cancel Appointment
+              <i
+                class="bi bi-x-circle me-2"
+                :class="{ 'animate-spin': loading }"
+              ></i>
+              {{ loading ? "Cancelling..." : "Cancel Appointment" }}
             </button>
           </div>
         </div>

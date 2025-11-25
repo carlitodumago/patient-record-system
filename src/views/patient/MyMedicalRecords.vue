@@ -1,110 +1,39 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { ref, computed, onMounted, watch } from "vue";
+import { useSupabase } from "../../composables/useSupabase.js";
+import { useAuthStore } from "../../stores/auth.js";
 
-// Store
-const store = useStore();
+// Initialize composables
+const { medicalRecords: medicalRecordOps, patients: patientOps } =
+  useSupabase();
+const { user, isAuthenticated } = useAuthStore();
 
 // Reactive data
 const loading = ref(false);
+const error = ref(null);
 const search = ref("");
 const showViewModal = ref(false);
 const selectedRecord = ref(null);
 const filterType = ref("all");
 const filterDateRange = ref("all");
-
-const medicalRecords = ref([
-  {
-    id: 1,
-    patientId: 1,
-    patientName: "John Doe",
-    appointmentId: 1,
-    date: "2024-10-10",
-    type: "Consultation",
-    diagnosis: "Hypertension",
-    treatment: "Lisinopril 10mg daily, lifestyle modifications",
-    vitalSigns: {
-      bloodPressure: "140/90",
-      heartRate: "72 bpm",
-      temperature: "36.8°C",
-      weight: "70 kg",
-      height: "175 cm",
-    },
-    notes:
-      "Patient advised to monitor blood pressure regularly and maintain low-sodium diet. Follow-up in 2 weeks.",
-    assessment:
-      "Blood pressure slightly elevated but stable. No acute concerns.",
-    plan: "Continue current antihypertensive medication. Follow-up in 2 weeks for repeat BP check.",
-    status: "Final",
-    createdAt: "2024-10-10T10:30:00",
-    updatedAt: "2024-10-10T10:30:00",
-  },
-  {
-    id: 2,
-    patientId: 1,
-    patientName: "John Doe",
-    appointmentId: 2,
-    date: "2024-10-14",
-    type: "Follow-up",
-    diagnosis: "Diabetes Type 2",
-    treatment: "Metformin 500mg twice daily, blood sugar monitoring",
-    vitalSigns: {
-      bloodPressure: "120/80",
-      heartRate: "68 bpm",
-      temperature: "36.5°C",
-      weight: "69 kg",
-      height: "175 cm",
-    },
-    notes:
-      "Blood sugar levels are well controlled. Continue current medication and diet plan. Next follow-up in 3 months.",
-    assessment: "Diabetes well-controlled with current management plan.",
-    plan: "Continue current metformin dosage. Increase physical activity as tolerated.",
-    status: "Final",
-    createdAt: "2024-10-14T14:00:00",
-    updatedAt: "2024-10-14T14:00:00",
-  },
-  {
-    id: 3,
-    patientId: 1,
-    patientName: "John Doe",
-    appointmentId: 3,
-    date: "2024-09-28",
-    type: "Vaccination",
-    diagnosis: "COVID-19 Vaccination",
-    treatment: "Pfizer COVID-19 booster vaccination administered",
-    vitalSigns: {
-      bloodPressure: "130/85",
-      heartRate: "75 bpm",
-      temperature: "36.6°C",
-      weight: "71 kg",
-      height: "175 cm",
-    },
-    notes:
-      "Patient received Pfizer COVID-19 booster shot. No immediate adverse reactions observed. Advised to monitor for side effects.",
-    assessment: "Vaccination administered successfully without complications.",
-    plan: "Monitor for post-vaccination symptoms. Next booster as per guidelines.",
-    status: "Final",
-    createdAt: "2024-09-28T09:00:00",
-    updatedAt: "2024-09-28T09:00:00",
-  },
-]);
+const medicalRecords = ref([]);
+const patientProfile = ref(null);
 
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredRecords = computed(() => {
   return medicalRecords.value.filter((record) => {
     const matchesSearch =
-      record.diagnosis.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.treatment.toLowerCase().includes(search.value.toLowerCase()) ||
-      record.type.toLowerCase().includes(search.value.toLowerCase());
+      record.diagnosis?.toLowerCase().includes(search.value.toLowerCase()) ||
+      record.treatment?.toLowerCase().includes(search.value.toLowerCase()) ||
+      record.type?.toLowerCase().includes(search.value.toLowerCase());
 
     const matchesType =
       filterType.value === "all" ||
-      record.type.toLowerCase() === filterType.value;
+      record.type?.toLowerCase() === filterType.value;
 
     let matchesDate = true;
     if (filterDateRange.value !== "all") {
-      const recordDate = new Date(record.date);
+      const recordDate = new Date(record.createdAt);
       const now = new Date();
       const daysDiff = Math.floor((now - recordDate) / (1000 * 60 * 60 * 24));
 
@@ -127,21 +56,78 @@ const filteredRecords = computed(() => {
 
 const recentRecords = computed(() => {
   return medicalRecords.value
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 3);
 });
 
 // Methods
 const fetchMedicalRecords = async () => {
+  if (!isAuthenticated.value || !user.value) {
+    error.value = "Please log in to view your medical records.";
+    return;
+  }
+
   loading.value = true;
+  error.value = null;
+
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching medical records:", error);
+    console.log("Fetching medical records for patient:", user.value.id);
+
+    const result = await medicalRecordOps.fetchByPatientId(user.value.id);
+
+    if (result.success) {
+      medicalRecords.value = result.data.map((record) => ({
+        id: record.MedicalRecordID,
+        patientId: record.PatientID,
+        patientName: user.value.fullName || "Patient",
+        appointmentId: record.AppointmentID,
+        date: record.RecordDate || record.created_at,
+        type: record.RecordType || "Consultation",
+        diagnosis:
+          record.Diagnosis?.DiagnosisName ||
+          record.DiagnosisName ||
+          "Not specified",
+        treatment:
+          record.Treatment?.TreatmentName ||
+          record.TreatmentName ||
+          "Not specified",
+        vitalSigns: record.VitalSigns || {},
+        notes: record.Notes || "",
+        assessment: record.Assessment || "",
+        plan: record.Plan || "",
+        status: record.Status || "Final",
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+      }));
+
+      console.log(
+        `Successfully loaded ${medicalRecords.value.length} medical records`
+      );
+    } else {
+      throw new Error(result.error || "Failed to fetch medical records");
+    }
+  } catch (err) {
+    console.error("Error fetching medical records:", err);
+    error.value =
+      err.message || "Failed to load medical records. Please try again.";
+
+    // Set empty array on error to prevent UI issues
+    medicalRecords.value = [];
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchPatientProfile = async () => {
+  if (!isAuthenticated.value || !user.value) return;
+
+  try {
+    const result = await patientOps.getPatientById(user.value.id);
+    if (result) {
+      patientProfile.value = result;
+    }
+  } catch (err) {
+    console.error("Error fetching patient profile:", err);
   }
 };
 
@@ -215,9 +201,9 @@ const formatDate = (date) => {
 
 onMounted(() => {
   fetchMedicalRecords();
+  fetchPatientProfile();
 });
 </script>
-
 <template>
   <div class="my-medical-records">
     <!-- Header -->
@@ -255,8 +241,30 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error State -->
+    <div v-if="error" class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ error }}
+      <button
+        class="btn btn-sm btn-outline-danger ms-2"
+        @click="fetchMedicalRecords"
+        :disabled="loading"
+      >
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        Retry
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-else-if="loading" class="text-center py-5">
+      <div class="spinner-border text-primary animate-pulse" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3 text-muted">Loading medical records...</p>
+    </div>
+
     <!-- Quick Stats -->
-    <div class="row g-4 mb-4">
+    <div v-else class="row g-4 mb-4">
       <div class="col-md-3">
         <div class="card stats-card animate-fade-in-up">
           <div class="card-body text-center">
@@ -287,7 +295,9 @@ onMounted(() => {
             </div>
             <h4 class="mb-1">
               {{
-                filteredRecords.filter((r) => r.type === "Consultation").length
+                filteredRecords.filter(
+                  (r) => r.type?.toLowerCase() === "consultation"
+                ).length
               }}
             </h4>
             <small class="text-muted">Consultations</small>
@@ -302,7 +312,9 @@ onMounted(() => {
             </div>
             <h4 class="mb-1">
               {{
-                filteredRecords.filter((r) => r.type === "Vaccination").length
+                filteredRecords.filter(
+                  (r) => r.type?.toLowerCase() === "vaccination"
+                ).length
               }}
             </h4>
             <small class="text-muted">Vaccinations</small>
@@ -347,16 +359,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary animate-pulse" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-3 text-muted">Loading medical records...</p>
-    </div>
-
     <!-- Records Table -->
-    <div v-else class="card animate-fade-in-up animation-delay-300">
+    <div class="card animate-fade-in-up animation-delay-300">
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
@@ -395,28 +399,36 @@ onMounted(() => {
                 class="animate-fade-in-up"
               >
                 <td>
-                  <div class="fw-medium">{{ formatDate(record.date) }}</div>
-                  <small class="text-muted">{{ record.type }}</small>
+                  <div class="fw-medium">
+                    {{ formatDate(record.date || record.createdAt) }}
+                  </div>
+                  <small class="text-muted">{{
+                    record.type || "Consultation"
+                  }}</small>
                 </td>
                 <td>
                   <span
                     class="badge"
-                    :class="`bg-${getTypeBadgeVariant(record.type)}`"
+                    :class="`bg-${getTypeBadgeVariant(
+                      record.type || 'Consultation'
+                    )}`"
                   >
-                    {{ record.type }}
+                    {{ record.type || "Consultation" }}
                   </span>
                 </td>
                 <td>
-                  <div class="fw-medium">{{ record.diagnosis }}</div>
+                  <div class="fw-medium">
+                    {{ record.diagnosis || "Not specified" }}
+                  </div>
                   <small
-                    v-if="record.vitalSigns.bloodPressure"
+                    v-if="record.vitalSigns && record.vitalSigns.bloodPressure"
                     class="text-muted"
                   >
                     BP: {{ record.vitalSigns.bloodPressure }}
                   </small>
                 </td>
                 <td>
-                  <div>{{ record.treatment }}</div>
+                  <div>{{ record.treatment || "Not specified" }}</div>
                   <small v-if="record.notes" class="text-muted"
                     >{{ record.notes.substring(0, 50) }}...</small
                   >
@@ -498,25 +510,32 @@ onMounted(() => {
                       <i class="bi bi-file-medical text-primary"></i>
                     </div>
                     <div>
-                      <strong>{{ record.type }}</strong>
+                      <strong>{{ record.type || "Consultation" }}</strong>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getTypeBadgeVariant(record.type)}`"
+                        :class="`bg-${getTypeBadgeVariant(
+                          record.type || 'Consultation'
+                        )}`"
                       >
-                        {{ record.type }}
+                        {{ record.type || "Consultation" }}
                       </span>
                       <span
                         class="badge ms-2"
-                        :class="`bg-${getStatusBadgeVariant(record.status)}`"
+                        :class="`bg-${getStatusBadgeVariant(
+                          record.status || 'Final'
+                        )}`"
                       >
-                        {{ record.status }}
+                        {{ record.status || "Final" }}
                       </span>
                     </div>
                   </div>
-                  <h6 class="mb-2">{{ record.diagnosis }}</h6>
-                  <p class="mb-2">{{ record.treatment }}</p>
+                  <h6 class="mb-2">
+                    {{ record.diagnosis || "Not specified" }}
+                  </h6>
+                  <p class="mb-2">{{ record.treatment || "Not specified" }}</p>
                   <small class="text-muted">
-                    {{ formatDate(record.date) }} • {{ record.notes }}
+                    {{ formatDate(record.date || record.createdAt) }} •
+                    {{ record.notes || "No additional notes" }}
                   </small>
                 </div>
                 <div class="text-end">
@@ -663,8 +682,13 @@ onMounted(() => {
                   </div>
                   <div>
                     <h4 class="mb-1">
-                      {{ formatDate(selectedRecord.date) }} -
-                      {{ selectedRecord.type }}
+                      {{
+                        formatDate(
+                          selectedRecord.date || selectedRecord.createdAt
+                        )
+                      }}
+                      -
+                      {{ selectedRecord.type || "Consultation" }}
                     </h4>
                     <p class="text-muted mb-0">
                       Record ID: {{ selectedRecord.id }}
@@ -680,23 +704,30 @@ onMounted(() => {
                     <strong>Visit Type:</strong>
                     <span
                       class="badge ms-2"
-                      :class="`bg-${getTypeBadgeVariant(selectedRecord.type)}`"
+                      :class="`bg-${getTypeBadgeVariant(
+                        selectedRecord.type || 'Consultation'
+                      )}`"
                     >
-                      {{ selectedRecord.type }}
+                      {{ selectedRecord.type || "Consultation" }}
                     </span>
                   </div>
                   <div class="info-item">
-                    <strong>Date:</strong> {{ formatDate(selectedRecord.date) }}
+                    <strong>Date:</strong>
+                    {{
+                      formatDate(
+                        selectedRecord.date || selectedRecord.createdAt
+                      )
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Status:</strong>
                     <span
                       class="badge ms-2"
                       :class="`bg-${getStatusBadgeVariant(
-                        selectedRecord.status
+                        selectedRecord.status || 'Final'
                       )}`"
                     >
-                      {{ selectedRecord.status }}
+                      {{ selectedRecord.status || "Final" }}
                     </span>
                   </div>
                 </div>
@@ -708,26 +739,42 @@ onMounted(() => {
                   <div class="info-item">
                     <strong>Blood Pressure:</strong>
                     {{
-                      selectedRecord.vitalSigns.bloodPressure || "Not recorded"
+                      (selectedRecord.vitalSigns &&
+                        selectedRecord.vitalSigns.bloodPressure) ||
+                      "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Heart Rate:</strong>
-                    {{ selectedRecord.vitalSigns.heartRate || "Not recorded" }}
+                    {{
+                      (selectedRecord.vitalSigns &&
+                        selectedRecord.vitalSigns.heartRate) ||
+                      "Not recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Temperature:</strong>
                     {{
-                      selectedRecord.vitalSigns.temperature || "Not recorded"
+                      (selectedRecord.vitalSigns &&
+                        selectedRecord.vitalSigns.temperature) ||
+                      "Not recorded"
                     }}
                   </div>
                   <div class="info-item">
                     <strong>Weight:</strong>
-                    {{ selectedRecord.vitalSigns.weight || "Not recorded" }}
+                    {{
+                      (selectedRecord.vitalSigns &&
+                        selectedRecord.vitalSigns.weight) ||
+                      "Not recorded"
+                    }}
                   </div>
                   <div class="info-item">
                     <strong>Height:</strong>
-                    {{ selectedRecord.vitalSigns.height || "Not recorded" }}
+                    {{
+                      (selectedRecord.vitalSigns &&
+                        selectedRecord.vitalSigns.height) ||
+                      "Not recorded"
+                    }}
                   </div>
                 </div>
               </div>
@@ -736,10 +783,12 @@ onMounted(() => {
                 <label class="form-label fw-medium">Medical Information</label>
                 <div class="info-group">
                   <div class="info-item">
-                    <strong>Diagnosis:</strong> {{ selectedRecord.diagnosis }}
+                    <strong>Diagnosis:</strong>
+                    {{ selectedRecord.diagnosis || "Not specified" }}
                   </div>
                   <div class="info-item">
-                    <strong>Treatment:</strong> {{ selectedRecord.treatment }}
+                    <strong>Treatment:</strong>
+                    {{ selectedRecord.treatment || "Not specified" }}
                   </div>
                   <div class="info-item">
                     <strong>Assessment:</strong>
@@ -799,7 +848,6 @@ onMounted(() => {
     ></div>
   </div>
 </template>
-
 <style scoped>
 .search-box {
   position: relative;

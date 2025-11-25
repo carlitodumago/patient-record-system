@@ -3,7 +3,7 @@
  * Handles real-time notifications, CRUD operations, and user preferences
  */
 
-import { supabase } from "../main.js";
+import { supabase } from "./supabaseService.js";
 import { notificationUtils } from "../utils/notificationUtils.js";
 
 /**
@@ -28,7 +28,6 @@ export class NotificationService {
       }
 
       this.isInitialized = true;
-      console.log("Notification service initialized");
     } catch (error) {
       console.error("Failed to initialize notification service:", error);
     }
@@ -131,8 +130,7 @@ export class NotificationService {
         );
         break;
       default:
-        // Default action - could open notification center
-        console.log("Notification clicked:", notification);
+      // Default action - could open notification center
     }
   }
 
@@ -325,7 +323,7 @@ export class NotificationService {
    * @returns {Promise} Created notification
    */
   async sendAppointmentReminder(appointmentId, patientId, appointmentData) {
-    const appointmentDate = new Date(appointmentData.AppointmentDateTime);
+    const appointmentDate = new Date(appointmentData.DateTime);
     const formattedDate = appointmentDate.toLocaleDateString();
     const formattedTime = appointmentDate.toLocaleTimeString([], {
       hour: "2-digit",

@@ -1,12 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import useSupabase from "@/composables/useSupabase";
 
-// Store
-const store = useStore();
+// Initialize Supabase composable
+const {
+  appointments: appointmentOps,
+  patients: patientOps,
+  staff: staffOps,
+  loading: supabaseLoading,
+  error: supabaseError,
+  requireRole,
+} = useSupabase();
 
 // Reactive data
-const loading = ref(false);
 const activeTab = ref("list");
 const search = ref("");
 const showScheduleModal = ref(false);
@@ -14,51 +20,16 @@ const showEditModal = ref(false);
 const showCancelModal = ref(false);
 const selectedAppointment = ref(null);
 const viewMode = ref("list"); // 'list' or 'calendar'
+const appointmentsList = ref([]);
+const staffList = ref([]);
+const patientsList = ref([]);
+const errorMessage = ref("");
+const loading = ref(false);
 
-const appointmentsList = ref([
-  {
-    id: 1,
-    patientId: 1,
-    patientName: "John Doe",
-    scheduledBy: 1,
-    staffName: "Dr. Sarah Johnson",
-    dateTime: "2024-10-15T10:30:00",
-    status: "Confirmed",
-    reason: "Regular Check-up",
-    notes: "Patient complains of mild headache",
-    type: "Consultation",
-    duration: 30,
-    createdAt: "2024-10-10T09:00:00",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patientName: "Maria Santos",
-    scheduledBy: 2,
-    staffName: "Dr. Sarah Johnson",
-    dateTime: "2024-10-15T14:00:00",
-    status: "Pending",
-    reason: "Follow-up",
-    notes: "Blood pressure monitoring",
-    type: "Follow-up",
-    duration: 20,
-    createdAt: "2024-10-12T11:30:00",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patientName: "Pedro Cruz",
-    scheduledBy: 3,
-    staffName: "Maria Santos, RN",
-    dateTime: "2024-10-16T09:00:00",
-    status: "Confirmed",
-    reason: "Vaccination",
-    notes: "COVID-19 booster shot",
-    type: "Vaccination",
-    duration: 15,
-    createdAt: "2024-10-13T16:00:00",
-  },
-]);
+// Calendar-specific reactive data
+const currentDate = ref(new Date());
+const selectedDate = ref(null);
+const showAppointmentDetailsModal = ref(false);
 
 // Form data
 const appointmentForm = ref({
@@ -73,10 +44,13 @@ const appointmentForm = ref({
   duration: 30,
 });
 
-// Computed properties
-const user = computed(() => store.state.user);
+// Use Supabase data
+const transformedAppointments = computed(() => {
+  return appointmentsList.value;
+});
+
 const filteredAppointments = computed(() => {
-  return appointmentsList.value.filter(
+  return transformedAppointments.value.filter(
     (appointment) =>
       appointment.patientName
         .toLowerCase()
@@ -84,21 +58,25 @@ const filteredAppointments = computed(() => {
       appointment.staffName
         .toLowerCase()
         .includes(search.value.toLowerCase()) ||
-      appointment.reason.toLowerCase().includes(search.value.toLowerCase()) ||
-      appointment.status.toLowerCase().includes(search.value.toLowerCase())
+      (appointment.reason || "")
+        .toLowerCase()
+        .includes(search.value.toLowerCase()) ||
+      (appointment.status || "")
+        .toLowerCase()
+        .includes(search.value.toLowerCase())
   );
 });
 
 const todayAppointments = computed(() => {
   const today = new Date().toDateString();
-  return appointmentsList.value.filter(
+  return transformedAppointments.value.filter(
     (appointment) => new Date(appointment.dateTime).toDateString() === today
   );
 });
 
 const upcomingAppointments = computed(() => {
   const now = new Date();
-  return appointmentsList.value
+  return transformedAppointments.value
     .filter(
       (appointment) =>
         new Date(appointment.dateTime) > now &&
@@ -107,20 +85,97 @@ const upcomingAppointments = computed(() => {
     .slice(0, 5);
 });
 
+// Calendar-specific computed properties
+const currentMonth = computed(() => currentDate.value.getMonth());
+const currentYear = computed(() => currentDate.value.getFullYear());
+
+const calendarDays = computed(() => {
+  const year = currentYear.value;
+  const month = currentMonth.value;
+
+  // First day of the month
+  const firstDay = new Date(year, month, 1);
+  // Last day of the month
+  const lastDay = new Date(year, month + 1, 0);
+  // Start date (first day of the week for the first day of month)
+  const startDate = new Date(firstDay);
+  startDate.setDate(firstDay.getDate() - firstDay.getDay());
+
+  const days = [];
+
+  // Generate 6 weeks for the calendar
+  for (let week = 0; week < 6; week++) {
+    const weekDays = [];
+    for (let day = 0; day < 7; day++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + week * 7 + day);
+
+      // Get appointments for this date
+      const dayAppointments = transformedAppointments.value.filter(
+        (appointment) => {
+          const appointmentDate = new Date(appointment.dateTime);
+          return appointmentDate.toDateString() === date.toDateString();
+        }
+      );
+
+      weekDays.push({
+        date,
+        day: date.getDate(),
+        isCurrentMonth: date.getMonth() === month,
+        isToday: date.toDateString() === new Date().toDateString(),
+        appointments: dayAppointments,
+      });
+    }
+    days.push(weekDays);
+  }
+
+  return days;
+});
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const currentMonthName = computed(() => {
+  return `${monthNames[currentMonth.value]} ${currentYear.value}`;
+});
+
 // Methods
 const fetchAppointments = async () => {
-  loading.value = true;
   try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
+    errorMessage.value = "";
+    loading.value = true;
+
+    // Fetch appointments from Supabase
+    const appointments = await appointmentOps.getAllAppointments();
+    appointmentsList.value = appointments;
+
+    // Fetch staff and patients lists
+    const [staff, patients] = await Promise.all([
+      staffOps.getAllStaff(),
+      patientOps.getAllPatients(),
+    ]);
+    staffList.value = staff;
+    patientsList.value = patients;
   } catch (error) {
-    console.error("Error fetching appointments:", error);
+    console.error("Error loading appointments:", error);
+    errorMessage.value =
+      error.message || "Failed to load appointments. Please try again.";
   } finally {
     loading.value = false;
   }
 };
-
 const resetForm = () => {
   appointmentForm.value = {
     patientId: "",
@@ -143,7 +198,25 @@ const openScheduleModal = () => {
 
 const openEditModal = (appointment) => {
   selectedAppointment.value = appointment;
-  appointmentForm.value = { ...appointment };
+
+  // Find the staff member for the selected appointment
+  const staffMember = staffList.value.find(
+    (staff) => staff.StaffID === appointment.StaffID
+  );
+
+  // Populate form with appointment data
+  appointmentForm.value = {
+    patientId: appointment.PatientID,
+    patientName: appointment.Patients?.Users?.fullName || "Unknown Patient",
+    staffId: appointment.StaffID,
+    staffName: staffMember?.Users?.fullName || "Unknown Staff",
+    dateTime: appointment.DateTime,
+    reason: appointment.Reason || "",
+    notes: appointment.Notes || "",
+    type: appointment.Type || "Consultation",
+    duration: appointment.Duration || 30,
+  };
+
   showEditModal.value = true;
 };
 
@@ -156,66 +229,113 @@ const closeModals = () => {
   showScheduleModal.value = false;
   showEditModal.value = false;
   showCancelModal.value = false;
+  showAppointmentDetailsModal.value = false;
   selectedAppointment.value = null;
+  selectedDate.value = null;
   resetForm();
+};
+
+// Helper function to find staff by name and role
+const findStaffByName = (staffName) => {
+  return staffList.value.find((staff) => staff.Users?.fullName === staffName);
 };
 
 const scheduleAppointment = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Find the staff based on the selected staff name
+    const selectedStaff = findStaffByName(appointmentForm.value.staffName);
 
-    const newAppointment = {
-      id: Math.max(...appointmentsList.value.map((a) => a.id)) + 1,
-      ...appointmentForm.value,
-      status: "Pending",
-      createdAt: new Date().toISOString(),
+    if (!selectedStaff) {
+      throw new Error("Please select a valid healthcare provider");
+    }
+
+    // Create appointment data for Supabase
+    const appointmentData = {
+      PatientID: appointmentForm.value.patientId,
+      StaffID: selectedStaff.StaffID,
+      DateTime: appointmentForm.value.dateTime,
+      Reason: appointmentForm.value.reason,
+      Notes: appointmentForm.value.notes,
+      Type: appointmentForm.value.type,
+      Duration: appointmentForm.value.duration,
+      Status: "Pending",
     };
 
-    appointmentsList.value.push(newAppointment);
-    closeModals();
+    // Create appointment using Supabase
+    await appointmentOps.createAppointment(appointmentData);
 
+    // Refresh the appointments list to show the new appointment
+    await fetchAppointments();
+    closeModals();
     console.log("Appointment scheduled successfully");
   } catch (error) {
     console.error("Error scheduling appointment:", error);
+    errorMessage.value =
+      error.message || "Failed to schedule appointment. Please try again.";
   }
 };
 
 const updateAppointment = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Find the staff based on the selected staff name
+    const selectedStaff = findStaffByName(appointmentForm.value.staffName);
 
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
-    );
-    if (index !== -1) {
-      appointmentsList.value[index] = { ...appointmentForm.value };
+    if (!selectedStaff) {
+      throw new Error("Please select a valid healthcare provider");
     }
 
+    // Create appointment data for Supabase
+    const appointmentData = {
+      PatientID: appointmentForm.value.patientId,
+      StaffID: selectedStaff.StaffID,
+      DateTime: appointmentForm.value.dateTime,
+      Reason: appointmentForm.value.reason,
+      Notes: appointmentForm.value.notes,
+      Type: appointmentForm.value.type,
+      Duration: appointmentForm.value.duration,
+      Status: appointmentForm.value.status || "Pending",
+    };
+
+    // Update appointment using Supabase
+    await appointmentOps.updateAppointment(
+      selectedAppointment.value.AppointmentID,
+      appointmentData
+    );
+
+    // Refresh the appointments list to show the updated appointment
+    await fetchAppointments();
     closeModals();
     console.log("Appointment updated successfully");
   } catch (error) {
     console.error("Error updating appointment:", error);
+    errorMessage.value =
+      error.message || "Failed to update appointment. Please try again.";
   }
 };
 
 const cancelAppointment = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Update appointment status to "Cancelled" using Supabase
+    const updatedNotes = `${
+      selectedAppointment.value.Notes || ""
+    }\n\nCancelled on: ${new Date().toISOString()}`.trim();
 
-    const index = appointmentsList.value.findIndex(
-      (a) => a.id === selectedAppointment.value.id
+    await appointmentOps.updateAppointment(
+      selectedAppointment.value.AppointmentID,
+      {
+        Status: "Cancelled",
+        Notes: updatedNotes,
+      }
     );
-    if (index !== -1) {
-      appointmentsList.value[index].status = "Cancelled";
-    }
 
+    // Refresh the appointments list to show the cancelled appointment
+    await fetchAppointments();
     closeModals();
     console.log("Appointment cancelled successfully");
   } catch (error) {
     console.error("Error cancelling appointment:", error);
+    errorMessage.value =
+      error.message || "Failed to cancel appointment. Please try again.";
   }
 };
 
@@ -240,7 +360,11 @@ const getTypeBadgeVariant = (type) => {
 };
 
 const formatDateTime = (dateTime) => {
-  return new Date(dateTime).toLocaleString();
+  return new Date(dateTime).toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  });
 };
 
 const isToday = (dateTime) => {
@@ -253,8 +377,48 @@ const isUpcoming = (dateTime) => {
   return new Date(dateTime) > now;
 };
 
-onMounted(() => {
-  fetchAppointments();
+// Calendar-specific methods
+const navigateMonth = (direction) => {
+  const newDate = new Date(currentDate.value);
+  newDate.setMonth(newDate.getMonth() + direction);
+  currentDate.value = newDate;
+};
+
+const goToToday = () => {
+  currentDate.value = new Date();
+};
+
+const selectDate = (day) => {
+  selectedDate.value = day.date;
+};
+
+const openAppointmentDetails = (appointment) => {
+  selectedAppointment.value = appointment;
+  showAppointmentDetailsModal.value = true;
+};
+
+const closeAppointmentDetailsModal = () => {
+  showAppointmentDetailsModal.value = false;
+  selectedAppointment.value = null;
+};
+
+const scheduleAppointmentForDate = (date) => {
+  selectedDate.value = date;
+  openScheduleModal();
+  // Pre-fill the date in the form
+  const dateTime = new Date(date);
+  dateTime.setHours(9, 0, 0, 0); // Default to 9 AM
+  appointmentForm.value.dateTime = dateTime.toISOString().slice(0, 16);
+};
+
+// Initialize component
+onMounted(async () => {
+  try {
+    // Load appointments and related data
+    await fetchAppointments();
+  } catch (error) {
+    console.error("Error initializing appointments:", error);
+  }
 });
 </script>
 
@@ -385,8 +549,23 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error Alert -->
+    <div
+      v-if="errorMessage"
+      class="alert alert-danger alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+      <button
+        type="button"
+        class="btn-close"
+        @click="errorMessage = ''"
+      ></button>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
+    <div v-else-if="loading && !errorMessage" class="text-center py-5">
       <div class="spinner-border text-primary animate-pulse" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -531,47 +710,206 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Calendar View (Simplified) -->
+    <!-- Calendar View -->
     <div v-else class="card animate-fade-in-up animation-delay-300">
-      <div class="card-header">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
         <h5 class="mb-0">
           <i class="bi bi-calendar-week me-2"></i>
-          Calendar View
+          {{ currentMonthName }}
         </h5>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-primary" @click="goToToday">
+            <i class="bi bi-calendar-day me-1"></i>
+            Today
+          </button>
+          <div class="btn-group" role="group">
+            <button
+              class="btn btn-sm btn-outline-primary"
+              @click="navigateMonth(-1)"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <button
+              class="btn btn-sm btn-outline-primary"
+              @click="navigateMonth(1)"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="card-body">
-        <div class="calendar-placeholder text-center py-5">
-          <i class="bi bi-calendar3 text-muted fs-1 mb-3"></i>
-          <h5 class="text-muted">Calendar View</h5>
-          <p class="text-muted">
-            Full calendar integration would be implemented here with a library
-            like FullCalendar.
-          </p>
-          <div class="upcoming-appointments">
-            <h6 class="mb-3">Upcoming Appointments</h6>
+        <!-- Calendar Grid -->
+        <div class="calendar-grid">
+          <!-- Days of week header -->
+          <div class="calendar-header">
             <div
-              v-for="appointment in upcomingAppointments"
-              :key="appointment.id"
-              class="appointment-card mb-2 p-3 border rounded"
+              v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
+              :key="day"
+              class="calendar-day-header"
             >
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <strong>{{ appointment.patientName }}</strong
-                  ><br />
-                  <small class="text-muted">{{ appointment.staffName }}</small>
+              {{ day }}
+            </div>
+          </div>
+
+          <!-- Calendar days -->
+          <div
+            v-for="week in calendarDays"
+            :key="week[0].date.getTime()"
+            class="calendar-week"
+          >
+            <div
+              v-for="day in week"
+              :key="day.date.getTime()"
+              class="calendar-day"
+              :class="{
+                'other-month': !day.isCurrentMonth,
+                today: day.isToday,
+                selected:
+                  selectedDate &&
+                  selectedDate.toDateString() === day.date.toDateString(),
+                'has-appointments': day.appointments.length > 0,
+              }"
+              @click="selectDate(day)"
+            >
+              <div class="day-number">{{ day.day }}</div>
+              <div class="appointments">
+                <div
+                  v-for="appointment in day.appointments.slice(0, 3)"
+                  :key="appointment.id"
+                  class="appointment-dot"
+                  :class="`bg-${getStatusBadgeVariant(appointment.status)}`"
+                  @click.stop="openAppointmentDetails(appointment)"
+                  :title="`${appointment.patientName} - ${appointment.type}`"
+                ></div>
+                <div
+                  v-if="day.appointments.length > 3"
+                  class="more-appointments"
+                  @click.stop="openAppointmentDetails(day.appointments[3])"
+                >
+                  +{{ day.appointments.length - 3 }}
                 </div>
-                <div class="text-end">
-                  <small class="fw-medium">{{
-                    formatDateTime(appointment.dateTime)
-                  }}</small
-                  ><br />
-                  <span
-                    class="badge"
-                    :class="`bg-${getStatusBadgeVariant(appointment.status)}`"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected date info and quick actions -->
+        <div
+          v-if="selectedDate"
+          class="selected-date-info mt-4 p-3 bg-light rounded"
+        >
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">
+              <i class="bi bi-calendar-date me-2"></i>
+              {{ formatDateTime(selectedDate) }}
+            </h6>
+            <div class="btn-group" role="group">
+              <button
+                class="btn btn-sm btn-primary"
+                @click="scheduleAppointmentForDate(selectedDate)"
+              >
+                <i class="bi bi-plus-circle me-1"></i>
+                Schedule
+              </button>
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                @click="selectedDate = null"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Appointments for selected date -->
+          <div
+            v-if="
+              calendarDays
+                .flat()
+                .find(
+                  (d) => d.date.toDateString() === selectedDate.toDateString()
+                )?.appointments.length > 0
+            "
+          >
+            <h6>Appointments:</h6>
+            <div
+              v-for="appointment in calendarDays
+                .flat()
+                .find(
+                  (d) => d.date.toDateString() === selectedDate.toDateString()
+                )?.appointments"
+              :key="appointment.id"
+              class="appointment-item d-flex justify-content-between align-items-center p-2 border rounded mb-2"
+            >
+              <div>
+                <strong>{{ appointment.patientName }}</strong
+                ><br />
+                <small class="text-muted"
+                  >{{ appointment.staffName }} - {{ appointment.type }}</small
+                >
+              </div>
+              <div class="text-end">
+                <span
+                  class="badge me-2"
+                  :class="`bg-${getStatusBadgeVariant(appointment.status)}`"
+                >
+                  {{ appointment.status }}
+                </span>
+                <div class="btn-group" role="group">
+                  <button
+                    class="btn btn-sm btn-outline-primary"
+                    @click="openEditModal(appointment)"
+                    title="Edit"
                   >
-                    {{ appointment.status }}
-                  </span>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button
+                    v-if="appointment.status !== 'Cancelled'"
+                    class="btn btn-sm btn-outline-danger"
+                    @click="openCancelModal(appointment)"
+                    title="Cancel"
+                  >
+                    <i class="bi bi-x-circle"></i>
+                  </button>
                 </div>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-muted mb-0">
+            No appointments scheduled for this date.
+          </p>
+        </div>
+
+        <!-- Upcoming appointments summary -->
+        <div class="upcoming-appointments mt-4">
+          <h6 class="mb-3">
+            <i class="bi bi-clock-history me-2"></i>
+            Upcoming Appointments
+          </h6>
+          <div
+            v-for="appointment in upcomingAppointments"
+            :key="appointment.id"
+            class="appointment-card mb-2 p-3 border rounded"
+          >
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>{{ appointment.patientName }}</strong
+                ><br />
+                <small class="text-muted">{{ appointment.staffName }}</small>
+              </div>
+              <div class="text-end">
+                <small class="fw-medium">{{
+                  formatDateTime(appointment.dateTime)
+                }}</small
+                ><br />
+                <span
+                  class="badge"
+                  :class="`bg-${getStatusBadgeVariant(appointment.status)}`"
+                >
+                  {{ appointment.status }}
+                </span>
               </div>
             </div>
           </div>
@@ -602,13 +940,21 @@ onMounted(() => {
             <div class="modal-body">
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label">Patient Name *</label>
-                  <input
-                    v-model="appointmentForm.patientName"
-                    type="text"
-                    class="form-control"
+                  <label class="form-label">Patient *</label>
+                  <select
+                    v-model="appointmentForm.patientId"
+                    class="form-select"
                     required
-                  />
+                  >
+                    <option value="">Select Patient</option>
+                    <option
+                      v-for="patient in patientsList"
+                      :key="patient.PatientID"
+                      :value="patient.PatientID"
+                    >
+                      {{ patient.Users?.fullName || "Unknown Patient" }}
+                    </option>
+                  </select>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Healthcare Provider *</label>
@@ -618,9 +964,14 @@ onMounted(() => {
                     required
                   >
                     <option value="">Select Provider</option>
-                    <option value="Dr. Sarah Johnson">Dr. Sarah Johnson</option>
-                    <option value="Maria Santos, RN">Maria Santos, RN</option>
-                    <option value="Pedro Cruz, BHW">Pedro Cruz, BHW</option>
+                    <option
+                      v-for="staffMember in staffList"
+                      :key="staffMember.StaffID"
+                      :value="staffMember.Users?.fullName"
+                    >
+                      {{ staffMember.Users?.fullName }} -
+                      {{ staffMember.Role?.RoleName }}
+                    </option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -718,13 +1069,21 @@ onMounted(() => {
             <div class="modal-body">
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label">Patient Name *</label>
-                  <input
-                    v-model="appointmentForm.patientName"
-                    type="text"
-                    class="form-control"
+                  <label class="form-label">Patient *</label>
+                  <select
+                    v-model="appointmentForm.patientId"
+                    class="form-select"
                     required
-                  />
+                  >
+                    <option value="">Select Patient</option>
+                    <option
+                      v-for="patient in patientsList"
+                      :key="patient.PatientID"
+                      :value="patient.PatientID"
+                    >
+                      {{ patient.Users?.fullName || "Unknown Patient" }}
+                    </option>
+                  </select>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Healthcare Provider *</label>
@@ -734,9 +1093,14 @@ onMounted(() => {
                     required
                   >
                     <option value="">Select Provider</option>
-                    <option value="Dr. Sarah Johnson">Dr. Sarah Johnson</option>
-                    <option value="Maria Santos, RN">Maria Santos, RN</option>
-                    <option value="Pedro Cruz, BHW">Pedro Cruz, BHW</option>
+                    <option
+                      v-for="staffMember in staffList"
+                      :key="staffMember.StaffID"
+                      :value="staffMember.Users?.fullName"
+                    >
+                      {{ staffMember.Users?.fullName }} -
+                      {{ staffMember.Role?.RoleName }}
+                    </option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -953,6 +1317,122 @@ onMounted(() => {
   animation: spin 1s linear infinite;
 }
 
+/* Calendar styles */
+.calendar-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 1px;
+}
+
+.calendar-day-header {
+  background-color: var(--primary-color, #0d6efd);
+  color: white;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.calendar-day {
+  background-color: white;
+  min-height: 100px;
+  padding: 0.5rem;
+  border: 1px solid #dee2e6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.calendar-day:hover {
+  background-color: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-day.other-month {
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
+.calendar-day.today {
+  background-color: #e3f2fd;
+  border-color: var(--primary-color, #0d6efd);
+}
+
+.calendar-day.selected {
+  background-color: var(--primary-color, #0d6efd);
+  color: white;
+}
+
+.calendar-day.has-appointments {
+  border-left: 4px solid var(--success-color, #198754);
+}
+
+.day-number {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.appointments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.appointment-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.appointment-dot:hover {
+  transform: scale(1.5);
+}
+
+.more-appointments {
+  font-size: 0.75rem;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0.125rem;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  margin-top: 0.125rem;
+}
+
+.calendar-day.selected .more-appointments {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.selected-date-info {
+  border: 1px solid #dee2e6;
+}
+
+.appointment-item {
+  background-color: white;
+  transition: background-color 0.2s ease;
+}
+
+.appointment-item:hover {
+  background-color: #f8f9fa;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .card-header {
@@ -967,6 +1447,24 @@ onMounted(() => {
 
   .btn-group .btn {
     flex: 1;
+  }
+
+  .calendar-day {
+    min-height: 80px;
+    padding: 0.25rem;
+  }
+
+  .day-number {
+    font-size: 0.75rem;
+  }
+
+  .appointment-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .more-appointments {
+    font-size: 0.625rem;
   }
 }
 </style>

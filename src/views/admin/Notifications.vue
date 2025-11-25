@@ -1,12 +1,17 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useStore } from "vuex";
+import { useSupabase } from "../../composables/useSupabase.js";
+import { useAuth } from "../../composables/useAuth.js";
 
-// Store
-const store = useStore();
+// Initialize composables
+const { notifications: notificationOps, users: userOps } = useSupabase();
+const { requireAdminAccess } = useAuth();
 
 // Reactive data
+const notifications = ref([]);
+const users = ref([]);
 const loading = ref(false);
+const error = ref(null);
 const search = ref("");
 const showComposeModal = ref(false);
 const showEditModal = ref(false);
@@ -14,67 +19,6 @@ const showDeleteModal = ref(false);
 const selectedNotification = ref(null);
 const filterType = ref("all");
 const filterStatus = ref("all");
-
-const notifications = ref([
-  {
-    id: 1,
-    userId: 1,
-    recipientName: "Dr. Sarah Johnson",
-    type: "appointment_reminder",
-    title: "Upcoming Appointment Reminder",
-    message:
-      "You have an appointment with John Doe scheduled for tomorrow at 10:30 AM.",
-    status: "sent",
-    priority: "normal",
-    scheduledFor: "2024-10-14T10:00:00",
-    sentAt: "2024-10-14T10:00:00",
-    createdAt: "2024-10-14T09:00:00",
-    read: true,
-  },
-  {
-    id: 2,
-    userId: 2,
-    recipientName: "Maria Santos",
-    type: "appointment_reminder",
-    title: "Appointment Confirmation",
-    message:
-      "Your appointment with Dr. Sarah Johnson has been confirmed for October 15, 2024 at 2:00 PM.",
-    status: "sent",
-    priority: "normal",
-    scheduledFor: "2024-10-15T08:00:00",
-    sentAt: "2024-10-15T08:00:00",
-    createdAt: "2024-10-15T07:00:00",
-    read: false,
-  },
-  {
-    id: 3,
-    userId: 3,
-    recipientName: "Pedro Cruz",
-    type: "system_alert",
-    title: "New Patient Registration",
-    message: "A new patient (Ana Reyes) has been registered in the system.",
-    status: "sent",
-    priority: "high",
-    scheduledFor: null,
-    sentAt: "2024-10-13T16:00:00",
-    createdAt: "2024-10-13T16:00:00",
-    read: true,
-  },
-  {
-    id: 4,
-    userId: 1,
-    recipientName: "Dr. Sarah Johnson",
-    type: "medical_record",
-    title: "Medical Record Updated",
-    message: "Medical record for patient Maria Santos has been updated.",
-    status: "pending",
-    priority: "normal",
-    scheduledFor: "2024-10-15T15:00:00",
-    sentAt: null,
-    createdAt: "2024-10-15T14:00:00",
-    read: false,
-  },
-]);
 
 // Form data
 const notificationForm = ref({
@@ -87,8 +31,51 @@ const notificationForm = ref({
   scheduledFor: null,
 });
 
+// Load data on mount
+onMounted(async () => {
+  try {
+    await requireAdminAccess();
+    await loadNotifications();
+    await loadUsers();
+  } catch (err) {
+    error.value = err.message;
+  }
+});
+
+// Load notifications
+const loadNotifications = async () => {
+  loading.value = true;
+  try {
+    const data = await notificationOps.getAllNotifications();
+    notifications.value = data.map((notification) => ({
+      ...notification,
+      recipientName: notification.Users?.fullName || "Unknown",
+      read: notification.IsRead || false,
+      status: notification.Status || "sent",
+      priority: notification.Priority || "normal",
+      type: notification.Type || "system_alert",
+      createdAt: notification.CreatedAt,
+      sentAt: notification.SentAt,
+      scheduledFor: notification.ScheduledFor,
+    }));
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Load users for recipient selection
+const loadUsers = async () => {
+  try {
+    const data = await userOps.getAllUsers();
+    users.value = data;
+  } catch (err) {
+    console.error("Failed to load users:", err);
+  }
+};
+
 // Computed properties
-const user = computed(() => store.state.user);
 const filteredNotifications = computed(() => {
   return notifications.value.filter((notification) => {
     const matchesSearch =
@@ -116,20 +103,7 @@ const pendingCount = computed(() => {
   return notifications.value.filter((n) => n.status === "pending").length;
 });
 
-// Methods
-const fetchNotifications = async () => {
-  loading.value = true;
-  try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // Mock data is already loaded
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
+// Mock methods
 const resetForm = () => {
   notificationForm.value = {
     recipientId: "",
@@ -177,78 +151,100 @@ const closeModals = () => {
 
 const composeNotification = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const newNotification = {
-      id: Math.max(...notifications.value.map((n) => n.id)) + 1,
-      ...notificationForm.value,
-      status: notificationForm.value.scheduledFor ? "pending" : "sent",
-      sentAt: notificationForm.value.scheduledFor
+    const notificationData = {
+      UserID: notificationForm.value.recipientId,
+      Type: notificationForm.value.type,
+      Title: notificationForm.value.title,
+      Message: notificationForm.value.message,
+      Priority: notificationForm.value.priority,
+      Status: notificationForm.value.scheduledFor ? "pending" : "sent",
+      ScheduledFor: notificationForm.value.scheduledFor,
+      SentAt: notificationForm.value.scheduledFor
         ? null
         : new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      read: false,
+      IsRead: false,
     };
 
-    notifications.value.unshift(newNotification);
+    await notificationOps.createNotification(notificationData);
+    await loadNotifications();
     closeModals();
-
-    console.log("Notification composed successfully");
-  } catch (error) {
-    console.error("Error composing notification:", error);
+    alert("Notification created successfully");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to create notification: " + err.message);
   }
 };
 
 const updateNotification = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const notificationData = {
+      Type: notificationForm.value.type,
+      Title: notificationForm.value.title,
+      Message: notificationForm.value.message,
+      Priority: notificationForm.value.priority,
+      ScheduledFor: notificationForm.value.scheduledFor,
+      Status: notificationForm.value.scheduledFor ? "pending" : "sent",
+      SentAt: notificationForm.value.scheduledFor
+        ? null
+        : new Date().toISOString(),
+    };
 
-    const index = notifications.value.findIndex(
-      (n) => n.id === selectedNotification.value.id
+    await notificationOps.updateNotification(
+      selectedNotification.value.id,
+      notificationData
     );
-    if (index !== -1) {
-      notifications.value[index] = {
-        ...notifications.value[index],
-        ...notificationForm.value,
-      };
-    }
-
+    await loadNotifications();
     closeModals();
-    console.log("Notification updated successfully");
-  } catch (error) {
-    console.error("Error updating notification:", error);
+    alert("Notification updated successfully");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to update notification: " + err.message);
   }
 };
 
 const deleteNotification = async () => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    notifications.value = notifications.value.filter(
-      (n) => n.id !== selectedNotification.value.id
-    );
+    await notificationOps.deleteNotification(selectedNotification.value.id);
+    await loadNotifications();
     closeModals();
-    console.log("Notification deleted successfully");
-  } catch (error) {
-    console.error("Error deleting notification:", error);
+    alert("Notification deleted successfully");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to delete notification: " + err.message);
   }
 };
 
-const markAsRead = (notification) => {
-  notification.read = true;
+const markAsRead = async (notification) => {
+  try {
+    await notificationOps.markAsRead(notification.id);
+    await loadNotifications();
+    alert("Notification marked as read");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to mark as read: " + err.message);
+  }
 };
 
-const markAllAsRead = () => {
-  notifications.value.forEach((n) => (n.read = true));
+const markAllAsRead = async () => {
+  try {
+    await notificationOps.markAllAsRead();
+    await loadNotifications();
+    alert("All notifications marked as read");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to mark all as read: " + err.message);
+  }
 };
 
-const sendNow = (notification) => {
-  notification.status = "sent";
-  notification.sentAt = new Date().toISOString();
-  notification.scheduledFor = null;
+const sendNow = async (notification) => {
+  try {
+    await notificationOps.sendNow(notification.id);
+    await loadNotifications();
+    alert("Notification sent successfully");
+  } catch (err) {
+    error.value = err.message;
+    alert("Failed to send notification: " + err.message);
+  }
 };
 
 const getStatusBadgeVariant = (status) => {
@@ -294,9 +290,7 @@ const getNotificationIcon = (type) => {
   return icons[type] || "bi-bell";
 };
 
-onMounted(() => {
-  fetchNotifications();
-});
+// Removed real-time subscription as Supabase is no longer used
 </script>
 
 <template>
@@ -417,34 +411,13 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary animate-pulse" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-3 text-muted">Loading notifications...</p>
-    </div>
-
     <!-- Notifications List -->
-    <div v-else class="card animate-fade-in-up animation-delay-300">
-      <div
-        class="card-header d-flex justify-content-between align-items-center"
-      >
+    <div class="card animate-fade-in-up animation-delay-300">
+      <div class="card-header">
         <h5 class="mb-0">
           <i class="bi bi-bell-fill me-2"></i>
           Notifications ({{ filteredNotifications.length }})
         </h5>
-        <button
-          class="btn btn-sm btn-outline-primary"
-          @click="fetchNotifications"
-          :disabled="loading"
-        >
-          <i
-            class="bi bi-arrow-clockwise me-1"
-            :class="{ 'animate-spin': loading }"
-          ></i>
-          Refresh
-        </button>
       </div>
       <div class="card-body p-0">
         <div class="notifications-list">
@@ -831,7 +804,7 @@ onMounted(() => {
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
               class="btn btn-danger"
               @click="deleteNotification"
             >

@@ -3,7 +3,71 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Validate Supabase configuration
+const validateSupabaseConfig = () => {
+  if (!supabaseUrl) {
+    console.error("❌ VITE_SUPABASE_URL environment variable is not set");
+    throw new Error("Supabase URL not configured");
+  }
+
+  if (!supabaseKey) {
+    console.error("❌ VITE_SUPABASE_ANON_KEY environment variable is not set");
+    throw new Error("Supabase anonymous key not configured");
+  }
+
+  if (!supabaseUrl.includes("supabase.co")) {
+    console.warn("⚠️ Supabase URL doesn't appear to be a valid Supabase URL");
+  }
+
+  if (supabaseKey.length < 100) {
+    console.warn("⚠️ Supabase key appears to be too short, might be invalid");
+  }
+};
+
+// Validate configuration on load
+validateSupabaseConfig();
+
+// Clear invalid refresh tokens from localStorage to prevent auth errors
+const clearInvalidTokens = () => {
+  try {
+    const storageKey = `sb-${supabaseKey.substring(0, 10)}-auth-token`;
+    const storedData = localStorage.getItem(storageKey);
+
+    if (storedData) {
+      const parsed = JSON.parse(storedData);
+      // Check if refresh token exists and might be invalid
+      if (parsed?.refresh_token) {
+        // For persistent sessions, we don't enforce expiration but clear if clearly invalid
+        const now = Math.floor(Date.now() / 1000);
+        if (parsed.expires_at && parsed.expires_at < now - 3600) {
+          // Expired more than 1 hour ago
+          localStorage.removeItem(storageKey);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Error checking stored auth tokens:", error);
+    // Clear potentially corrupted data
+    try {
+      localStorage.removeItem(`sb-${supabaseKey.substring(0, 10)}-auth-token`);
+    } catch (clearError) {
+      console.warn("⚠️ Error clearing auth tokens:", clearError);
+    }
+  }
+};
+
+// Clear invalid tokens before creating Supabase client
+clearInvalidTokens();
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: "pkce",
+  },
+});
 
 // Auth helpers
 export const authService = {
@@ -62,7 +126,7 @@ export const patientService = {
       .select(
         `
         *,
-        Users!inner(fullName, email)
+        Users!inner(email)
       `
       )
       .order("created_at", { ascending: false });
@@ -77,7 +141,7 @@ export const patientService = {
       .select(
         `
         *,
-        Users!inner(fullName, email)
+        Users!inner(email)
       `
       )
       .eq("PatientID", id)
@@ -116,7 +180,6 @@ export const patientService = {
           ...patientData,
           UserID: user.id,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         },
       ])
       .select()
@@ -131,7 +194,6 @@ export const patientService = {
       .from("Patients")
       .update({
         ...patientData,
-        updated_at: new Date().toISOString(),
       })
       .eq("PatientID", id)
       .select()
@@ -160,16 +222,16 @@ export const medicalRecordService = {
       .select(
         `
         *,
-        Appointment!inner(
+        Patients!PatientID(
           *,
-          Patients!inner(
-            *,
-            Users!inner(fullName)
-          )
+          Users!inner(fullName)
         ),
-        Diagnosis(diagnosisName),
-        Treatment(treatmentName),
-        Notes(notes)
+        Staff!EnteredBy(
+          *,
+          Users!inner(fullName)
+        ),
+        Diagnosis(*),
+        Treatment(*)
       `
       )
       .order("created_at", { ascending: false });
@@ -184,16 +246,16 @@ export const medicalRecordService = {
       .select(
         `
         *,
-        Appointment!inner(
+        Patients!PatientID(
           *,
-          Patients!inner(
-            *,
-            Users!inner(fullName)
-          )
+          Users!inner(fullName)
         ),
-        Diagnosis(diagnosisName),
-        Treatment(treatmentName),
-        Notes(notes)
+        Staff!EnteredBy(
+          *,
+          Users!inner(fullName)
+        ),
+        Diagnosis(*),
+        Treatment(*)
       `
       )
       .eq("MedicalRecordID", id)
@@ -214,16 +276,19 @@ export const medicalRecordService = {
       .select(
         `
         *,
-        Appointment!inner(
+        Patients!PatientID(
           *,
-          Patients!inner(*)
+          Users!inner(fullName)
         ),
-        Diagnosis(diagnosisName),
-        Treatment(treatmentName),
-        Notes(notes)
+        Staff!EnteredBy(
+          *,
+          Users!inner(fullName)
+        ),
+        Diagnosis(*),
+        Treatment(*)
       `
       )
-      .eq("Appointment.Patients.UserID", user.id)
+      .eq("Patients.UserID", user.id)
       .order("created_at", { ascending: false });
 
     return { data, error };
@@ -261,7 +326,6 @@ export const medicalRecordService = {
           ...medicalRecordData,
           EnteredBy: user.id,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         },
       ])
       .select()
@@ -276,7 +340,6 @@ export const medicalRecordService = {
       .from("MedicalRecord")
       .update({
         ...medicalRecordData,
-        updated_at: new Date().toISOString(),
       })
       .eq("MedicalRecordID", id)
       .select()
@@ -307,15 +370,15 @@ export const appointmentService = {
         *,
         Patients!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         ),
         Staff!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         )
       `
       )
-      .order("AppointmentDateTime", { ascending: true });
+      .order("DateTime", { ascending: true });
 
     return { data, error };
   },
@@ -329,11 +392,11 @@ export const appointmentService = {
         *,
         Patients!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         ),
         Staff!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         )
       `
       )
@@ -358,12 +421,12 @@ export const appointmentService = {
         Patients!inner(*),
         Staff!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         )
       `
       )
       .eq("Patients.UserID", user.id)
-      .order("AppointmentDateTime", { ascending: true });
+      .order("DateTime", { ascending: true });
 
     return { data, error };
   },
@@ -382,13 +445,13 @@ export const appointmentService = {
         *,
         Patients!inner(
           *,
-          Users!inner(fullName)
+          Users!inner(email)
         ),
         Staff!inner(*)
       `
       )
       .eq("Staff.UserID", user.id)
-      .order("AppointmentDateTime", { ascending: true });
+      .order("DateTime", { ascending: true });
 
     return { data, error };
   },
@@ -407,7 +470,6 @@ export const appointmentService = {
           ...appointmentData,
           ScheduledBy: user.id,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         },
       ])
       .select()
@@ -422,7 +484,6 @@ export const appointmentService = {
       .from("Appointment")
       .update({
         ...appointmentData,
-        updated_at: new Date().toISOString(),
       })
       .eq("AppointmentID", id)
       .select()
@@ -448,14 +509,8 @@ export const staffService = {
   getAllStaff: async () => {
     const { data, error } = await supabase
       .from("Staff")
-      .select(
-        `
-        *,
-        Users!inner(fullName, email),
-        Role(RoleName)
-      `
-      )
-      .order("created_at", { ascending: false });
+      .select("*")
+      .order("StaffID", { ascending: false });
 
     return { data, error };
   },
@@ -464,13 +519,7 @@ export const staffService = {
   getStaffById: async (id) => {
     const { data, error } = await supabase
       .from("Staff")
-      .select(
-        `
-        *,
-        Users!inner(fullName, email),
-        Role(RoleName)
-      `
-      )
+      .select("*")
       .eq("StaffID", id)
       .single();
 
@@ -485,7 +534,6 @@ export const staffService = {
         {
           ...staffData,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         },
       ])
       .select()
@@ -500,7 +548,6 @@ export const staffService = {
       .from("Staff")
       .update({
         ...staffData,
-        updated_at: new Date().toISOString(),
       })
       .eq("StaffID", id)
       .select()
@@ -569,7 +616,6 @@ export const notificationService = {
         {
           ...notificationData,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         },
       ])
       .select()
@@ -584,7 +630,6 @@ export const notificationService = {
       .from("Notification")
       .update({
         ...notificationData,
-        updated_at: new Date().toISOString(),
       })
       .eq("NotificationID", id)
       .select()
@@ -609,7 +654,6 @@ export const notificationService = {
       .from("Notification")
       .update({
         IsRead: true,
-        updated_at: new Date().toISOString(),
       })
       .eq("NotificationID", id)
       .select()
@@ -652,6 +696,18 @@ export const realtimeService = {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "Appointment" },
+        callback
+      )
+      .subscribe();
+  },
+
+  // Subscribe to staff changes
+  subscribeToStaff: (callback) => {
+    return supabase
+      .channel("staff_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "Staff" },
         callback
       )
       .subscribe();
