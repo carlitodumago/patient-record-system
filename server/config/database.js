@@ -4,14 +4,31 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-// Initialize Supabase client
-const supabaseUrl =
-  process.env.SUPABASE_URL || "https://your-project.supabase.co";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "your-anon-key";
+// Initialize Supabase client with new key format
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+
+// Validate configuration
+if (!supabaseUrl) {
+  console.error("❌ SUPABASE_URL environment variable is not set");
+  throw new Error("SUPABASE_URL is required");
+}
+
+if (!supabaseKey) {
+  console.error("❌ SUPABASE_SECRET_KEY environment variable is not set");
+  throw new Error("SUPABASE_SECRET_KEY is required");
+}
+
+if (!supabaseKey.startsWith("sb_secret_")) {
+  console.error(
+    "❌ Invalid SUPABASE_SECRET_KEY format. Should start with 'sb_secret_'"
+  );
+  throw new Error("Invalid SUPABASE_SECRET_KEY format");
+}
 
 console.log("Initializing Supabase client...");
-console.log("Supabase URL:", supabaseUrl ? "Set" : "Not set");
-console.log("Supabase Key:", supabaseKey ? "Set" : "Not set");
+console.log("Supabase URL: Set");
+console.log("Supabase Key: secret key format");
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {

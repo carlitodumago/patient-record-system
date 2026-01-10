@@ -5,6 +5,7 @@ A comprehensive web-based information system designed for the Barangay Baan KM-3
 ## 🚀 Features
 
 ### 👥 Multi-Role Support
+
 - **Administrator**: Complete system management and oversight
 - **Staff**: Patient care and record management
 - **Patient**: Personal health management and appointment booking
@@ -12,22 +13,25 @@ A comprehensive web-based information system designed for the Barangay Baan KM-3
 ### 📋 Core Modules
 
 #### Admin Features
+
 - ✅ User account creation with automatic credential generation
 - ✅ Staff and patient management
 - ✅ Appointment scheduling and oversight
 - ✅ Medical records management
 - ✅ System notifications and alerts
 - ✅ Reports and analytics dashboard
+- ONLY THE USER WHO CAN CREATE/ MANAGE USERS
 
 #### Nurse Features
+
 - ✅ Patient registration and management
-- ✅ Vital signs recording
 - ✅ Medical record creation and editing
 - ✅ Appointment request handling
 - ✅ Treatment protocol management
 - ✅ Consultation notes documentation
 
 #### Patient Features
+
 - ✅ Personal health dashboard
 - ✅ Appointment booking and management
 - ✅ Medical record access
@@ -44,6 +48,7 @@ A comprehensive web-based information system designed for the Barangay Baan KM-3
 ## 🚦 Getting Started
 
 ### Prerequisites
+
 - Node.js (v16 or higher)
 - npm or yarn
 - Supabase account and project
@@ -51,59 +56,75 @@ A comprehensive web-based information system designed for the Barangay Baan KM-3
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd patient-record-system-3
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Environment Setup**
+
    ```bash
    # Copy environment file
    cp .env.example .env
 
    # Configure your Supabase credentials
+   # Get these from: Supabase Dashboard -> Settings -> API
+   
    VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   
+   # Frontend key (publishable)
+   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+   
+   # Backend key (secret, server-side only)
+   SUPABASE_SECRET_KEY=sb_secret_xxx
    ```
 
 4. **Start development server**
+
    ```bash
    npm run dev
    ```
 
 5. **Access the application**
-   ```
+
+   ```bash
    http://localhost:5173
    ```
 
 ## 🔐 Demo Accounts
 
 ### Test Users
+
 Use these credentials to test different user roles:
 
 #### Administrator
+
 - **Username**: `admin`
 - **Password**: `password`
 - **Access**: Full system administration
 
 #### Staff
+
 - **Username**: `nurse`
 - **Password**: `password`
 - **Access**: Patient management and records
 
 #### Patient
+
 - **Username**: `patient`
 - **Password**: `password`
 - **Access**: Personal health management
 
 ## 📁 Project Structure
 
-```
+```txt
 src/
 ├── components/          # Reusable Vue components
 │   ├── RoleBasedSidebar.vue    # Role-specific navigation
@@ -163,6 +184,7 @@ npm run build
 ## 📊 Database Schema
 
 See the detailed schema in the project requirements for table structures including:
+
 - Users and Roles
 - Staff and Patient management
 - Appointments and scheduling
@@ -215,6 +237,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
+
 - Create an issue in the repository
 - Contact the development team
 - Check the documentation
@@ -230,4 +253,4 @@ For support and questions:
 
 ---
 
-**Built with ❤️ for Barangay Baan KM-3**
+### Built with ❤️ for Barangay Baan KM-3

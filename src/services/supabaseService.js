@@ -1,73 +1,30 @@
 // Supabase service for direct database operations and real-time updates
-import { createClient } from "@supabase/supabase-js";
+// Re-exports the centralized supabase client and adds CRUD service functions
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import {
+  supabase,
+  checkConnection,
+  getCurrentUserWithProfile,
+  TABLES,
+  VIEWS,
+  ROLES,
+  APPOINTMENT_STATUS,
+  RECORD_STATUS,
+  NOTIFICATION_TYPES,
+} from "../config/supabaseConfig.js";
 
-// Validate Supabase configuration
-const validateSupabaseConfig = () => {
-  if (!supabaseUrl) {
-    console.error("❌ VITE_SUPABASE_URL environment variable is not set");
-    throw new Error("Supabase URL not configured");
-  }
-
-  if (!supabaseKey) {
-    console.error("❌ VITE_SUPABASE_ANON_KEY environment variable is not set");
-    throw new Error("Supabase anonymous key not configured");
-  }
-
-  if (!supabaseUrl.includes("supabase.co")) {
-    console.warn("⚠️ Supabase URL doesn't appear to be a valid Supabase URL");
-  }
-
-  if (supabaseKey.length < 100) {
-    console.warn("⚠️ Supabase key appears to be too short, might be invalid");
-  }
+// Re-export supabase client and utilities
+export {
+  supabase,
+  checkConnection,
+  getCurrentUserWithProfile,
+  TABLES,
+  VIEWS,
+  ROLES,
+  APPOINTMENT_STATUS,
+  RECORD_STATUS,
+  NOTIFICATION_TYPES,
 };
-
-// Validate configuration on load
-validateSupabaseConfig();
-
-// Clear invalid refresh tokens from localStorage to prevent auth errors
-const clearInvalidTokens = () => {
-  try {
-    const storageKey = `sb-${supabaseKey.substring(0, 10)}-auth-token`;
-    const storedData = localStorage.getItem(storageKey);
-
-    if (storedData) {
-      const parsed = JSON.parse(storedData);
-      // Check if refresh token exists and might be invalid
-      if (parsed?.refresh_token) {
-        // For persistent sessions, we don't enforce expiration but clear if clearly invalid
-        const now = Math.floor(Date.now() / 1000);
-        if (parsed.expires_at && parsed.expires_at < now - 3600) {
-          // Expired more than 1 hour ago
-          localStorage.removeItem(storageKey);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("⚠️ Error checking stored auth tokens:", error);
-    // Clear potentially corrupted data
-    try {
-      localStorage.removeItem(`sb-${supabaseKey.substring(0, 10)}-auth-token`);
-    } catch (clearError) {
-      console.warn("⚠️ Error clearing auth tokens:", clearError);
-    }
-  }
-};
-
-// Clear invalid tokens before creating Supabase client
-clearInvalidTokens();
-
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: "pkce",
-  },
-});
 
 // Auth helpers
 export const authService = {
@@ -592,9 +549,25 @@ export const notificationService = {
       .from("Notification")
       .select("*")
       .eq("UserID", user.id)
-      .order("created_at", { ascending: false });
+      .order("CreatedAt", { ascending: false });
 
     return { data, error };
+  },
+
+  // Get unread notifications count for current user
+  getUnreadCount: async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { count: 0, error: "Not authenticated" };
+
+    const { count, error } = await supabase
+      .from("Notification")
+      .select("*", { count: "exact", head: true })
+      .eq("UserID", user.id)
+      .eq("IsRead", false);
+
+    return { count: count || 0, error };
   },
 
   // Get notification by ID
@@ -614,8 +587,13 @@ export const notificationService = {
       .from("Notification")
       .insert([
         {
-          ...notificationData,
-          created_at: new Date().toISOString(),
+          UserID: notificationData.UserID,
+          Title: notificationData.Title || null,
+          Message: notificationData.Message,
+          Type: notificationData.Type || "info",
+          IsRead: false,
+          RelatedEntityType: notificationData.RelatedEntityType || null,
+          RelatedEntityID: notificationData.RelatedEntityID || null,
         },
       ])
       .select()
@@ -654,10 +632,31 @@ export const notificationService = {
       .from("Notification")
       .update({
         IsRead: true,
+        ReadAt: new Date().toISOString(),
       })
       .eq("NotificationID", id)
       .select()
       .single();
+
+    return { data, error };
+  },
+
+  // Mark all notifications as read for current user
+  markAllAsRead: async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const { data, error } = await supabase
+      .from("Notification")
+      .update({
+        IsRead: true,
+        ReadAt: new Date().toISOString(),
+      })
+      .eq("UserID", user.id)
+      .eq("IsRead", false)
+      .select();
 
     return { data, error };
   },
@@ -738,6 +737,280 @@ export const realtimeService = {
   // Unsubscribe from a channel
   unsubscribe: (channel) => {
     supabase.removeChannel(channel);
+  },
+};
+
+// User services
+export const userService = {
+  // Get all users (admin only)
+  getAllUsers: async () => {
+    const { data, error } = await supabase
+      .from("Users")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  },
+
+  // Get user by ID
+  getUserById: async (id) => {
+    const { data, error } = await supabase
+      .from("Users")
+      .select("*")
+      .eq("UserID", id)
+      .single();
+
+    return { data, error };
+  },
+
+  // Get user by email
+  getUserByEmail: async (email) => {
+    const { data, error } = await supabase
+      .from("Users")
+      .select("*")
+      .eq("Email", email)
+      .single();
+
+    return { data, error };
+  },
+
+  // Get current user profile
+  getCurrentUserProfile: async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: "Not authenticated" };
+
+    const { data, error } = await supabase
+      .from("Users")
+      .select("*")
+      .eq("UserID", user.id)
+      .single();
+
+    return { data, error };
+  },
+
+  // Update user profile
+  updateUserProfile: async (id, userData) => {
+    const { data, error } = await supabase
+      .from("Users")
+      .update({
+        ...userData,
+      })
+      .eq("UserID", id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Update user role (admin only)
+  updateUserRole: async (id, roleName) => {
+    const { data, error } = await supabase
+      .from("Users")
+      .update({ RoleName: roleName })
+      .eq("UserID", id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+};
+
+// Diagnosis services
+export const diagnosisService = {
+  // Get all diagnoses
+  getAllDiagnoses: async () => {
+    const { data, error } = await supabase
+      .from("Diagnosis")
+      .select("*")
+      .order("DiagnosisName", { ascending: true });
+
+    return { data, error };
+  },
+
+  // Get diagnosis by ID
+  getDiagnosisById: async (id) => {
+    const { data, error } = await supabase
+      .from("Diagnosis")
+      .select("*")
+      .eq("DiagnosisID", id)
+      .single();
+
+    return { data, error };
+  },
+
+  // Create diagnosis
+  createDiagnosis: async (diagnosisData) => {
+    const { data, error } = await supabase
+      .from("Diagnosis")
+      .insert([diagnosisData])
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Update diagnosis
+  updateDiagnosis: async (id, diagnosisData) => {
+    const { data, error } = await supabase
+      .from("Diagnosis")
+      .update(diagnosisData)
+      .eq("DiagnosisID", id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Delete diagnosis
+  deleteDiagnosis: async (id) => {
+    const { error } = await supabase
+      .from("Diagnosis")
+      .delete()
+      .eq("DiagnosisID", id);
+
+    return { error };
+  },
+};
+
+// Treatment services
+export const treatmentService = {
+  // Get all treatments
+  getAllTreatments: async () => {
+    const { data, error } = await supabase
+      .from("Treatment")
+      .select("*")
+      .order("TreatmentName", { ascending: true });
+
+    return { data, error };
+  },
+
+  // Get treatment by ID
+  getTreatmentById: async (id) => {
+    const { data, error } = await supabase
+      .from("Treatment")
+      .select("*")
+      .eq("TreatmentID", id)
+      .single();
+
+    return { data, error };
+  },
+
+  // Create treatment
+  createTreatment: async (treatmentData) => {
+    const { data, error } = await supabase
+      .from("Treatment")
+      .insert([treatmentData])
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Update treatment
+  updateTreatment: async (id, treatmentData) => {
+    const { data, error } = await supabase
+      .from("Treatment")
+      .update(treatmentData)
+      .eq("TreatmentID", id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Delete treatment
+  deleteTreatment: async (id) => {
+    const { error } = await supabase
+      .from("Treatment")
+      .delete()
+      .eq("TreatmentID", id);
+
+    return { error };
+  },
+};
+
+// Notes services
+export const notesService = {
+  // Get all notes for a patient
+  getNotesByPatient: async (patientId) => {
+    const { data, error } = await supabase
+      .from("Notes")
+      .select(
+        `
+        *,
+        Staff!EnteredBy(FirstName, Surname)
+      `
+      )
+      .eq("PatientID", patientId)
+      .order("CreatedAt", { ascending: false });
+
+    return { data, error };
+  },
+
+  // Get note by ID
+  getNoteById: async (id) => {
+    const { data, error } = await supabase
+      .from("Notes")
+      .select(
+        `
+        *,
+        Patients!PatientID(FirstName, Surname),
+        Staff!EnteredBy(FirstName, Surname)
+      `
+      )
+      .eq("NoteID", id)
+      .single();
+
+    return { data, error };
+  },
+
+  // Create note
+  createNote: async (noteData) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: "Not authenticated" };
+
+    // Get staff ID for the current user
+    const { data: staffData } = await supabase
+      .from("Staff")
+      .select("StaffID")
+      .eq("UserID", user.id)
+      .single();
+
+    const { data, error } = await supabase
+      .from("Notes")
+      .insert([
+        {
+          ...noteData,
+          EnteredBy: staffData?.StaffID || null,
+        },
+      ])
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Update note
+  updateNote: async (id, noteData) => {
+    const { data, error } = await supabase
+      .from("Notes")
+      .update(noteData)
+      .eq("NoteID", id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Delete note
+  deleteNote: async (id) => {
+    const { error } = await supabase.from("Notes").delete().eq("NoteID", id);
+
+    return { error };
   },
 };
 

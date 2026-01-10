@@ -87,20 +87,26 @@ class EnvValidator {
 
   /**
    * Validate environment variable presence and format
+   * Uses new Supabase API key format (publishable/secret keys)
    */
   validateVariables() {
     try {
-      // Expected variables from .env.example
+      // Expected variables - new Supabase key format only
       const expectedVariables = {
         SUPABASE_URL: {
           required: true,
-          format: /^https:\/\/[a-z0-9]+\.supabase\.co$/,
+          format: /^https:\/\/[a-z0-9-]+\.supabase\.co$/,
           description: "Supabase project URL",
         },
-        SUPABASE_ANON_KEY: {
+        SUPABASE_SECRET_KEY: {
           required: true,
-          format: /^eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/,
-          description: "Supabase anonymous key (JWT format)",
+          format: /^sb_secret_[A-Za-z0-9_-]+$/,
+          description: "Supabase secret key (format: sb_secret_xxx)",
+        },
+        VITE_SUPABASE_PUBLISHABLE_KEY: {
+          required: true,
+          format: /^sb_publishable_[A-Za-z0-9_-]+$/,
+          description: "Supabase publishable key (format: sb_publishable_xxx)",
         },
         PORT: {
           required: false,

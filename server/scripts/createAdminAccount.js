@@ -4,18 +4,28 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+// Supabase configuration - new key format only
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error("❌ Missing Supabase environment variables");
+if (!supabaseUrl) {
+  console.error("❌ SUPABASE_URL environment variable is not set");
+  process.exit(1);
+}
+
+if (!supabaseSecretKey) {
+  console.error("❌ SUPABASE_SECRET_KEY environment variable is not set");
+  process.exit(1);
+}
+
+if (!supabaseSecretKey.startsWith("sb_secret_")) {
   console.error(
-    "Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file"
+    "❌ Invalid SUPABASE_SECRET_KEY format. Should start with 'sb_secret_'"
   );
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
 const createAdminAccount = async () => {
   try {
