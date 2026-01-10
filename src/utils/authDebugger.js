@@ -25,9 +25,12 @@ export const authDebugger = {
       import.meta.env.VITE_SUPABASE_URL ? "Set" : "Not set"
     );
     console.log(
-      "VITE_SUPABASE_ANON_KEY:",
-      import.meta.env.VITE_SUPABASE_ANON_KEY
-        ? `Set (length: ${import.meta.env.VITE_SUPABASE_ANON_KEY.length})`
+      "VITE_SUPABASE_PUBLISHABLE_KEY:",
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+        ? `Set (starts with: ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.substring(
+            0,
+            15
+          )}...)`
         : "Not set"
     );
 
@@ -35,6 +38,15 @@ export const authDebugger = {
       console.log(
         "URL format valid:",
         import.meta.env.VITE_SUPABASE_URL.includes("supabase.co")
+      );
+    }
+
+    if (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+      console.log(
+        "Key format valid:",
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.startsWith(
+          "sb_publishable_"
+        )
       );
     }
     console.groupEnd();

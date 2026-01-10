@@ -4,9 +4,10 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Supabase configuration - new key format only
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabasePublishableKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
 // Validate Supabase configuration
 const validateSupabaseConfig = () => {
@@ -15,16 +16,30 @@ const validateSupabaseConfig = () => {
     throw new Error("Supabase URL not configured");
   }
 
-  if (!supabaseAnonKey) {
-    console.error("❌ VITE_SUPABASE_ANON_KEY environment variable is not set");
-    throw new Error("Supabase anon key not configured");
+  if (!supabasePublishableKey) {
+    console.error(
+      "❌ VITE_SUPABASE_PUBLISHABLE_KEY environment variable is not set"
+    );
+    throw new Error("Supabase publishable key not configured");
   }
 
-  if (!supabaseServiceKey) {
+  if (!supabasePublishableKey.startsWith("sb_publishable_")) {
     console.error(
-      "❌ SUPABASE_SERVICE_ROLE_KEY environment variable is not set"
+      "❌ Invalid VITE_SUPABASE_PUBLISHABLE_KEY format. Should start with 'sb_publishable_'"
     );
-    throw new Error("Supabase service key not configured");
+    throw new Error("Invalid publishable key format");
+  }
+
+  if (!supabaseSecretKey) {
+    console.error("❌ SUPABASE_SECRET_KEY environment variable is not set");
+    throw new Error("Supabase secret key not configured");
+  }
+
+  if (!supabaseSecretKey.startsWith("sb_secret_")) {
+    console.error(
+      "❌ Invalid SUPABASE_SECRET_KEY format. Should start with 'sb_secret_'"
+    );
+    throw new Error("Invalid secret key format");
   }
 
   if (!supabaseUrl.includes("supabase.co")) {
@@ -32,21 +47,23 @@ const validateSupabaseConfig = () => {
   }
 
   console.log("✅ Supabase server configuration validated");
+  console.log("   Publishable key: ✓");
+  console.log("   Secret key: ✓");
 };
 
 // Validate configuration on load
 validateSupabaseConfig();
 
-// Create Supabase client with anon key for authentication operations
-export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+// Create Supabase client with publishable key for authentication operations
+export const supabaseAuth = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 });
 
-// Create Supabase client with anon key for server-side data operations (RLS disabled)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Create Supabase client with publishable key for general data operations
+export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
