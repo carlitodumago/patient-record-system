@@ -1,0 +1,67 @@
+/* 
+ * Custom styles for Patient Record System
+ */
+
+/* Additional utility classes */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+/* Custom scrollbar styles for Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Utility classes for spacing and sizing */
+.max-h-90vh {
+  max-height: 90vh;
+}
+
+.max-h-80vh {
+  max-height: 80vh;
+}
+
+.min-h-40vh {
+  min-height: 40vh;
+}
+
+/* Print styles - hide certain elements when printing */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  body {
+    font-size: 12pt;
+    color: #000;
+    background-color: #fff;
+  }
+  
+  .container {
+    width: 100%;
+    max-width: 100%;
+  }
+} 
