@@ -629,10 +629,14 @@ const saveSettings = async () => {
   settingsSaving.value = true;
   error.value = null;
   try {
-    await clinicSettingsOps.updateSettings({
+    const result = await clinicSettingsOps.updateSettings({
       max_patients_per_day: Number(settingsMaxPatients.value),
       unavailable_dates: settingsUnavailableDates.value,
     });
+    if (result === null) {
+      showError("Failed to save settings. Please check your permissions and try again.");
+      return;
+    }
     clinicMaxPerDay.value = Number(settingsMaxPatients.value);
     clinicUnavailableDates.value = [...settingsUnavailableDates.value];
     showSuccess("Clinic settings saved successfully!");

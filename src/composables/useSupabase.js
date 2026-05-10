@@ -2330,26 +2330,32 @@ export const useSupabase = () => {
   const clinicSettingsOps = {
     /** Fetch the single ClinicSettings row (readable by all authenticated users) */
     async getSettings() {
-      await requireAuth();
-      return withLoading(async () => {
-        const { data, error } = await supabase
+      loading.value = true;
+      error.value = null;
+      try {
+        const { data, error: err } = await supabase
           .from("ClinicSettings")
           .select("*")
           .order("id", { ascending: true })
           .limit(1)
           .single();
-        if (error) throw error;
+        if (err) throw err;
         return data;
-      });
+      } catch (err) {
+        handleError(err);
+        return null;
+      } finally {
+        loading.value = false;
+      }
     },
 
     /** Update settings (admin/nurse only) */
     async updateSettings({ max_patients_per_day, unavailable_dates }) {
-      await requireRole(["admin", "nurse"]);
-      return withLoading(async () => {
+      loading.value = true;
+      error.value = null;
+      try {
         const authStore = useAuthStore();
-        // Upsert the first row (id = 1)
-        const { data, error } = await supabase
+        const { data, error: err } = await supabase
           .from("ClinicSettings")
           .update({
             max_patients_per_day,
@@ -2360,9 +2366,14 @@ export const useSupabase = () => {
           .eq("id", 1)
           .select()
           .single();
-        if (error) throw error;
+        if (err) throw err;
         return data;
-      });
+      } catch (err) {
+        handleError(err);
+        return null;
+      } finally {
+        loading.value = false;
+      }
     },
   };
 
