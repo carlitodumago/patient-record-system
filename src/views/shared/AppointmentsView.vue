@@ -235,6 +235,16 @@ const isDayUnavailable = (date) => {
   return clinicUnavailableDates.value.includes(toDateKey(date));
 };
 
+// Is this date in the past? (relative to today, wall-clock time)
+const isDayInPast = (date) => {
+  if (!date) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d < today;
+};
+
 // Count ALL non-cancelled bookings on a given calendar day
 const dailyBookingsOnDay = (date) => {
   if (!date) return 0;
@@ -251,7 +261,8 @@ const isDayAtCapacity = (date) => {
 };
 
 // Combined: is this day selectable for new appointments?
-const isDayBlocked = (date) => isDayUnavailable(date) || isDayAtCapacity(date);
+// Combined: is this day selectable for new appointments?
+const isDayBlocked = (date) => isDayUnavailable(date) || isDayAtCapacity(date) || isDayInPast(date);
 
 // Computed for the currently chosen date in the booking form
 const selectedDayKey = computed(() => toDateKey(appointmentForm.value.dateTime));
@@ -280,7 +291,7 @@ const isRescheduleDayBlocked = computed(() => isRescheduleDayUnavailable.value |
 
 // Worst slot status for a day chip (based on whether any slot is full)
 const daySlotStatus = (date) => {
-  if (isDayUnavailable(date)) return "unavailable";
+  if (isDayUnavailable(date) || isDayInPast(date)) return "unavailable";
   if (isDayAtCapacity(date)) return "full";
 
   const d = new Date(date);
@@ -679,11 +690,12 @@ const bookAppointment = async () => {
   error.value = null;
   try {
     let patientId = appointmentForm.value.patientId;
-    if (isPatient.value) {
+    if (patientId) {
       if (!currentPatientRecord.value) throw new Error("Patient record not found. Please contact support.");
       patientId = currentPatientRecord.value.PatientID;
     }
     if (!patientId) throw new Error("Please select a patient");
+    if (isDayInPast(appointmentForm.value.dateTime)) throw new Error("Appointment date cannot be in the past.");
     if (isSelectedDayUnavailable.value) throw new Error("This date is marked as unavailable. Please choose a different day.");
     if (isSelectedDayAtCapacity.value)  throw new Error(`This day has reached its maximum capacity of ${clinicMaxPerDay.value} patients. Please choose a different day.`);
     if (isSelectedSlotFull.value) throw new Error("This 30-minute slot is fully booked. Please choose another time.");
@@ -718,6 +730,7 @@ const rescheduleAppointment = async () => {
   loading.value = true;
   error.value = null;
   try {
+    if (isDayInPast(appointmentForm.value.dateTime)) throw new Error("Appointment date cannot be in the past.");
     if (isRescheduleDayUnavailable.value) throw new Error("This date is marked as unavailable. Please choose a different day.");
     if (isRescheduleDayAtCapacity.value)  throw new Error(`This day has reached its maximum capacity of ${clinicMaxPerDay.value} patients. Please choose a different day.`);
     if (isRescheduleSlotFull.value) throw new Error("This 30-minute slot is fully booked. Please choose another time.");
@@ -1218,8 +1231,9 @@ onUnmounted(() => {
               'other-month': !cell.isCurrentMonth,
               'today-cell': cell.isToday,
               'unavailable-cell': isDayUnavailable(cell.date),
+              'past-cell': isDayInPast(cell.date) && !cell.isToday,
             }"
-            @click="cell.isCurrentMonth && !isDayUnavailable(cell.date) && openBookModal(cell.date)"
+            @click="cell.isCurrentMonth && !isDayBlocked(cell.date) && openBookModal(cell.date)"
           >
             <!-- Date number -->
             <div class="mc-date">
@@ -1332,7 +1346,14 @@ onUnmounted(() => {
                   </div>
                   <!-- Slot warning -->
                   <div
-                    v-if="appointmentForm.dateTime && isSelectedDayUnavailable"
+                    v-if="appointmentForm.dateTime && isDayInPast(appointmentForm.dateTime)"
+                    class="mt-2 slot-warning slot-warning-full"
+                  >
+                    <i class="bi bi-calendar-x"></i>
+                    <span>Appointment date <strong>cannot be in the past</strong>.</span>
+                  </div>
+                  <div
+                    v-else-if="appointmentForm.dateTime && isSelectedDayUnavailable"
                     class="mt-2 slot-warning slot-warning-full"
                   >
                     <i class="bi bi-calendar-x-fill"></i>
@@ -1459,7 +1480,14 @@ onUnmounted(() => {
                     {{ formatTimeOnly(endDateTime(appointmentForm.dateTime)?.toISOString()) }}
                   </div>
                   <div
-                    v-if="appointmentForm.dateTime && isRescheduleDayUnavailable"
+                    v-if="appointmentForm.dateTime && isDayInPast(appointmentForm.dateTime)"
+                    class="mt-2 slot-warning slot-warning-full"
+                  >
+                    <i class="bi bi-calendar-x"></i>
+                    Date <strong>cannot be in the past</strong>.
+                  </div>
+                  <div
+                    v-else-if="appointmentForm.dateTime && isRescheduleDayUnavailable"
                     class="mt-2 slot-warning slot-warning-full"
                   >
                     <i class="bi bi-calendar-x-fill"></i>
@@ -1669,6 +1697,8 @@ onUnmounted(() => {
 .slot-filling   { background-color: #fff8f0 !important; }
 .slot-full      { background-color: #f5f5f5 !important; cursor: not-allowed !important; }
 .slot-unavailable { background-color: #fff0f0 !important; border: 1px solid #f8d7da !important; color: #dc3545 !important; }
+.past-cell { cursor: not-allowed !important; opacity: 0.7; }
+.month-cell.past-cell .mc-date { color: #adb5bd; }
 
 /* ── Slot warning ── */
 .slot-warning {
