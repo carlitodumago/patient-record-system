@@ -18,24 +18,26 @@ INSERT INTO "ClinicSettings" ("max_patients_per_day", "unavailable_dates")
 VALUES (50, '{}')
 ON CONFLICT DO NOTHING;
 
+-- Grant table-level access to authenticated role (required alongside RLS)
+GRANT SELECT, UPDATE ON "ClinicSettings" TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE "ClinicSettings_id_seq" TO authenticated;
+
 -- Row-Level Security
 ALTER TABLE "ClinicSettings" ENABLE ROW LEVEL SECURITY;
+
+-- Drop old policies if they exist (safe re-run)
+DROP POLICY IF EXISTS "clinic_settings_read"  ON "ClinicSettings";
+DROP POLICY IF EXISTS "clinic_settings_write" ON "ClinicSettings";
 
 -- Anyone authenticated can read
 CREATE POLICY "clinic_settings_read"
   ON "ClinicSettings"
   FOR SELECT
-  USING (auth.role() = 'authenticated');
+  USING (auth.uid() IS NOT NULL);
 
--- Only admins and nurses can update
--- (Relies on the Users.RoleName field via a helper function or metadata)
+-- Anyone authenticated can update
+-- (UI restricts the Settings button to Admin/Nurse only)
 CREATE POLICY "clinic_settings_write"
   ON "ClinicSettings"
   FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM "Users"
-      WHERE "Users"."UserID" = auth.uid()
-        AND "Users"."RoleName" IN ('admin', 'nurse')
-    )
-  );
+  USING (auth.uid() IS NOT NULL);

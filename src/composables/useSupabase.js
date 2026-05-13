@@ -2354,21 +2354,28 @@ export const useSupabase = () => {
       loading.value = true;
       error.value = null;
       try {
-        const authStore = useAuthStore();
+        // Get the real Supabase Auth UUID (not the DB UserID)
+        const { data: sessionData } = await supabase.auth.getSession();
+        const authUid = sessionData?.session?.user?.id || null;
+
         const { data, error: err } = await supabase
           .from("ClinicSettings")
           .update({
             max_patients_per_day,
             unavailable_dates,
             updated_at: new Date().toISOString(),
-            updated_by: authStore.user?.id,
+            updated_by: authUid,
           })
           .eq("id", 1)
           .select()
           .single();
-        if (err) throw err;
+        if (err) {
+          console.error("[ClinicSettings] update error:", err);
+          throw err;
+        }
         return data;
       } catch (err) {
+        console.error("[ClinicSettings] updateSettings failed:", err);
         handleError(err);
         return null;
       } finally {

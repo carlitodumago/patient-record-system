@@ -409,7 +409,7 @@ const deleteRecord = async () => {
 };
 
 // Export functionality
-const exportRecord = (record) => {
+const exportRecord = (record, format = "txt") => {
   const exportData = {
     patientName: getPatientName(record),
     staffName: getStaffName(record),
@@ -421,6 +421,52 @@ const exportRecord = (record) => {
     status: record.Status || "",
   };
 
+  if (format === "csv") {
+    const headers = [
+      "Patient",
+      "Healthcare Provider",
+      "Date",
+      "Status",
+      "Diagnosis",
+      "Treatment",
+      "Notes",
+      "Blood Pressure",
+      "Heart Rate",
+      "Temperature",
+      "Weight",
+      "Height",
+    ];
+
+    const row = [
+      `"${exportData.patientName}"`,
+      `"${exportData.staffName}"`,
+      `"${exportData.date}"`,
+      `"${exportData.status}"`,
+      `"${exportData.diagnosis}"`,
+      `"${exportData.treatment}"`,
+      `"${exportData.notes.replace(/"/g, '""')}"`,
+      `"${exportData.vitalSigns.BloodPressure || ""}"`,
+      `"${exportData.vitalSigns.HeartRate || ""}"`,
+      `"${exportData.vitalSigns.Temperature || ""}"`,
+      `"${exportData.vitalSigns.Weight || ""}"`,
+      `"${exportData.vitalSigns.Height || ""}"`,
+    ];
+
+    const csvContent = [headers.join(","), row.join(",")].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `medical-record-${record.MedicalRecordID}-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    showSuccess("Record exported as CSV successfully!");
+    return;
+  }
+
+  // Default TXT export
   const exportText = `
 MEDICAL RECORD EXPORT
 =====================
@@ -463,18 +509,70 @@ Generated on: ${new Date().toLocaleString()}
   showSuccess("Record exported successfully!");
 };
 
-const exportAllRecords = () => {
+const exportAllRecords = (format = "txt") => {
   if (filteredRecords.value.length === 0) {
     showError("No records to export");
     return;
   }
 
+  if (format === "csv") {
+    const headers = [
+      "No.",
+      "Patient",
+      "Healthcare Provider",
+      "Date",
+      "Status",
+      "Diagnosis",
+      "Treatment",
+      "Notes",
+      "Blood Pressure",
+      "Heart Rate",
+      "Temperature",
+      "Weight",
+      "Height",
+    ];
+
+    const rows = filteredRecords.value.map((record, index) => {
+      const vs = record.VitalSigns || {};
+      return [
+        index + 1,
+        `"${getPatientName(record)}"`,
+        `"${getStaffName(record)}"`,
+        `"${formatDateTime(record.CreatedAt)}"`,
+        `"${record.Status || ""}"`,
+        `"${getDiagnosisName(record)}"`,
+        `"${getTreatmentName(record)}"`,
+        `"${(record.Notes || "").replace(/"/g, '""')}"`,
+        `"${vs.BloodPressure || ""}"`,
+        `"${vs.HeartRate || ""}"`,
+        `"${vs.Temperature || ""}"`,
+        `"${vs.Weight || ""}"`,
+        `"${vs.Height || ""}"`,
+      ].join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `medical-records-export-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    showSuccess(`Exported ${filteredRecords.value.length} records as CSV successfully!`);
+    return;
+  }
+
+  // Default TXT export
   let exportText = "MEDICAL RECORDS EXPORT\n======================\n\n";
 
   filteredRecords.value.forEach((record, index) => {
     exportText += `
 --- Record ${index + 1} ---
 Patient: ${getPatientName(record)}
+Healthcare Provider: ${getStaffName(record)}
 Date: ${formatDateTime(record.CreatedAt)}
 Status: ${record.Status || "N/A"}
 Diagnosis: ${getDiagnosisName(record)}
@@ -645,7 +743,16 @@ onUnmounted(() => {
               <a
                 class="dropdown-item"
                 href="#"
-                @click.prevent="exportAllRecords"
+                @click.prevent="exportAllRecords('csv')"
+              >
+                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export All (CSV)
+              </a>
+            </li>
+            <li>
+              <a
+                class="dropdown-item"
+                href="#"
+                @click.prevent="exportAllRecords('txt')"
               >
                 <i class="bi bi-file-earmark-text me-2"></i>Export All (TXT)
               </a>
@@ -853,13 +960,36 @@ onUnmounted(() => {
                     >
                       <i class="bi bi-pencil"></i>
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-success"
-                      @click="exportRecord(record)"
-                      title="Export Record"
-                    >
-                      <i class="bi bi-download"></i>
-                    </button>
+                    <div class="btn-group">
+                      <button
+                        class="btn btn-sm btn-outline-success dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        title="Export Record"
+                      >
+                        <i class="bi bi-download"></i>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <a
+                            class="dropdown-item py-1"
+                            href="#"
+                            @click.prevent="exportRecord(record, 'csv')"
+                          >
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                          </a>
+                        </li>
+                        <li>
+                          <a
+                            class="dropdown-item py-1"
+                            href="#"
+                            @click.prevent="exportRecord(record, 'txt')"
+                          >
+                            <i class="bi bi-file-earmark-text me-2"></i>TXT
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
                     <button
                       class="btn btn-sm btn-outline-secondary"
                       @click="printRecord(record)"
@@ -1006,12 +1136,35 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="modal-footer">
-            <button
-              class="btn btn-outline-success"
-              @click="exportRecord(selectedRecord)"
-            >
-              <i class="bi bi-download me-2"></i>Export
-            </button>
+            <div class="btn-group">
+              <button
+                class="btn btn-outline-success dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+              >
+                <i class="bi bi-download me-2"></i>Export
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="exportRecord(selectedRecord, 'csv')"
+                  >
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="exportRecord(selectedRecord, 'txt')"
+                  >
+                    <i class="bi bi-file-earmark-text me-2"></i>TXT
+                  </a>
+                </li>
+              </ul>
+            </div>
             <button
               class="btn btn-outline-secondary"
               @click="printRecord(selectedRecord)"
